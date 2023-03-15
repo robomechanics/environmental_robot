@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+	
+	<!-- open python gui -->
+	<node pkg="gps_navigation" type="gps_user_input.py" name="gps_user_input" output="screen">
+		<rosparam command="load" file="$(find gps_navigation)/config/wean_lawn.yaml"/>
+	</node>
+	
+	<!-- Run navigation -->
+	<node pkg="gps_navigation" type="gps_navigation.py" name="gps_navigation" output="screen"/>
+
+</launch>

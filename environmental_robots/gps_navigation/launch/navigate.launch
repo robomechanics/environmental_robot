@@ -1,0 +1,13 @@
+<launch>
+    <!-- Send a static GPS for map frame -->
+    <node pkg="rostopic" type="rostopic" name="map_gps_coord" args="pub /gps/fix sensor_msgs/NavSatFix --latch --file=$(find gps_navigation)/config/map1/mapCoord.gps" />
+
+    <!-- Start rviz with satellite view -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find gps_navigation)/config/map1/satelliteView.rviz"/>
+
+    <!-- Run navigation -->
+    <node pkg="gps_navigation" type="gps_navigation.py" name="gps_navigation" output="screen"/>
+
+    <!-- Static fake TF transform -->
+    <!--<node pkg="tf2_ros" type="static_transform_publisher" name="static_tf_fake" args="0 0 0 0 0 0 1 map base_link" />-->
+</launch>

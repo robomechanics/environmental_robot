@@ -1,0 +1,5 @@
+lr: 0.2 #distance from the rear tire to the center of mass 
+lf: 0.3 #distance from the front tire to the center of mass
+ca: 80 #cornering stiffness of each tire, this is a pure estimate
+g: 9.81 #gravity acceleration
+m: 4 #estimated vehicle mass 4kg

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+
+<launch>
+	<node name="camera" pkg="image_view" type="image_view" output="screen">
+	<!-- <remap from="image" to="/webcam_1/image_raw"/> -->
+	<param name="image_transport" value="theora"/>
+	</node>
+</launch>

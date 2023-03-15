@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+	
+	<!-- open python gui -->
+	<node pkg="gps_navigation" type="gps_user_input.py" name="navigation_gui" output="screen">
+		<rosparam command="load" file="$(find gps_navigation)/config/hebi_lot.yaml"/>
+	</node>
+
+</launch>

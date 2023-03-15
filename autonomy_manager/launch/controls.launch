@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="useJoy" default="false"/>
+    <arg name="useMicrostrain" default="false"/>
+    <arg name="useHebi" default="true"/>
+    <arg name="useLidar" default="false"/>
+    <arg name="useTeleop" default="false"/>
+
+    <!-- joy stick -->
+    <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
+	    <param name="dev" type="string" value="/dev/input/js0"/>
+	    <param name="autorepeat_rate" value="10"/>
+    </node>
+
+    <!-- lidar -->
+    <include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
+	    <arg name="sensor_hostname" value="10.10.1.111"/>
+	    <arg name="lidar_mode" value="512x10"/>
+	    <arg name="timestamp_mode" value="TIME_FROM_ROS_TIME"/>
+	    <arg name="viz" value="false"/>
+    </include>
+
+    <!-- hebi nodes -->
+    <rosparam file="$(find hebi_cpp_api_examples)/config/wheelie_params.yaml" command="load" />
+    <node name="base_node" pkg="hebi_cpp_api_examples" type="wheelie_node" if="$(arg useHebi)"/>
+    <node name="mobile_io_teleop" pkg="gps_navigation" type="hebi_teleop.py" if="$(arg useHebi)" >
+        <remap from="~cmd_vel" to="/cmd_vel"/>
+    </node>
+
+    <node name="tool_interface" pkg="gps_navigation" type="tool_arms_ctrl.py" if="$(arg useHebi)"/>
+    <node name="pan_tilt_ctrl" pkg="gps_navigation" type="pan_tilt_ctrl.py" if="$(arg useHebi)"/>
+
+    <!-- gps driver -->
+    <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)"/>
+
+    <!-- throttle /nav/odom and /nav/heading for gui stability -->
+    <node name="odom_throttler" pkg="topic_tools" type="throttle" args="messages /nav/odom 5.0"/>
+    <node name="heading_throttler" pkg="topic_tools" type="throttle" args="messages /nav/heading 5.0"/>
+
+    <!-- vanta pxrf -->
+    <node name="pxrf_driver" pkg="pxrf" type="main" />
+    <node name="pxrf_manager" pkg="pxrf" type="pxrf_manager.py" />
+
+    <!-- rake and scan -->
+    <node name="rake_scan_teleop" pkg="rake_scan" type="teleop.py" output="screen" if="$(arg useTeleop)"/>
+    <node name="teleop_drive" pkg="autonomy_manager" type="teleop_drive.py" output="screen" if="$(arg useTeleop)"/>
+    
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0 0 0 0 0 0 1 map odom" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link3_broadcaster" args="0 0 0.65 0 0 0 -1 base_link os_sensor" />
+    <!--node pkg="tf2_ros" type="static_transform_publisher" name="link4_broadcaster" args="0 0 0 0 0 0 1 odom base_footprint" /-->
+</launch>
