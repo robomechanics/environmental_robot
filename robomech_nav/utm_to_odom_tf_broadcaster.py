@@ -54,6 +54,7 @@ pose_UTM_covariance = geometry_msgs.msg.PoseWithCovariance()
 pose_Odom = geometry_msgs.msg.Pose()
 pose_Odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 
+quatRaw = tf.transformations.random_quaternion()
 quat = tf.transformations.random_quaternion()
 
 test = 1234
@@ -79,7 +80,6 @@ def utm_broadcaster(data):
 	global y_UTM_start
 
 	global theta_declination
-	global currentSample
 	global numSamples
 
 	global lat_array
@@ -87,6 +87,11 @@ def utm_broadcaster(data):
 
 	global thetaHeading
 	global thetaStart
+	
+	global quatRaw
+	global quat
+	
+	global eulers
 
 	global pose_UTM
 	global pose_UTM_covariance
@@ -127,7 +132,13 @@ def utm_broadcaster(data):
 		XY_UTM_start = transformer.transform(lat_GPS_start,lon_GPS_start)
 		x_UTM_start = XY_UTM_start[0]
 		y_UTM_start = XY_UTM_start[1]
-		thetaStart = data.pose.pose.position.z
+		quatRaw[0] = data.pose.pose.orientation.x
+		quatRaw[1] = data.pose.pose.orientation.y
+		quatRaw[2] = data.pose.pose.orientation.z
+		quatRaw[3] = data.pose.pose.orientation.w
+		eulers =  tf.transformations.euler_from_quaternion(quatRaw,'sxyz')
+		#print(eulers)
+		thetaStart = eulers[2] + 3.1415
 		
 		firstTime = False
 	
@@ -138,9 +149,15 @@ def utm_broadcaster(data):
 	x_UTM = XY_UTM[0]
 	y_UTM = XY_UTM[1]
 	
-	thetaHeading = data.pose.pose.position.z
+	quatRaw[0] = data.pose.pose.orientation.x
+	quatRaw[1] = data.pose.pose.orientation.y
+	quatRaw[2] = data.pose.pose.orientation.z
+	quatRaw[3] = data.pose.pose.orientation.w
+	eulers =  tf.transformations.euler_from_quaternion(quatRaw,'sxyz')
+	#print(eulers)
+	thetaHeading = eulers[2] + 3.1415
 	
-	quat = tf.transformations.quaternion_from_euler(0,0,thetaHeading,'ryxz')
+	quat = tf.transformations.quaternion_from_euler(0,0,thetaHeading,'rxyz')
 	
 	# Creating a pose message for UTM
 	pose_UTM.position.x = x_UTM
@@ -163,8 +180,8 @@ def utm_broadcaster(data):
 	pose_Odom_covariance.pose = pose_Odom
 	
 	#Formatting the Odom message
-	Odom.header.stamp = rospy.Time.now()
-	Odom.header.frame_id = "odom_utm"
+	Odom.header.stamp = data.header.stamp
+	Odom.header.frame_id = "utm_odom2"
 	Odom.child_frame_id = "base_link"
 	Odom.pose = pose_Odom_covariance
 	
@@ -175,35 +192,42 @@ def utm_broadcaster(data):
 	y = Odom.pose.pose.position.y
 	z = Odom.pose.pose.position.z
 	
-	xr = Odom.pose.pose.orientation.x
-	yr = Odom.pose.pose.orientation.y
-	zr = Odom.pose.pose.orientation.z
-	wr = Odom.pose.pose.orientation.w
+	#xr = Odom.pose.pose.orientation.x
+	#yr = Odom.pose.pose.orientation.y
+	#zr = Odom.pose.pose.orientation.z
+	#wr = Odom.pose.pose.orientation.w
 	
 	# Creating a transform and its broadcaster
 	br = tf2_ros.TransformBroadcaster()
+	t = geometry_msgs.msg.TransformStamped()
 	
 	t.header.stamp = data.header.stamp
-	t.header.frame_id = "base_link"
-	t.child_frame_id = "utm_odom"
+	t.header.frame_id = "utm_odom2"
+	t.child_frame_id = "base_link"
 	
-	t.transform.translation.x = -x
-	t.transform.translation.y = -y
-	t.transform.translation.z = -z
+	t.transform.translation.x = (x_UTM - x_UTM_start)
+	t.transform.translation.y = (y_UTM - y_UTM_start)
+	t.transform.translation.z = 0
 	
-	quatInv = tf.transformations.quaternion_inverse((xr,yr,zr,wr))
+	quatInv = tf.transformations.quaternion_inverse(quat)
 	
-	t.transform.rotation.x = quatInv[0]
-	t.transform.rotation.y = quatInv[1]
-	t.transform.rotation.z = quatInv[2]
-	t.transform.rotation.w = quatInv[3]
-	br.sendTransform(t)
+	t.transform.rotation.x = quat[0]#quatInv[0]
+	t.transform.rotation.y = quat[1]#quatInv[1]
+	t.transform.rotation.z = quat[2]#quatInv[2]
+	t.transform.rotation.w = quat[3]#quatInv[3]
+	
+	tInv = tf.transformations.inverse_matrix(t)
+	tInv.header.stamp = data.header.stamp
+	tInv.header.frame_id = "base_link"
+	tInv.child_frame_id = "utm_odom2"
+	
+	br.sendTransform(tInv)
 
 if __name__ == '__main__':
 	# Initiate ros subscriber and publisher
-	rospy.init_node('utm_node', anonymous=True)
-	utm_odom_pub = rospy.Publisher("utm_odom", Odometry, queue_size=50)
-	gps_listener = rospy.Subscriber("/gnss1/odom", Odometry, utm_broadcaster)
+	rospy.init_node('utm_node2', anonymous=True)
+	utm_odom_pub = rospy.Publisher("utm_odom2", Odometry, queue_size=1)
+	gps_listener = rospy.Subscriber("/nav/odom", Odometry, utm_broadcaster)
 	
 	utm_odom_pub.publish(Odom)
 	rospy.spin()

@@ -22,7 +22,7 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-
+from autonomy_manager.srv import NavigateGPS
 #testing
 lat_set = 0
 lon_set = 0
@@ -96,7 +96,7 @@ class GpsNavigationGui:
         img = pg.ImageItem(self.satMap.map_array)
         img.setBorder({'color': 'b', 'width': 3})
         self.click_plot.addItem(img)
-        self.click_plot.showAxes(True)
+        #self.click_plot.showAxes(True)
         self.click_plot.setAspectLocked()
         self.click_plot.invertY()
 
@@ -140,7 +140,7 @@ class GpsNavigationGui:
 
         # ros services
         self.parking_brake = rospy.ServiceProxy('/parking_brake', SetBool)
-
+        self.nextPoint = rospy.Service('next_goal', NavigateGPS, self.on_next_goal_update)
         #############################################
         # add buttons
         self.setup_widgets()
@@ -155,8 +155,9 @@ class GpsNavigationGui:
         self.location_sub = rospy.Subscriber('/gnss1/fix', NavSatFix, self.on_gps_update)
         #self.heading_sub = rospy.Subscriber('/nav/heading', FilterHeading, self.on_heading_update)
         self.odom_sub = rospy.Subscriber('/nav/odom_throttle', Odometry, self.on_odom_update) # plotRobotPosition
-        self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
-
+        #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
+        
+        #rospy.spin()
     def add_marker_at(self, lat: float, lon: float, label=None, size=20):
         pos = self.satMap.coord2Pixel(lat, lon)
 
@@ -231,7 +232,7 @@ class GpsNavigationGui:
         clearBoundaryBtn = QtWidgets.QPushButton('Clear Boundary')
         clearBoundaryBtn.setStyleSheet("background-color : orange")
         clearBoundaryBtn.clicked.connect(self.clearBoundary)
-        self.adatpive = False
+        self.adaptive = False
         self.adaptiveBtn = QtWidgets.QPushButton('Start Adaptive')
         self.adaptiveBtn.setStyleSheet("background-color : orange")
         self.adaptiveBtn.clicked.connect(self.toggleAdaptive)
@@ -481,7 +482,7 @@ class GpsNavigationGui:
 
     # This function is called by subscriber of gps sensor
     def on_odom_update(self,data: Odometry):
-        print('Incoming Odom')
+        #print('Incoming Odom')
         lat = data.pose.pose.position.x
         lon = data.pose.pose.position.y
 
@@ -518,14 +519,24 @@ class GpsNavigationGui:
             self.statusGPS.setText("GPS connecting")
 
     # This function updates the goal and displays it on the map
-    def on_next_goal_update(self, data: NavSatFix):
-        if self.adaptive or self.grid:
-            x_loc = self.gps_to_pixels(data.longitude)
-            y_loc = self.gps_to_pixels(data.latitude)
-            self.pathPlot.setData(x = x_loc, y = y_loc)
+    def on_next_goal_update(self, req: NavigateGPS):
+        
+        if self.adaptive or self.grid or True: #remove this later
+            #x_loc = self.gps_to_pixels(req.goal_lon)
+            #y_loc = self.gps_to_pixels(req.goal_lat)
+            self.pathGPS.append([req.goal_lat, req.goal_lon])
+            self.gps_to_pixels()
+
+            #self.pathPlot.setData(x = x_loc, y = y_loc)
+       
+            x, y = zip(*self.pathPlotPoints)
+            self.pathPlot.setData(x=list(x), y=list(y))
             self.pathRoi.setPoints([])
-            self.addROIPoint(x_loc, y_loc)
+            self.pathPlotPoints = []
+            #self.pathRoi.setPoints([])
+            #self.addROIPoint(x_loc, y_loc)
             self.updateGoalMarker()
+            return True
 
     #this function checks status of navigation controller
     def readNavigation(self,data: PoseStamped):
