@@ -8,7 +8,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from scipy.stats import *
 from math import *
-from environmentGeneration import *
+#from environmentGeneration import *
 from postProcessing import *
 import copy
 from scipy.stats import norm
@@ -44,9 +44,6 @@ class adaptiveROS:
         self.delta = 0.6
         self.dim = 2
         self.beta = 2*log(self.dim*((self.path_len+1)**2)*(pi**2)/(6*self.delta))
-
-        if simu:
-            self.distribution_map, self.hotspot_map = generateRandomDistribution(map_size=(sizex, sizey), density=0.2, heterogeneity = 0.5, random_seed=5)
 
     def update(self, x, y, val):
         self.sampled.append([x,y])

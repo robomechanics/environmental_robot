@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="useJoy" default="false"/>
-    <arg name="useMicrostrain" default="false"/>
+    <arg name="useJoy" default="true"/>
+    <arg name="useMicrostrain" default="true"/>
     <arg name="useHebi" default="true"/>
-    <arg name="useLidar" default="false"/>
-    <arg name="useTeleop" default="false"/>
+    <arg name="useLidar" default="true"/>
+    <arg name="useTeleop" default="true"/>
 
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
@@ -31,7 +31,9 @@
     <node name="pan_tilt_ctrl" pkg="gps_navigation" type="pan_tilt_ctrl.py" if="$(arg useHebi)"/>
 
     <!-- gps driver -->
-    <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)"/>
+    <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)">
+        <arg name="params_file" value="$(find autonomy_manager)/config/hebi_microstrain.yaml"/>
+    </include>
 
     <!-- throttle /nav/odom and /nav/heading for gui stability -->
     <node name="odom_throttler" pkg="topic_tools" type="throttle" args="messages /nav/odom 5.0"/>
@@ -46,7 +48,7 @@
     <node name="teleop_drive" pkg="autonomy_manager" type="teleop_drive.py" output="screen" if="$(arg useTeleop)"/>
     
     <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
-    <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0 0 0 0 0 0 1 map odom" />
+    <!--node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0 0 0 0 0 0 1 map odom" /-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="link3_broadcaster" args="0 0 0.65 0 0 0 -1 base_link os_sensor" />
     <!--node pkg="tf2_ros" type="static_transform_publisher" name="link4_broadcaster" args="0 0 0 0 0 0 1 odom base_footprint" /-->
 </launch>

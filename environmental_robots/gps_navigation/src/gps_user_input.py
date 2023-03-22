@@ -22,7 +22,7 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-from autonomy_manager.srv import NavigateGPS
+from autonomy_manager.srv import NavigateGPS, DeployAutonomy
 #testing
 lat_set = 0
 lon_set = 0
@@ -347,7 +347,15 @@ class GpsNavigationGui:
         self.boundaryPlot.setData(x=[], y=[])
         self.pathPlot.setData(x=[], y=[])
         self.updateGoalMarker()
-        
+    
+    # this is a utility function to pass the boundary points
+    def sendBoundary(self, boundary):
+        rospy.wait_for_service('/autonomy_manager/depoly_autonomy')
+        try:
+            sendBoundary = rospy.ServiceProxy('/autonomy_manager/deploy_autonomy', DeployAutonomy)
+            res = sendBoundary(boundary)
+        except rospy.ServiceException:
+            print("boundary sent unsuccessfully")
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
             if self.editPathMode:
