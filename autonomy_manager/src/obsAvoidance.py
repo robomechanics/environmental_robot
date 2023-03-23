@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#/usr/bin/env python3
 import rospy
 from geometry_msgs.msg import Twist, Pose
 from std_srvs.srv import SetBool, SetBoolRequest
@@ -6,7 +6,6 @@ from std_msgs.msg import Float64, Header
 from nav_msgs.msg import Odometry, OccupancyGrid
 import numpy as np
 import matplotlib as plt 
-f
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 
@@ -43,7 +42,8 @@ class obsAvoidance(object):
 		rospy.spin()	
 
 	def odomCallback(self, data):
-		self.pose = data.pose
+			
+		self.pose = data.pose.pose
 		self.time = data.header.stamp
 		# get the current position of the robot
 
@@ -59,7 +59,8 @@ class obsAvoidance(object):
 		grid.info.resolution = 0.1  # resolution in meters
 		grid.info.width = len(cost_map_2d[0])
 		grid.info.height = len(cost_map_2d)
-		grid.info.origin.pose = self.pose
+		grid.info.origin.position = self.pose.position
+		grid.info.origin.orientation = self.pose.orientation
 		
 		flat_map = [cell for row in cost_map_2d for cell in row]
 		
@@ -70,7 +71,8 @@ class obsAvoidance(object):
 	
 	def obsMap(self, data):
 		env = []
-		localMap = np.full((self.mapx, self.mapy), 0)
+		print(self.mapx)
+		localMap = np.full((round(self.mapx), round(self.mapy)), 0)
 		for point in pc2.read_points(data, skip_nans=True):
 			# if the obstacle height is lower, then skip
 			if point[2] < self.heightThreshLow or point[2] > self.heightThreshHigh:
@@ -88,8 +90,6 @@ class obsAvoidance(object):
 
 		og = self.create_occupancy_grid(costMap)
 		self.cost_map_pub.publish(og)
-
-			
 		#env.append(env)
 	
 if __name__ == '__main__':
