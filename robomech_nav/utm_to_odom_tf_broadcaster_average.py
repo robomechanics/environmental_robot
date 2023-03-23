@@ -23,6 +23,7 @@ utmDefault = 'EPSG:32617'
 nPoints = 0
 lat_list = []
 lon_list = []
+thetaOffset = 0
 
 #get the zone based on the location
 def get_zone(posx, posy):
@@ -55,9 +56,11 @@ def utm_broadcaster(data):
 	global nPoints
 	global lat_list
 	global lon_list
+	global thetaOffset
 	
 	#initialization
 	Odom = Odometry()
+	OdomTF = Odometry()
 	pose_Odom = geometry_msgs.msg.Pose()
 	pose_Odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 	quatRaw = [0,0,0,0]	
@@ -89,10 +92,9 @@ def utm_broadcaster(data):
 	quatRaw[3] = data.pose.pose.orientation.w
 	eulers =  tf.transformations.euler_from_quaternion(quatRaw,'sxyz') #sxyz
 	#print(eulers)
-	#thetaHeading = eulers[2] +(-65.0)/180*np.pi
 	thetaHeading = eulers[2]
 	#thetaHeading = np.arctan2(np.sin(thetaHeading), np.cos(thetaHeading))
-	thetaHeading = np.mod(np.arctan2(np.sin(thetaHeading),np.cos(thetaHeading))-(np.pi/3.0),2*np.pi)
+	thetaHeading = np.mod(np.arctan2(np.sin(thetaHeading),np.cos(thetaHeading))+(thetaOffset),2*np.pi)
 	print(thetaHeading/np.pi*180)
 	
 	quat = tf.transformations.quaternion_from_euler(0,0,thetaHeading,'sxyz')
@@ -112,6 +114,15 @@ def utm_broadcaster(data):
 	Odom.header.frame_id = "utm_odom2"
 	Odom.child_frame_id = "base_link"
 	Odom.pose = pose_Odom_covariance
+	
+	#Formatting the Odom TF message
+	OdomTF.header.stamp = data.header.stamp
+	#print(data.header.stamp)
+	OdomTF.header.frame_id = "utm_odom2"
+	OdomTF.child_frame_id = "base_link"
+	OdomTF.pose.pose.position.x = x_UTM_start
+	OdomTF.pose.pose.position.y = y_UTM_start
+	OdomTf.pose.pose.orientation = quat
 	
 	# Transformation matrix	
 	g = np.array([[np.cos(thetaHeading), -np.sin(thetaHeading), 0, (x_UTM - x_UTM_start)], [np.sin(thetaHeading), np.cos(thetaHeading), 0, (y_UTM - y_UTM_start)], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
@@ -141,12 +152,15 @@ def utm_broadcaster(data):
 	
 	# Publishing the Odom message and transformation
 	utm_odom_pub.publish(Odom)
+	transform_pub.publish(OdomTF)
+	print(OdomTF)
 	br.sendTransform(t)
 
 if __name__ == '__main__':
 	# Initiate ros subscriber and publisher
 	rospy.init_node('utm_node2', anonymous=True)
 	utm_odom_pub = rospy.Publisher("utm_odom2", Odometry, queue_size=1)
+	transform_pub = rospy.Publisher("transform_data", Odometry, queue_size=1)
 	gps_listener = rospy.Subscriber("/nav/odom", Odometry, utm_broadcaster)
 	rospy.spin()
 
