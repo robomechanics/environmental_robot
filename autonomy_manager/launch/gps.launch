@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="useMicrostrain" default="true"/>
+
+    <!-- gps driver -->
+    <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)">
+        <arg name="params_file" value="$(find autonomy_manager)/config/hebi_microstrain.yaml"/>
+    </include>
+
+    <!-- throttle /nav/odom and /nav/heading for gui stability -->
+    <node name="odom_throttler" pkg="topic_tools" type="throttle" args="messages /nav/odom 5.0"/>
+    <node name="heading_throttler" pkg="topic_tools" type="throttle" args="messages /nav/heading 5.0"/>
+</launch>

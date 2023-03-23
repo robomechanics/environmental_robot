@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="useJoy" default="true"/>
-    <arg name="useMicrostrain" default="true"/>
+    <arg name="useJoy" default="false"/>
+    <arg name="useMicrostrain" default="false"/>
     <arg name="useHebi" default="true"/>
     <arg name="useLidar" default="true"/>
-    <arg name="useTeleop" default="true"/>
+    <arg name="useTeleop" default="false"/>
 
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">

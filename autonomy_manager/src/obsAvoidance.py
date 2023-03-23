@@ -2,8 +2,8 @@
 import rospy
 from geometry_msgs.msg import Twist
 from std_srvs.srv import SetBool, SetBoolRequest
-from std_msgs.msg import Float64
-from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64, Header
+from nav_msgs.msg import Odometry, OccupancyGrid
 import numpy as np
 import matplotlib as plt 
 from sensor_msgs.msg import PointCloud2
