@@ -94,17 +94,8 @@ class gps_navigation():
 
         # calculate robot position and heading
         robotPos = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
-        #quat = data.pose.pose.orientation
-        #r = R.from_quat([quat.x,quat.y,quat.z,quat.w])
-        #xVec = r.as_dcm()[:,0]
-        #robotHeading = np.mod(atan2(xVec[1],xVec[0])+np.pi/3.0,2*np.pi)
-        #self.psi = robotHeading
-        # run navigation
         relGoal = self.goalPos - robotPos
         print('----Navigating----')
-        #print('relative goal: '+ str(relGoal))
-        #relGoal[1] = relGoal[1]*np.cos(robotPos[0]*np.pi/180)
-        #print('relative goal scaled: ' +str(relGoal))
         
         #define tolerance
         if np.linalg.norm(relGoal)<1e-5:
@@ -175,21 +166,11 @@ class PIDController():
         I_angle = 0.08
         D_angle = 0.05
         scaling = 2e3 
-
-        #error_dist = V_desire - vdot
-        #print(error_dist)
-        #error_dist_cum = error_dist * dt + error_dist_cum
-        #error_dist_diff = (error_dist - error_dist_prev) / dt
-        #error_dist_prev = error_dist
-        #throttle = (P_dist * error_dist + I_dist * error_dist_cum + D_dist * error_dist_diff)
-        #comment out / this is constant speed
-
-        #throttle = 0.3
         
         #throttle should be a function of distance to the goal location
         throttle = scaling*(np.linalg.norm((np.array([goal[0] - X, goal[1] - Y]))))
         print("Original throttle:" + str(throttle))
-        throttle = max(min(throttle, 0.6),0.15)
+        throttle = max(min(throttle, 0.4),0.15)
         #Longitudal Controller
 
         #get the next point to go = to do
@@ -220,88 +201,6 @@ class PIDController():
         print("angle command: " + str(delta))
         print("Throttle command: " + str(throttle))
         return -delta,throttle #reverse the direction of the angle controller
-
-#currently, LQR controller is not used due to some tuning issues but the infrastructure is developed for the future use.
-class LQRController():
-    def __init__(self,traj):
-        #try to get the vehicle information
-        try:
-            self.lr = rospy.get_param('~lr')
-            self.lf = rospy.get_param('~lf')
-            self.m = rospy.get_param('~m')
-            self.ca = rospy.get_param('~ca')
-            self.g = rospy.get_param('~g')
-
-        except:
-            print("couldn't find yaml file. load default parameters")
-            self.lr = 0.2
-            self.lf = 0.3
-            self.ca = 80
-            self.g  = 9.81
-            self.m = 4
-        self.error1_prev = 0
-        self.error2_prev = 0
-        self.error_dist_cum = 0
-        self.error_dist_prev = 0
-
-    def update(self, traj):
-        traj = self.traj
-        lr = self.lr
-        lf = self.lf
-        ca = self.ca
-        m = self.m
-        g = self.g
-        error_dist_cum = self.error_dist_cum
-        error_dist_prev = self.error_dist_prev
-        error_angle_cum = self.error_angle_cum
-        error_angle_prev = self.error_angle_prev
-        # PID Tuning parameters
-        P_dist = 0.8
-        I_dist = 0.6
-        D_dist = 0.2
-        P_angle = 0.6
-        I_angle = 0.0
-        D_angle = 0.4
-        V_desire = 10
-
-        #get updated states, need to be implemented
-        #dt time step
-
-        #Lateral Controller
-        error_dist = V_desire - vdot
-        error_dist_cum = error_dist * dt + error_dist_cum
-        error_dist_diff = (error_dist - error_dist_prev) / dt
-        error_dist_prev = error_dist
-        throttle = (P_dist * error_dist + I_dist * error_dist_cum + D_dist * error_dist_diff)
-
-        #Longitudal Controller
-
-        #get the next point to go = to do
-        angle_desire = np.arctan2((traj[index][1] - Y),(traj[index][0] - X))
-        e1 = point #this is the next point
-        e1_dot = (e1 - error1_prev) / dt
-        e2 = wrapTopi(-angle_desire + psi)
-        e2_dot = (e2 - error2_prev ) / dt
-        A = np.matrix([[0, 1, 0, 0], [0, -(4 * ca / (m * xdot)), (4 * ca / m), -(2 * ca * (lf - lr) / (m * xdot))], [0, 0, 0, 1], [0, -(2 * ca * (lf - lr) / (z * xdot)), (2 * ca * (lf - lr) / Z), -(2 * ca * (lf ** 2 + lr ** 2)) / (Z * xdot), 0]])
-        B = np.matrix([[0 , 0], [(2 * ca / m), 0], [0, 0], [(2 * ca * lf / Z), 0]])
-        C = np.identity(4)
-        D = 0 
-        d_system = signal.cont2discrete((A, B, C, D), dt)
-        A_dis = d_system[0]
-        B_dis = d_system[1]
-
-        #Tunable
-        Q = np.matrix([[0.1, 0, 0, 0],[0, 0.1, 0, 0],[0, 0, 20, 0],[0, 0, 0, 6]])
-        R = np.matrix([[1,0],[0,2]])
-        S = np.matrix(linalg.solve_discrete_are(A_dis, B_dis, Q, R))
-        K = np.matrix(linalg.inv(B_dis.T@S@B + R) @ (B_dis.T@S@A_dis))
-        error_angle_cum = error_angle * dt + error_angle_cum
-        error_angle_diff = (error_angle - error_angle_prev) / dt
-        error_angle_prev = error_angle
-        delta = (P_angle * error_angle + I_angle * error_angle_cum + D_angle * error_angle_diff)
-
-        return delta,throttle
-
 
 if __name__ == '__main__':
     gps_navigation()

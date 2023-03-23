@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib as plt 
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
+import tf
+import tf2_ros, tf2_geometry_msgs
 
 class obsAvoidance(object):
 	def __init__(self):
@@ -49,7 +51,7 @@ class obsAvoidance(object):
 
 	def create_occupancy_grid(self, cost_map_2d):
 		grid = OccupancyGrid()
-		
+
 		# Customize the header information
 		grid.header = Header()
 		grid.header.stamp = self.time
@@ -73,6 +75,12 @@ class obsAvoidance(object):
 		env = []
 		print(self.mapx)
 		localMap = np.full((round(self.mapx), round(self.mapy)), 0)
+		br = tf2_ros.TransformBroadcaster()
+		t = geometry_msgs.msg.TransformStamped()
+		t.header.stamp = self.time
+		t.header.frame_id = "costmap_frame"
+		t.child_frame_id = "base_link"
+		
 		for point in pc2.read_points(data, skip_nans=True):
 			# if the obstacle height is lower, then skip
 			if point[2] < self.heightThreshLow or point[2] > self.heightThreshHigh:
@@ -90,6 +98,7 @@ class obsAvoidance(object):
 
 		og = self.create_occupancy_grid(costMap)
 		self.cost_map_pub.publish(og)
+		br.sendTransform(t)
 		#env.append(env)
 	
 if __name__ == '__main__':
