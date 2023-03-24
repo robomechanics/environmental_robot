@@ -1,11 +1,6 @@
 #/usr/bin/env python3
 import numpy as np
 
-
-
-
-
-
 # for testing purpose only
 obstacle_map = np.array([
     [0, 0, 0, 0, 0, 0, 0],
