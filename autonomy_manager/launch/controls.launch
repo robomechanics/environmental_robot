@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="useJoy" default="false"/>
-    <arg name="useMicrostrain" default="false"/>
+    <arg name="useJoy" default="true"/>
+    <arg name="useMicrostrain" default="true"/>
     <arg name="useHebi" default="true"/>
     <arg name="useLidar" default="true"/>
     <arg name="useTeleop" default="false"/>
