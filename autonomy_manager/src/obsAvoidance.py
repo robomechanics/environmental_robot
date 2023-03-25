@@ -11,6 +11,7 @@ from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 import tf
 import tf2_ros, tf2_geometry_msgs
+import bugAlgo
 
 class obsAvoidance(object):
         def __init__(self):
@@ -18,6 +19,8 @@ class obsAvoidance(object):
                 rospy.Subscriber('/ouster/points', PointCloud2, self.obsMap)
                 self.cost_map_pub = rospy.Publisher('/costmap', OccupancyGrid, queue_size=1)
                 rospy.Subscriber('/utm_odom2', Odometry, self.odomCallback)
+                rospy.Subscriber('/cmd_vel/managed', Twist, self.obsAvoidance)
+                rospy.Publisher('/cmd_vel', Twist, queue_size=1)
                 self.staticBr = tf2_ros.StaticTransformBroadcaster()
 
                 #define class variables
@@ -41,6 +44,8 @@ class obsAvoidance(object):
                 #pose
                 self.pose = Pose()
                 self.time = None 
+
+                self.map = None
                 rospy.spin()    
 
         def odomCallback(self, data):
@@ -115,13 +120,27 @@ class obsAvoidance(object):
                 
                 #localMap = np.flipud(localMap) 
                 costMap = (localMap > self.threshold).astype(int)
-                
+                self.map = costMap
                 print(costMap)
                 og = self.create_occupancy_grid(np.flipud(costMap))
                 self.cost_map_pub.publish(og)
                 self.staticBr.sendTransform(t)
                 #env.append(env)
-        
+
+        def obsAvoidance(self, data):
+                P_gain = 0.5
+                #extract the linear velocity and angular velocity
+                linear = data.linear.x
+                angular = data.angular.z
+                cmd = Twist()
+                density = bugAlgo.forwardSection(self.map)
+                
+                if linear > 0:
+                        if density[1] > bugAlgo.forward_tol:
+                                if density[0] > density[2]:
+                                        cmd.angular.z = -max(abs(density[0] - density[2]) * P_gain, 0.4)
+                                else:
+                                        cmd.angular.z = max(abs(density[0] - density[2]) * P_gain, 0.4)
 if __name__ == '__main__':
         try:
                 obsAvoidance()
