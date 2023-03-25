@@ -32,6 +32,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
   <!-- <arg name="base_local_planner" default="base_local_planner/TrajectoryPlannerROS"/> -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
     <remap from="/odom" to="/utm_odom2" />
+    <remap from="/cmd_vel" to="/cmd_vel_auto" />
     <param name="base_global_planner" value="$(arg base_global_planner)"/>
     <param name="base_local_planner" value="$(arg base_local_planner)"/>  
     <rosparam file="$(find robomech_nav)/husky/planner.yaml" command="load"/>
@@ -42,8 +43,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
 
     <!-- local costmap, needs size -->
     <rosparam file="$(find robomech_nav)/husky/costmap_local.yaml" command="load" ns="local_costmap" />
-    <param name="local_costmap/width" value="10.0"/>
-    <param name="local_costmap/height" value="10.0"/>
+    <param name="local_costmap/width" value="6.0"/>
+    <param name="local_costmap/height" value="6.0"/>
 
     <!-- static global costmap, static map provides size -->
     <rosparam file="$(find robomech_nav)/husky/costmap_global_static.yaml" command="load" ns="global_costmap" unless="$(arg no_static_map)"/>

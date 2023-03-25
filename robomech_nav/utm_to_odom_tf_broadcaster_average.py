@@ -23,7 +23,7 @@ utmDefault = 'EPSG:32617'
 nPoints = 0
 lat_list = []
 lon_list = []
-thetaOffset = 0
+thetaOffset = -120
 
 #get the zone based on the location
 def get_zone(posx, posy):
@@ -60,7 +60,7 @@ def utm_broadcaster(data):
 	
 	#initialization
 	Odom = Odometry()
-	OdomTF = Odometry()
+	OdomStart = Odometry()
 	pose_Odom = geometry_msgs.msg.Pose()
 	pose_Odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 	quatRaw = [0,0,0,0]	
@@ -116,13 +116,12 @@ def utm_broadcaster(data):
 	Odom.pose = pose_Odom_covariance
 	
 	#Formatting the Odom TF message
-	OdomTF.header.stamp = data.header.stamp
+	OdomStart.header.stamp = data.header.stamp
 	#print(data.header.stamp)
-	OdomTF.header.frame_id = "utm_odom2"
-	OdomTF.child_frame_id = "base_link"
-	OdomTF.pose.pose.position.x = x_UTM_start
-	OdomTF.pose.pose.position.y = y_UTM_start
-	OdomTf.pose.pose.orientation = quat
+	OdomStart.header.frame_id = "utm_odom2"
+	OdomStart.child_frame_id = "base_link"
+	OdomStart.pose.pose.position.x = x_UTM_start
+	OdomStart.pose.pose.position.y = y_UTM_start
 	
 	# Transformation matrix	
 	g = np.array([[np.cos(thetaHeading), -np.sin(thetaHeading), 0, (x_UTM - x_UTM_start)], [np.sin(thetaHeading), np.cos(thetaHeading), 0, (y_UTM - y_UTM_start)], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
@@ -152,15 +151,15 @@ def utm_broadcaster(data):
 	
 	# Publishing the Odom message and transformation
 	utm_odom_pub.publish(Odom)
-	transform_pub.publish(OdomTF)
-	print(OdomTF)
+	start_pub.publish(OdomStart)
+	print(OdomStart)
 	br.sendTransform(t)
 
 if __name__ == '__main__':
 	# Initiate ros subscriber and publisher
 	rospy.init_node('utm_node2', anonymous=True)
 	utm_odom_pub = rospy.Publisher("utm_odom2", Odometry, queue_size=1)
-	transform_pub = rospy.Publisher("transform_data", Odometry, queue_size=1)
+	start_pub = rospy.Publisher("utm_start", Odometry, queue_size=1,latch=True)
 	gps_listener = rospy.Subscriber("/nav/odom", Odometry, utm_broadcaster)
 	rospy.spin()
 

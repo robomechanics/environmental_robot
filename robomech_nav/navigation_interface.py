@@ -26,45 +26,66 @@ class NavigationInterface(object):
 	
 		rospy.init_node('NavigationInterfaceNode')
 		
+		self.useDummyValues = True
+		self.dummyMatrix = np.array([[0,5,5,5,5,0,0,0]])
+		self.obstacleCounter = 0
 		self.NavigationStatus = 0
-		self.managerListener = rospy.Subscriber("/target_odom", Odometry, listener1)
-		self.transformListener = rospy.Subscriber("/transform_data", Odometry, listener2)
-		self.navStatus = rospy.Publisher("navigation_status_for_manager", Odometry, queue_size=1)
+		self.navStatus = rospy.Publisher("navstack_status", int64, queue_size=1)
 		self.goal = MoveBaseGoal()
 		self.goalFinished = True
 		self.wantsNextCommand = True
 		self.goalStatusManager = 0
 		self.thetaOffset = 0
 		
+		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, xy_listener)
+		self.navStatus = rospy.Publisher("navstack_status", int64, queue_size=1, latch=False)
+		#self.grabPoints = rospy.ServiceProxy('grab_points',GrabPoints)
+		#self.commandCheck = rospy.ServiceProx('checkForCommand',CommandCheck)
+		
 		self.client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
+		self.client.wait_for_server()
 		
 		rate = rospy.Rate(10)
 		while not rospy.is_shutdown():
-			if goalFinished and wantsNextCommand:
+			#self.wantsNextCommand = True
+			if self.goalFinished and self.wantsNextCommand:
 				self.grab_goal()
-				self.send_goal()				
+				self.send_goal()
+				self.navStatus.publish(self.goalStatusManager)
 			rate.sleep()
-			
-	def listener1(data,self);
-		self.x_UTM = data.pose.pose.position.x
-		self.y_UTM = data.pose.pose.position.y
 		
-	def listener2(data,self);
+	def xy_listener(data,self):
 		self.x_UTM_initial = data.pose.pose.position.x
 		self.y_UTM_initial = data.pose.pose.position.y
-		self.goal_orientation = data.pose.pose.orientation
 	
 	def grab_goal(self):
-		self.goal = MoveBaseGoal()
-		self.goal.target_pose.header.frame_id = "utm_odom2"
-		self.goal.target_pose.header.stamp = rospy.Time.now()
-		self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
-		self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_iniital
-		self.goal.target_pose.pose.orientation = self.goal_orientation
+		if self.useDummyValues == True and self.obstacleCounter < 4:
+			self.goal = MoveBaseGoal()
+			self.goal.target_pose.header.frame_id = "utm_odom2"
+			self.goal.target_pose.header.stamp = rospy.Time.now()
+			self.goal.target_pose.pose.position.x = self.dummyMatrix[0][2*self.obstacleCounter]
+			self.goal.target_pose.pose.position.y = self.dummyMatrix[0][2*self.obstacleCounter+1]
+			self.goal.target_pose.pose.orientation.x = 0
+			self.goal.target_pose.pose.orientation.y = 0
+			self.goal.target_pose.pose.orientation.z = 0
+			self.goal.target_pose.pose.orientation.w = 1
+			print(self.goal)
+		elif self.useDummyValues == False:
+			self.goal = MoveBaseGoal()
+			self.goal.target_pose.header.frame_id = "utm_odom2"
+			self.goal.target_pose.header.stamp = rospy.Time.now()
+			self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
+			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_iniital
+			self.goal.target_pose.pose.orientation.x = 0
+			self.goal.target_pose.pose.orientation.y = 0
+			self.goal.target_pose.pose.orientation.z = 0
+			self.goal.target_pose.pose.orientation.w = 1
 	
 	def send_goal(self):
-		self.client.send_goal(goal,self.done_callback)
+		self.client.send_goal(self.goal,self.done_callback)
+		print("Goal is sent")
 		self.goalFinished = False
+		self.obstacleCounter = self.obstacleCounter + 1
 	
 	def done_callback(self,status,result):
 		self.goalStatusRaw = status
@@ -72,13 +93,26 @@ class NavigationInterface(object):
 		
 		if status == 3:
 			self.goalStatusManager = 1 #Made it to the goal successfully!
-		else if status == 4:
+			self.goalFinished = True
+			print("Goal is met")
+		elif status == 4:
 			self.goalStatusManager = 2 #Goal was aborted due to some failure
-		else if status == 5:
+			print("Goal failed somehow")
+		elif  status == 5:
 			self.goalStatusManager = 3 #Unattainable or invalid goal
+			print("Invalid goal")
+	
+	def active_callback(self,status,result):
+		print("Active Callback")
+	
+	def fbk_callback(self,status,result):
+		print("Feedback Callback")
 	
 	def check_goal_status(self):
+		print("Dummy Goal Status Check")
 		
+	def status_service(self,data)
+		return self.goalStatusManager
 	
-if __name__ = '__main__':
+if __name__ == '__main__':
 	NavigationInterface()

@@ -3,6 +3,8 @@ import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
 import numpy as np
+from std_srvs.srv import SetBool
+from std_msgs.msg import Float64
 
 class autonomy_teleop(object):
     def __init__(self):
@@ -10,6 +12,13 @@ class autonomy_teleop(object):
         
         self.commandTimeout = 0.25
         self.lastCommandTime = rospy.get_time()
+        
+        rospy.Service('/deploy_sensor_auto', SetBool, self.deploy_sensor_auto)
+        self.lowerPXRF = rospy.ServiceProxy('/deploy_sensor',SetBool)
+        rospy.Service('/deploy_tool_auto', SetBool, self.deploy_tool_auto)
+        self.lowerRake = rospy.ServiceProxy('/deploy_tool',SetBool)
+        self.dig_torque = -5
+        self.dig_torque_pub = rospy.Publisher('/dig_torque',Float64, queue_size=10,latch=True)
         
         rospy.Subscriber('/cmd_vel_auto',Twist,self.autoDriveCallback)
         rospy.Subscriber("/joy", Joy, self.joyDriveCallback)
@@ -45,7 +54,6 @@ class autonomy_teleop(object):
         if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
             self.managedDrive(autonomyCommand)
     def joyDriveCallback(self,data):
-        print('here')
         if rospy.get_time() - self.lastJoyTime > self.joyTimeout:
             self.joyInit = [False,False]
         self.lastJoyTime = rospy.get_time()
@@ -65,6 +73,30 @@ class autonomy_teleop(object):
         self.manualOverride = data.buttons[5] == 1
         if self.manualOverride:
             self.managedDrive(joyCommand)
+            if data.axes[7]>0.5:
+                self.lowerPXRF(False)
+            elif data.axes[7]<-0.5:
+                self.lowerPXRF(True)
+            if data.axes[1] > 0.5:
+                msg = Float64()
+                msg.data = self.dig_torque
+                self.dig_torque_pub.publish(msg)
+                self.lowerRake(False)
+            elif data.axes[1] < -0.5:
+                msg = Float64()
+                msg.data = self.dig_torque
+                self.dig_torque_pub.publish(msg)
+                self.lowerRake(True)
+    def deploy_sensor_auto(self,data):
+        if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
+            self.lowerPXRF(data.data)
+            return True,''
+        return False,''
+    def deploy_tool_auto(self,data):
+        if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
+            self.lowerRake(data.data)
+            return True,''
+        return False,''
 
 if __name__ == '__main__':
     autonomy_teleop()
