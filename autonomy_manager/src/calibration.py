@@ -39,10 +39,12 @@ class calibration(object):
         self.counter = 0
         self.time = 0
         self.gps_msg = NavSatFix()
+        self.heading_msg = FilterHeading()
         self.start = False
         self.utmDefault = 'EPSG:32617'
 
-        while self.heading is None or self.lon is None or self.lat is None or self.start == False:
+        while self.lon is None or self.lat is None or self.start == False:
+            print("here")
             rospy.sleep(1)
 
         self.movefb = rospy.ServiceProxy('/move_fb',RunSensorPrep)
@@ -51,6 +53,7 @@ class calibration(object):
         # start calibration
         if self.offsetParam == None:
             #reset dequeue
+            print("here2")
             self.lat_avg.clear()
             self.lon_avg.clear()
             rospy.sleep(5)
@@ -61,17 +64,15 @@ class calibration(object):
             while self.linear != 0 or self.angular != 0:
                 rospy.sleep(0.1)
                 print("moving forward")
-            
-            rospy.sleep(5) # wait for 5 seconds
-            #clear the dequeue
+            #clear the dequeue 
             self.lat_avg.clear()
             self.lon_avg.clear()
+            rospy.sleep(5) # wait for 5 seconds
             lat_final = sum(self.lat_avg) / len(self.lat_avg)
             lon_final = sum(self.lon_avg) / len(self.lon_avg)
             self.movefb(False)
             # calculate offset
-            self.offsetParam = self.calculate_offset(lat_init,lon_init,lat_final,lon_final)
-
+            self.calculate_offset(lat_init,lon_init,lat_final,lon_final)
             # get the zone 
             self.get_zone(lat_final,lon_final)
             print("offset is computed")
@@ -84,23 +85,22 @@ class calibration(object):
             else:
                
                 self.gps_filter.publish(self.gps_msg)
-
             # todo, compute the average heading
-            self.heading.publish(self.heading + self.offsetParam)
+            print("corrected Angle:" + str(self.heading_msg.heading_rad + self.offsetParam))
+            self.heading.publish(self.heading_msg.heading_rad + self.offsetParam)
 
     def calculate_offset(self ,lat_init,lon_init,lat_final,lon_final):
         x_UTM_init, y_UTM_init = self.get_utm(lat_init, lon_init) 
         x_UTM_final, y_UTM_final = self.get_utm(lat_final, lon_final) 
-        
         delta_x = x_UTM_final - x_UTM_init
         delta_y = y_UTM_final - y_UTM_init
         heading = np.arctan2(delta_y, delta_x)
-        self.offsetParam = heading - self.heading 
-        # calculate the heading angle in radians
-               
+        self.offsetParam = heading - self.heading_msg.heading_rad 
+        print("offset:" + str(self.offsetParam))
     
     def heading_callback(self,msg):
-        self.heading = msg.heading
+        self.heading_msg = msg
+        #self.heading = msg.heading_rad
        
     def gps_callback(self,msg):
         # if the data is invalid, don't use it
@@ -112,7 +112,6 @@ class calibration(object):
         self.time = msg.header.stamp
         self.lon_avg.append(self.lon)
         self.lat_avg.append(self.lat)
-        self.counter += 1 
     
     def speed_callback(self,msg):
         if self.linear != 0 or self.angular != 0: # in motion

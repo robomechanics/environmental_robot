@@ -27,18 +27,18 @@ class NavigationInterface(object):
 		rospy.init_node('NavigationInterfaceNode')
 		
 		self.useDummyValues = True
-		self.dummyMatrix = np.array([[0,5,5,5,5,0,0,0]])
+		self.dummyMatrix = np.array([[3,1.0,5,5,5,0,0,0]])
 		self.obstacleCounter = 0
 		self.NavigationStatus = 0
-		self.navStatus = rospy.Publisher("navstack_status", int64, queue_size=1)
+		#self.navStatus = rospy.Publisher("navstack_status", int64, queue_size=1)
 		self.goal = MoveBaseGoal()
 		self.goalFinished = True
 		self.wantsNextCommand = True
 		self.goalStatusManager = 0
 		self.thetaOffset = 0
 		
-		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, xy_listener)
-		self.navStatus = rospy.Publisher("navstack_status", int64, queue_size=1, latch=False)
+		#self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, xy_listener)
+		#self.navStatus = rospy.Publisher("navstack_status", int64, queue_size=1, latch=False)
 		#self.grabPoints = rospy.ServiceProxy('grab_points',GrabPoints)
 		#self.commandCheck = rospy.ServiceProx('checkForCommand',CommandCheck)
 		
@@ -51,7 +51,7 @@ class NavigationInterface(object):
 			if self.goalFinished and self.wantsNextCommand:
 				self.grab_goal()
 				self.send_goal()
-				self.navStatus.publish(self.goalStatusManager)
+				#self.navStatus.publish(self.goalStatusManager)
 			rate.sleep()
 		
 	def xy_listener(data,self):
@@ -61,7 +61,7 @@ class NavigationInterface(object):
 	def grab_goal(self):
 		if self.useDummyValues == True and self.obstacleCounter < 4:
 			self.goal = MoveBaseGoal()
-			self.goal.target_pose.header.frame_id = "utm_odom2"
+			self.goal.target_pose.header.frame_id = "odom"
 			self.goal.target_pose.header.stamp = rospy.Time.now()
 			self.goal.target_pose.pose.position.x = self.dummyMatrix[0][2*self.obstacleCounter]
 			self.goal.target_pose.pose.position.y = self.dummyMatrix[0][2*self.obstacleCounter+1]
@@ -111,8 +111,8 @@ class NavigationInterface(object):
 	def check_goal_status(self):
 		print("Dummy Goal Status Check")
 		
-	def status_service(self,data)
-		return self.goalStatusManager
+	#def status_service(self,data)
+		#return self.goalStatusManager
 	
 if __name__ == '__main__':
 	NavigationInterface()

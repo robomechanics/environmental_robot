@@ -29,9 +29,10 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
   
   <arg name="base_global_planner" default="navfn/NavfnROS"/>
   <arg name="base_local_planner" default="dwa_local_planner/DWAPlannerROS"/>
+  <param name="base_global_planner" value="asr_navfn/NavfnROS"/>
   <!-- <arg name="base_local_planner" default="base_local_planner/TrajectoryPlannerROS"/> -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
-    <remap from="/odom" to="/utm_odom2" />
+    <!--remap from="/odom" to="/utm_odom2" /-->
     <remap from="/cmd_vel" to="/cmd_vel_auto" />
     <param name="base_global_planner" value="$(arg base_global_planner)"/>
     <param name="base_local_planner" value="$(arg base_local_planner)"/>  

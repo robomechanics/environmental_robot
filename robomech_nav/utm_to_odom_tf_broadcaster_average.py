@@ -20,9 +20,8 @@ from nav_msgs.msg import Odometry
 firstTime = True
 thetaHeading = 0
 utmDefault = 'EPSG:32617'
-nPoints = 0
-lat_list = []
-lon_list = []
+
+# ------------------------------------
 thetaOffset = -120
 
 #get the zone based on the location
@@ -51,11 +50,6 @@ def utm_broadcaster(data):
 	global firstTime
 	global x_UTM_start
 	global y_UTM_start
-	global zone
-	global utmDefault	
-	global nPoints
-	global lat_list
-	global lon_list
 	global thetaOffset
 	
 	#initialization
@@ -65,22 +59,13 @@ def utm_broadcaster(data):
 	pose_Odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 	quatRaw = [0,0,0,0]	
 	# Set the condition for the first time running
-	#if firstTime == True:
-	if nPoints < 100:
+	if firstTime == True:
 		# Set the averages of lat and lon
 		lat_GPS_start = data.pose.pose.position.y #data.pose.pose.position.x
 		lon_GPS_start = data.pose.pose.position.x #data.pose.pose.position.y
-		nPoints += 1
-		lat_list.append(lat_GPS_start)
-		lon_list.append(lon_GPS_start)
-			
-		# Average 100 datapoints
-		lat_GPS_start = statistics.mean(lat_list)
-		lon_GPS_start = statistics.mean(lon_list)	
-		#zone = get_zone(lat_GPS_start, lon_GPS_start)
+		get_zone(lat_GPS_start, lon_GPS_start)
 		x_UTM_start, y_UTM_start = get_utm(lat_GPS_start, lon_GPS_start) 
-		#firstTime = False
-	#print(len(lat_list))
+		firstTime = False
 	lat_GPS = data.pose.pose.position.y #data.pose.pose.position.x
 	lon_GPS = data.pose.pose.position.x #data.pose.pose.position.y
 	
@@ -91,7 +76,6 @@ def utm_broadcaster(data):
 	quatRaw[2] = data.pose.pose.orientation.z
 	quatRaw[3] = data.pose.pose.orientation.w
 	eulers =  tf.transformations.euler_from_quaternion(quatRaw,'sxyz') #sxyz
-	#print(eulers)
 	thetaHeading = eulers[2]
 	#thetaHeading = np.arctan2(np.sin(thetaHeading), np.cos(thetaHeading))
 	thetaHeading = np.mod(np.arctan2(np.sin(thetaHeading),np.cos(thetaHeading))+(thetaOffset),2*np.pi)
@@ -152,7 +136,6 @@ def utm_broadcaster(data):
 	# Publishing the Odom message and transformation
 	utm_odom_pub.publish(Odom)
 	start_pub.publish(OdomStart)
-	print(OdomStart)
 	br.sendTransform(t)
 
 if __name__ == '__main__':
