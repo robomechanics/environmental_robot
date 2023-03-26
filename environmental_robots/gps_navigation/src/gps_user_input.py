@@ -356,6 +356,7 @@ class GpsNavigationGui:
             res = sendBoundary(boundary)
         except rospy.ServiceException:
             print("boundary sent unsuccessfully")
+            
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
             if self.editPathMode:

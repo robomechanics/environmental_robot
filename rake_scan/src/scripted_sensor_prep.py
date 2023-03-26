@@ -9,6 +9,7 @@ from std_msgs.msg import Float64, Bool
 from std_srvs.srv import SetBool
 from autonomy_manager.srv import RunSensorPrep
 
+# script used for rake and scan
 script = (
         ('rake',-5,2), # lower torque (non-negative for raise), time to wait for raise
         ('drive',(0.5,0,0)),
@@ -23,6 +24,14 @@ script = (
         ('pxrf',1,2),
         ('drive',(0,0,0)),
         )
+# move forward
+scriptForward = (
+        ('drive',(2,0,0))
+)
+# move backward
+scriptBackward = (
+     ('drive',(0,0,0))
+)
 
 def wrap(angle):
     angle = angle%(2*math.pi)
@@ -46,10 +55,18 @@ class scripted_sensor_prep(object):
         self.goalPub = rospy.Publisher('/sensor_prep_goal',PoseStamped,queue_size=1,latch=True)
         self.logService(False)
         rospy.Service('/run_sensor_prep',RunSensorPrep,self.logService)
+        rospy.Service('/move_fb', RunSensorPrep, self.moveFB)
+        self.runOrStop = False
+        self.forward = False
+        self.backward = False
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             if self.runOrStop:
-                self.runScript()
+                self.runScript(script)
+            elif self.forward:
+                self.runScript(scriptForward)
+            elif self.backward:
+                self.runScript(scriptBackward)
             rate.sleep()
     def logService(self,runOrStop):
         if type(runOrStop) == bool:
@@ -60,7 +77,15 @@ class scripted_sensor_prep(object):
         msg.data = self.runOrStop
         self.statusPub.publish(msg)
         return True
-    def runScript(self):
+
+    def moveFB(self,move):
+        if move.run:
+            self.forward = True
+        else:
+            self.backward = True
+        return True
+        
+    def runScript(self,script):
         oFrame = self.pose
         for task in script:
             if self.checkStopCondition():
@@ -74,6 +99,9 @@ class scripted_sensor_prep(object):
             if task[0] == 'wait':
                 rospy.sleep(task[1])
         self.logService(False)
+        self.backward = False
+        self.forward = False
+
     def rake(self,torque,waitTime):
         if torque >= 0:
             self.lowerRake(False)
