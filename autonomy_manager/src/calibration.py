@@ -44,7 +44,7 @@ class calibration(object):
         self.utmDefault = 'EPSG:32617'
 
         while self.lon is None or self.lat is None or self.start == False:
-            print("here")
+            print(self.lon, self.lat, self.start)
             rospy.sleep(1)
 
         self.movefb = rospy.ServiceProxy('/move_fb',RunSensorPrep)
@@ -103,6 +103,13 @@ class calibration(object):
         #self.heading = msg.heading_rad
        
     def gps_callback(self,msg):
+        
+        ##################################
+        msg.longitude = 10
+        msg.latitude = 10
+        ##################################3
+
+        
         # if the data is invalid, don't use it
         if msg.longitude == 0 or msg.latitude == 0 or msg.longitude == None or msg.latitude == None:
             return

@@ -10,7 +10,7 @@ from std_srvs.srv import SetBool
 from autonomy_manager.srv import RunSensorPrep
 
 # script used for rake and scan
-script = (
+sensorPrepScript = (
         ('rake',-5,2), # lower torque (non-negative for raise), time to wait for raise
         ('drive',(0.5,0,0)),
         ('rake',1,2),
@@ -26,11 +26,11 @@ script = (
         )
 # move forward
 scriptForward = (
-        ('drive',(2,0,0))
+        ('drive',(2,0,0)),
 )
 # move backward
 scriptBackward = (
-     ('drive',(0,0,0))
+     ('drive',(-2,0,0)),
 )
 
 def wrap(angle):
@@ -48,31 +48,25 @@ class scripted_sensor_prep(object):
         while self.pose is None:
             rospy.sleep(0.1)
         self.dig_torque_pub = rospy.Publisher('/dig_torque',Float64, queue_size=10,latch=True)
-        self.lowerRake = rospy.ServiceProxy('/deploy_tool',SetBool)
-        self.lowerPXRF = rospy.ServiceProxy('/deploy_sensor',SetBool)
-        self.drivePub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+        self.lowerRake = rospy.ServiceProxy('/deploy_tool_auto',SetBool)
+        self.lowerPXRF = rospy.ServiceProxy('/deploy_sensor_auto',SetBool)
+        self.drivePub = rospy.Publisher('/cmd_vel_auto', Twist, queue_size=1)
         self.statusPub = rospy.Publisher('/sensor_prep_status',Bool, queue_size=1,latch=True)
         self.goalPub = rospy.Publisher('/sensor_prep_goal',PoseStamped,queue_size=1,latch=True)
-        self.logService(False)
-        rospy.Service('/run_sensor_prep',RunSensorPrep,self.logService)
+        self.logSensorPrep(False)
+        rospy.Service('/run_sensor_prep',RunSensorPrep,self.logSensorPrep)
         rospy.Service('/move_fb', RunSensorPrep, self.moveFB)
-        self.runOrStop = False
-        self.forward = False
-        self.backward = False
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             if self.runOrStop:
-                self.runScript(script)
-            elif self.forward:
-                self.runScript(scriptForward)
-            elif self.backward:
-                self.runScript(scriptBackward)
+                self.runScript(self.scriptToRun)
             rate.sleep()
-    def logService(self,runOrStop):
+    def logSensorPrep(self,runOrStop):
         if type(runOrStop) == bool:
             self.runOrStop = runOrStop
         else:
             self.runOrStop = runOrStop.run
+        self.scriptToRun = sensorPrepScript
         msg = Bool()
         msg.data = self.runOrStop
         self.statusPub.publish(msg)
@@ -80,9 +74,13 @@ class scripted_sensor_prep(object):
 
     def moveFB(self,move):
         if move.run:
-            self.forward = True
+            self.scriptToRun = scriptForward
         else:
-            self.backward = True
+            self.scriptToRun = scriptBackward
+        self.runOrStop = True
+        msg = Bool()
+        msg.data = self.runOrStop
+        self.statusPub.publish(msg)
         return True
         
     def runScript(self,script):
@@ -98,9 +96,7 @@ class scripted_sensor_prep(object):
                 self.pXRF(task[1],task[2])
             if task[0] == 'wait':
                 rospy.sleep(task[1])
-        self.logService(False)
-        self.backward = False
-        self.forward = False
+        self.logSensorPrep(False)
 
     def rake(self,torque,waitTime):
         if torque >= 0:
