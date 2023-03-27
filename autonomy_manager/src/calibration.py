@@ -78,6 +78,7 @@ class calibration(object):
             # get the zone 
             self.get_zone(lat_final,lon_final)
             #print("offset is computed")
+            rospy.sleep(10)
         
         while not rospy.is_shutdown():
             if self.linear == 0 and self.angular == 0 and len(self.lon_avg) != 0 and len(self.lat_avg) != 0:

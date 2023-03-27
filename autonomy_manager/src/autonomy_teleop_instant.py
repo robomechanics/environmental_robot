@@ -17,7 +17,7 @@ class autonomy_teleop(object):
         self.lowerPXRF = rospy.ServiceProxy('/deploy_sensor',SetBool)
         rospy.Service('/deploy_tool_auto', SetBool, self.deploy_tool_auto)
         self.lowerRake = rospy.ServiceProxy('/deploy_tool',SetBool)
-        self.dig_torque = -5
+        self.dig_torque = -2.5
         self.dig_torque_pub = rospy.Publisher('/dig_torque',Float64, queue_size=10,latch=True)
         
         rospy.Subscriber('/cmd_vel_auto',Twist,self.autoDriveCallback)

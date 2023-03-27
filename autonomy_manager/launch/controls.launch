@@ -3,8 +3,7 @@
     <arg name="useJoy" default="true"/>
     <arg name="useMicrostrain" default="true"/>
     <arg name="useHebi" default="true"/>
-    <arg name="useLidar" default="false"/>
-    <arg name="useTeleop" default="false"/>
+    <arg name="useLidar" default="true"/>
     <arg name="useGui" default="false"/>
     <arg name="useManager" default="true"/>
 
@@ -43,12 +42,10 @@
 
     <!-- vanta pxrf -->
     <node name="pxrf_driver" pkg="pxrf" type="main" />
-    <node name="pxrf_manager" pkg="pxrf" type="pxrf_manager.py" />
+    <!--<node name="pxrf_manager" pkg="pxrf" type="pxrf_manager.py" />-->
 
 
     <!--manager, scripted motion with speed control -->
-    <!--<node name="rake_scan_teleop" pkg="rake_scan" type="teleop.py" output="screen" if="$(arg useTeleop)"/>
-    <node name="teleop_drive" pkg="autonomy_manager" type="teleop_drive.py" output="screen" if="$(arg useTeleop)"/>-->
     <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop_instant.py" output="screen" if="$(arg useManager)"/>
     <node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="screen" if="$(arg useManager)"/>
 

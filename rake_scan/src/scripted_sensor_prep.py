@@ -10,20 +10,38 @@ from std_srvs.srv import SetBool
 from autonomy_manager.srv import RunSensorPrep
 
 # script used for rake and scan
-sensorPrepScript = (
-        ('rake',-5,2), # lower torque (non-negative for raise), time to wait for raise
+sensorPrepScript_broom = (
+        ('rake',-2.5,2), # lower torque (non-negative for raise), time to wait for raise
         ('drive',(0.5,0,0)),
         ('rake',1,2),
         ('drive',(0,0,0)),
-        ('rake',-5,2), 
+        ('rake',-2.5,2), 
         ('drive',(0.5,0,0)),
         ('rake',1,2),
         ('drive',(-0.8,0,0)),
         ('pxrf',-1,5),
-        ('wait',5),
-        ('pxrf',1,2),
-        ('drive',(0,0,0)),
+        #('wait',5),
+        #('pxrf',1,2),
+        #('drive',(0,0,0)),
         )
+
+sensorPrepScript_rake = (
+        ('rake',-2.5,2), # lower torque (non-negative for raise), time to wait for raise
+        ('drive',(0.5,0,0)),
+        ('rake',1,2),
+        ('drive',(0,0,0)),
+        ('rake',-2.5,2), 
+        ('drive',(0.5,0,0)),
+        ('rake',1,2),
+        ('drive',(-1,0,0)),
+        ('pxrf',-1,5),
+        #('wait',5),
+        #('pxrf',1,2),
+        #('drive',(0,0,0)),
+        )
+
+sensorPrepScript = sensorPrepScript_rake
+
 # move forward
 scriptForward = (
         ('drive',(2,0,0)),
@@ -149,6 +167,7 @@ class scripted_sensor_prep(object):
             else:
                 reachCount = 0
         print('reached orientation')
+
     def odom_callback(self,data):
         pose = data.pose.pose
         quat = (pose.orientation.x,
@@ -159,6 +178,7 @@ class scripted_sensor_prep(object):
         #heading = -wrap(euler[0]+math.pi)
         heading = euler[2]
         self.pose = (pose.position.x,pose.position.y,heading)
+
     def convert2global(self,relativePose,frame=None):
         if frame is None:
             frame = self.pose
@@ -167,6 +187,7 @@ class scripted_sensor_prep(object):
         y = frame[1] + relativePose[0]*math.sin(theta) + relativePose[1]*math.cos(theta)
         theta = wrap(theta + relativePose[2])
         return (x,y,theta)
+
     def convert2local(self,absolutePose,frame=None):
         if frame is None:
             frame = self.pose
@@ -177,12 +198,14 @@ class scripted_sensor_prep(object):
         rel_y  = -xDiff*math.sin(theta) + yDiff*math.cos(theta)
         rel_theta = wrap(absolutePose[2] - theta)
         return (rel_x,rel_y,rel_theta)
+
     def checkStopCondition(self):
         if rospy.is_shutdown():
             return True
         if not self.runOrStop:
             return True
         return False
+
 
 if __name__ == "__main__":
     scripted_sensor_prep()

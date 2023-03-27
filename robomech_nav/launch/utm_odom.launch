@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average.py" output="screen"/>
+    <node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="screen"/>
+</launch>

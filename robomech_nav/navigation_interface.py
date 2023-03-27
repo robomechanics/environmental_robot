@@ -17,6 +17,7 @@ import tf2_ros, tf2_geometry_msgs
 import geometry_msgs.msg
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
+from autonomy_manager.srv import NavigateGPS
 from autonomy_manager.srv import Complete
 
 # ------------------------------------
@@ -37,10 +38,15 @@ class NavigationInterface(object):
 		self.lon = 0
 		self.firstTime = True
 		self.utmDefault = 'dummyStringEPSG'
+		self.dummyFirst = True
+		self.dummyX = 0
+		self.dummyY = 0
 		
 		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, self.xy_listener)
 		
 		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
+		
+		self.next_goal_nav = rospy.Service('cancel_goal', NavigateGPS, self.cancelGoal)
 		
 		self.goal_reach = rospy.ServiceProxy('goal_reach', Complete)
 		
@@ -51,7 +57,7 @@ class NavigationInterface(object):
 		while not rospy.is_shutdown():
 			# Check for if next command is wanted. Always false after goal is met.
 			if self.goalFlag == True:
-				if self.firstTime == True
+				if self.firstTime == True:
 					self.get_zone()
 					self.firstTime = False
 				self.get_utm()
@@ -65,8 +71,12 @@ class NavigationInterface(object):
 		self.lat = data.goal_lat
 		self.lon = data.goal_lon
 		return True
+		
+	def cancelGoal(self, data):
+		self.client.cancel_all_goals()
+		return True
 	
-	def xy_listener(data,self):
+	def xy_listener(self,data):
 		self.x_UTM_initial = data.pose.pose.position.x
 		self.y_UTM_initial = data.pose.pose.position.y
 		
@@ -108,8 +118,14 @@ class NavigationInterface(object):
 			self.goal = MoveBaseGoal()
 			self.goal.target_pose.header.frame_id = "utm_odom2"
 			self.goal.target_pose.header.stamp = rospy.Time.now()
+			#if self.dummyFirst == True:
+				#self.dummyX = self.x_UTM - 2
+				#self.dummyY = self.y_UTM - 2
+				#self.dummyFirst = False
 			self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
-			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_iniital
+			#self.goal.target_pose.pose.position.x = self.x_UTM-self.dummyX
+			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_initial
+			#self.goal.target_pose.pose.position.y = self.y_UTM-self.dummyY
 			self.goal.target_pose.pose.orientation.x = 0
 			self.goal.target_pose.pose.orientation.y = 0
 			self.goal.target_pose.pose.orientation.z = 0

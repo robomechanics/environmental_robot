@@ -60,6 +60,7 @@ add_service_files(
   NavigateGPS.srv
   RunSensorPrep.srv
   Complete.srv
+  ScanData.srv
 )
 
 ## Generate actions in the 'action' folder

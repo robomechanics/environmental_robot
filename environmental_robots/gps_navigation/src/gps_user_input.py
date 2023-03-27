@@ -22,7 +22,7 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete
+from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep
 #testing
 lat_set = 0
 lon_set = 0
@@ -429,9 +429,16 @@ class GpsNavigationGui:
     def toggleAdaptive(self):
         if not self.editPathMode and not self.editBoundaryMode and not self.pathRoi.handles == []:
             self.adaptive = not self.adaptive
+            rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
+            try:
+                start = rospy.ServiceProxy('/start', RunSensorPrep)
+                res = start(True)
+            except rospy.ServiceException:
+                print("start sent unsuccessfully")
             self.adaptiveBtn.setText('Stop Adaptive')
-            #todo: publish adaptive mode
-
+        else:
+            self.adaptiveBtn.setText('Start Adaptive')
+        
     def toggleGrid(self):
         self.grid = not self.grid
         #to do
