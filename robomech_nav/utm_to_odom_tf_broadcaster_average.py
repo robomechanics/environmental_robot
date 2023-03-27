@@ -22,7 +22,7 @@ thetaHeading = 0
 utmDefault = 'EPSG:32617'
 
 # ------------------------------------
-thetaOffset = -120
+thetaOffset = -0.56
 
 #get the zone based on the location
 def get_zone(posx, posy):

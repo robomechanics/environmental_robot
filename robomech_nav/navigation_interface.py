@@ -17,6 +17,7 @@ import tf2_ros, tf2_geometry_msgs
 import geometry_msgs.msg
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
+from autonomy_manager.srv import Complete
 
 # ------------------------------------
 
@@ -35,12 +36,13 @@ class NavigationInterface(object):
 		self.lat = 0
 		self.lon = 0
 		self.firstTime = True
+		self.utmDefault = 'dummyStringEPSG'
 		
 		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, self.xy_listener)
 		
 		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
 		
-		self.report_status = rospy.ServiceProxy('thing', Thing)
+		self.goal_reach = rospy.ServiceProxy('goal_reach', Complete)
 		
 		self.client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
 		self.client.wait_for_server()
@@ -129,6 +131,7 @@ class NavigationInterface(object):
 		if status == 3:
 			self.goalStatusManager = 1 #Made it to the goal successfully!
 			self.goalFinished = True
+			res = self.goal_reach(goalFinished)
 			print("Goal is met")
 		elif status == 4:
 			self.goalStatusManager = 2 #Goal was aborted due to some failure

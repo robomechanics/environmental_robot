@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-from autonomy_manager.srv import DeployAutonomy,NavigateGPS
+from autonomy_manager.srv import DeployAutonomy,NavigateGPS, RunSensorPrep
 
 class dummy_search(object):
     def __init__(self,boundary):
@@ -13,10 +13,11 @@ class dummy_search(object):
 class dummy_services(object):
     def __init__(self):
         rospy.init_node('dummy_services', anonymous=True)
-        rospy.Service('/NavigateToGPS', NavigateGPS,self.navigate)
+        rospy.Service('/run_sensor_prep', RunSensorPrep,self.dummy)
+        rospy.Service('/next_goal_nav', NavigateGPS,self.dummy)
         rospy.spin()
 
-    def navigate(self,data):
+    def dummy(self,data):
         print(data)
         return True
 

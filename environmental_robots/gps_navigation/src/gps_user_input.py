@@ -22,7 +22,7 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-from autonomy_manager.srv import NavigateGPS, DeployAutonomy
+from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete
 #testing
 lat_set = 0
 lon_set = 0
@@ -347,13 +347,21 @@ class GpsNavigationGui:
         self.boundaryPlot.setData(x=[], y=[])
         self.pathPlot.setData(x=[], y=[])
         self.updateGoalMarker()
+        self.clear_map()
     
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
-        rospy.wait_for_service('/autonomy_manager/depoly_autonomy')
+        rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
         try:
+            print("try")
             sendBoundary = rospy.ServiceProxy('/autonomy_manager/deploy_autonomy', DeployAutonomy)
-            res = sendBoundary(boundary)
+            if len(boundary) > 0:
+                boundary.pop()
+            lat = [float(lat[0]) for lat in boundary]
+            lon = [float(lon[1]) for lon in boundary]
+            print(lat)
+            res = sendBoundary(lat,lon)
+            print("set")
         except rospy.ServiceException:
             print("boundary sent unsuccessfully")
             
@@ -387,6 +395,7 @@ class GpsNavigationGui:
                 self.boundaryPlot.setData(x=list(x), y=list(y))
                 self.pathRoi.setPoints([])
                 self.pathPlotPoints = []
+                self.sendBoundary(self.boundaryPath)
                 print(self.boundaryPath)
 
     # This function turns on/off editing mode
@@ -585,6 +594,16 @@ class GpsNavigationGui:
         else:
             self.parkBtn.setText('PARK OFF')
             self.parkBtn.setStyleSheet("background-color : green")
+
+    def clear_map(self):
+        rospy.wait_for_service('clear')
+        try:
+            clear = rospy.ServiceProxy('clear', Complete)
+            res = clear(True)
+        except rospy.ServiceException as e:
+            print("failed")
+
+
 
     def toggle_pxrf_collection(self):
         self.pxrfStatus = not self.pxrfStatus

@@ -5,6 +5,8 @@
     <arg name="useHebi" default="true"/>
     <arg name="useLidar" default="false"/>
     <arg name="useTeleop" default="false"/>
+    <arg name="useGui" default="false"/>
+    <arg name="useManager" default="true"/>
 
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
@@ -43,11 +45,15 @@
     <node name="pxrf_driver" pkg="pxrf" type="main" />
     <node name="pxrf_manager" pkg="pxrf" type="pxrf_manager.py" />
 
+
+    <!--manager, scripted motion with speed control -->
     <!--<node name="rake_scan_teleop" pkg="rake_scan" type="teleop.py" output="screen" if="$(arg useTeleop)"/>
     <node name="teleop_drive" pkg="autonomy_manager" type="teleop_drive.py" output="screen" if="$(arg useTeleop)"/>-->
-    <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop_instant.py" output="screen"/>
-		    <!--<node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="screen"/>-->
-    
+    <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop_instant.py" output="screen" if="$(arg useManager)"/>
+    <node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="screen" if="$(arg useManager)"/>
+
+
+    <node name="GPSgui" pkg="environmental_robots" type="gps_user_input.py" output="screen" if="$(arg useGui)"/>
     <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
     <!--node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0 0 0 0 0 0 1 map odom" /-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="link3_broadcaster" args="-0.17 -0.12 0.65 0 0 0 -1 base_link os_sensor" />

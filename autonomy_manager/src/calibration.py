@@ -42,6 +42,7 @@ class calibration(object):
         self.heading_msg = FilterHeading()
         self.start = False
         self.utmDefault = 'EPSG:32617'
+        self.rate = rospy.Rate(10)
 
         while self.lon is None or self.lat is None or self.start == False:
             print(self.lon, self.lat, self.start)
@@ -61,13 +62,14 @@ class calibration(object):
             lon_init = sum(self.lon_avg) / len(self.lon_avg)
             # move forward
             self.movefb(True)
+            rospy.sleep(1)
             while self.linear != 0 or self.angular != 0:
                 rospy.sleep(0.1)
-                print("moving forward")
+                #print("moving forward")
             #clear the dequeue 
             self.lat_avg.clear()
             self.lon_avg.clear()
-            rospy.sleep(5) # wait for 5 seconds
+            rospy.sleep(10) # wait for 5 seconds
             lat_final = sum(self.lat_avg) / len(self.lat_avg)
             lon_final = sum(self.lon_avg) / len(self.lon_avg)
             self.movefb(False)
@@ -75,19 +77,27 @@ class calibration(object):
             self.calculate_offset(lat_init,lon_init,lat_final,lon_final)
             # get the zone 
             self.get_zone(lat_final,lon_final)
-            print("offset is computed")
+            #print("offset is computed")
         
         while not rospy.is_shutdown():
-            if self.linear == 0 and self.angular == 0:
+            if self.linear == 0 and self.angular == 0 and len(self.lon_avg) != 0 and len(self.lat_avg) != 0:
                 self.gps_msg.longitude = sum(self.lon_avg) / len(self.lon_avg)
                 self.gps_msg.latitude = sum(self.lat_avg) / len(self.lat_avg)
                 self.gps_filter.publish(self.gps_msg)
+                print("averaging")
             else:
-               
+                #self.lon_avg.clear()
+                #self.lat_avg.clear()
+                print("passing through") 
                 self.gps_filter.publish(self.gps_msg)
             # todo, compute the average heading
+            
             print("corrected Angle:" + str(self.heading_msg.heading_rad + self.offsetParam))
-            self.heading.publish(self.heading_msg.heading_rad + self.offsetParam)
+            newHeading = self.heading_msg
+            newHeading.heading_rad = self.heading_msg.heading_rad + self.offsetParam
+            
+            self.heading.publish(newHeading)
+            self.rate.sleep()
 
     def calculate_offset(self ,lat_init,lon_init,lat_final,lon_final):
         x_UTM_init, y_UTM_init = self.get_utm(lat_init, lon_init) 
@@ -99,17 +109,11 @@ class calibration(object):
         print("offset:" + str(self.offsetParam))
     
     def heading_callback(self,msg):
+        print("received:" + str(msg.heading_rad))
         self.heading_msg = msg
         #self.heading = msg.heading_rad
        
     def gps_callback(self,msg):
-        
-        ##################################
-        msg.longitude = 10
-        msg.latitude = 10
-        ##################################3
-
-        
         # if the data is invalid, don't use it
         if msg.longitude == 0 or msg.latitude == 0 or msg.longitude == None or msg.latitude == None:
             return
