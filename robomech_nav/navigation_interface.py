@@ -27,8 +27,7 @@ class NavigationInterface(object):
 	def __init__(self):
 	
 		rospy.init_node('NavigationInterfaceNode')
-		
-		self.useDummyValues = True
+		self.useDummyValues = False
 		self.dummyMatrix = np.array([[0,5,5,5,5,0,0,0]])
 		self.obstacleCounter = 0
 		self.goal = MoveBaseGoal()
@@ -37,7 +36,7 @@ class NavigationInterface(object):
 		self.lat = 0
 		self.lon = 0
 		self.firstTime = True
-		self.utmDefault = 'dummyStringEPSG'
+		self.utmDefault = 'EPSG:32617'
 		self.dummyFirst = True
 		self.dummyX = 0
 		self.dummyY = 0
@@ -46,7 +45,7 @@ class NavigationInterface(object):
 		
 		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
 		
-		self.next_goal_nav = rospy.Service('cancel_goal', NavigateGPS, self.cancelGoal)
+		self.cancel_goal_nav = rospy.Service('cancel_goal', NavigateGPS, self.cancelGoal)
 		
 		self.goal_reach = rospy.ServiceProxy('goal_reach', Complete)
 		
@@ -67,9 +66,12 @@ class NavigationInterface(object):
 			rate.sleep()
 			
 	def setGoal(self, data):
+                
 		self.goalFlag = True
 		self.lat = data.goal_lat
 		self.lon = data.goal_lon
+		print("goal received")
+		print(self.lat,self.lon)
 		return True
 		
 	def cancelGoal(self, data):
@@ -123,6 +125,7 @@ class NavigationInterface(object):
 				#self.dummyY = self.y_UTM - 2
 				#self.dummyFirst = False
 			self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
+			print(self.x_UTM,self.x_UTM_initial,self.y_UTM,self.y_UTM_initial)
 			#self.goal.target_pose.pose.position.x = self.x_UTM-self.dummyX
 			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_initial
 			#self.goal.target_pose.pose.position.y = self.y_UTM-self.dummyY
@@ -131,13 +134,14 @@ class NavigationInterface(object):
 			self.goal.target_pose.pose.orientation.z = 0
 			self.goal.target_pose.pose.orientation.w = 1
 			print(self.goal)
+			print(self.utmDefault," 2")
 	
 	def send_goal(self):
 		self.client.send_goal(self.goal,self.done_callback)
 		print("Goal is sent")
 		self.goalFlag = False
 		self.goalFinished = False
-		if self.useDummyValues == true:
+		if self.useDummyValues == True:
 			self.obstacleCounter = self.obstacleCounter + 1
 	
 	def done_callback(self,status,result):
@@ -147,13 +151,15 @@ class NavigationInterface(object):
 		if status == 3:
 			self.goalStatusManager = 1 #Made it to the goal successfully!
 			self.goalFinished = True
-			res = self.goal_reach(goalFinished)
+			res = self.goal_reach(self.goalFinished)
 			print("Goal is met")
 		elif status == 4:
 			self.goalStatusManager = 2 #Goal was aborted due to some failure
+			res = self.goal_reach(self.goalFinished)
 			print("Goal failed somehow")
 		elif  status == 5:
 			self.goalStatusManager = 3 #Unattainable or invalid goal
+			res = self.goal_reach(self.goalFinished)
 			print("Invalid goal")
 	
 	def active_callback(self,status,result):

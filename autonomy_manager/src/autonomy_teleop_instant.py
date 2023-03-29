@@ -38,7 +38,10 @@ class autonomy_teleop(object):
                 self.managedDrive((0,0))
             rate.sleep()
     def managedDrive(self,driveCommand):
+        origSteer = driveCommand[1]
         self.lastCommandTime = rospy.get_time()
+        if driveCommand[0]!=0 and np.abs(driveCommand[1]*0.235/driveCommand[0]) > 0.25:
+            driveCommand = (0,driveCommand[1])
         motorMag = np.abs(driveCommand[0]) + np.abs(driveCommand[1])*0.235
         if motorMag > self.maxMotorMag:
             driveCommand = (driveCommand[0]*self.maxMotorMag/motorMag,driveCommand[1]*self.maxMotorMag/motorMag)

@@ -24,7 +24,7 @@ class calibration(object):
         # start node
         rospy.init_node('calibration', anonymous=True)
         rospy.Subscriber('/nav/heading',FilterHeading,self.heading_callback)
-        rospy.Subscriber('/gnss1/fix',NavSatFix,self.gps_callback)
+        rospy.Subscriber('/nav/odom',Odometry ,self.gps_callback)
         rospy.Subscriber('/cmd_vel',Twist,self.speed_callback)
         self.startService = rospy.Service('start', RunSensorPrep, self.startService)
         self.heading = None
@@ -49,7 +49,7 @@ class calibration(object):
             rospy.sleep(1)
 
         self.movefb = rospy.ServiceProxy('/move_fb',RunSensorPrep)
-        self.gps_filter = rospy.Publisher('/gps_avg', NavSatFix, queue_size=1)
+        self.gps_filter = rospy.Publisher('/gps_avg', Odometry, queue_size=1)
         self.heading = rospy.Publisher('/heading_true', FilterHeading, queue_size=1)
         # start calibration
         if self.offsetParam == None:
@@ -82,8 +82,8 @@ class calibration(object):
         
         while not rospy.is_shutdown():
             if self.linear == 0 and self.angular == 0 and len(self.lon_avg) != 0 and len(self.lat_avg) != 0:
-                self.gps_msg.longitude = sum(self.lon_avg) / len(self.lon_avg)
-                self.gps_msg.latitude = sum(self.lat_avg) / len(self.lat_avg)
+                self.gps_msg.pose.pose.position.x = sum(self.lon_avg) / len(self.lon_avg)
+                self.gps_msg.pose.pose.position.y = sum(self.lat_avg) / len(self.lat_avg)
                 self.gps_filter.publish(self.gps_msg)
                 print("averaging")
             else:
@@ -116,12 +116,14 @@ class calibration(object):
        
     def gps_callback(self,msg):
         # if the data is invalid, don't use it
-        if msg.longitude == 0 or msg.latitude == 0 or msg.longitude == None or msg.latitude == None:
+        lat_GPS = msg.pose.pose.position.y 
+        lon_GPS = msg.pose.pose.position.x 
+        if lat_GPS == 0 or lon_GPS == 0 or lat_GPS == None or lon_GPS == None:
             return
+        
         self.gps_msg = msg
-        self.lon = msg.longitude
-        self.lat = msg.latitude
-        self.time = msg.header.stamp
+        self.lon = lon_GPS
+        self.lat = lat_GPS
         self.lon_avg.append(self.lon)
         self.lat_avg.append(self.lat)
     

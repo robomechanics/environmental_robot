@@ -11,6 +11,7 @@ from autonomy_manager.srv import RunSensorPrep
 
 # script used for rake and scan
 sensorPrepScript_broom = (
+        #('drive',(1,0,0)),
         ('rake',-2.5,2), # lower torque (non-negative for raise), time to wait for raise
         ('drive',(0.5,0,0)),
         ('rake',1,2),
@@ -26,6 +27,7 @@ sensorPrepScript_broom = (
         )
 
 sensorPrepScript_rake = (
+        #('drive',(1,0,0)),
         ('rake',-2.5,2), # lower torque (non-negative for raise), time to wait for raise
         ('drive',(0.5,0,0)),
         ('rake',1,2),

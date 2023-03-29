@@ -71,6 +71,8 @@ class GpsNavigationGui:
         self.prev_lat = 0
         self.prev_lon = 0
         self.prev_heading = 0
+        self.latitude = None
+        self.longitude = None
 
         #pxrf control
         self.pxrfRunning = False
@@ -152,9 +154,9 @@ class GpsNavigationGui:
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
         self.goal_pub = rospy.Publisher('/gps_navigation/goal', PoseStamped, queue_size=5)
 
-        self.location_sub = rospy.Subscriber('/gnss1/fix', NavSatFix, self.on_gps_update)
+        self.location_sub = rospy.Subscriber('/gps_avg', NavSatFix, self.on_gps_update)
         #self.heading_sub = rospy.Subscriber('/nav/heading', FilterHeading, self.on_heading_update)
-        self.odom_sub = rospy.Subscriber('/nav/odom_throttle', Odometry, self.on_odom_update) # plotRobotPosition
+        self.gps_sub = rospy.Subscriber('/heading_true', FilterHeading, self.robot_update) # plotRobotPosition
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
         #rospy.spin()
@@ -506,25 +508,27 @@ class GpsNavigationGui:
             self.currentGoalMarker.setData(x=[], y=[])
 
     # This function is called by subscriber of gps sensor
-    def on_odom_update(self,data: Odometry):
+    def robot_update(self,data: FilterHeading):
         #print('Incoming Odom')
-        lat = data.pose.pose.position.x
-        lon = data.pose.pose.position.y
+        if self.latitude == None or self.longitude == None:
+            return
+        lat = self.latitude
+        lon = self.longitude
 
         #calculate heading based on gps coordinates 
         pixX, pixY = self.satMap.coord2Pixel(lat, lon)
         #print(f"GPS -> pixels ({lat}, {lon}) -> {pixX}, {pixY}")
-        prevpixX, prevpixY = self.satMap.coord2Pixel(self.prev_lat, self.prev_lon)
-        robotHeading = self.heading
+        #prevpixX, prevpixY = self.satMap.coord2Pixel(self.prev_lat, self.prev_lon)
+        robotHeading = data.heading_rad
         #print("robotHeading "+ str(robotHeading))
-        quat = data.pose.pose.orientation
-        r = R.from_quat([quat.x, quat.y, quat.z, quat.w])
+        #quat = data.pose.pose.orientation
+        #r = R.from_quat([quat.x, quat.y, quat.z, quat.w])
         #xVec = r.as_dcm()[:,0]
         #robotHeading = np.mod(math.atan2(xVec[1],xVec[0])+np.pi/3.0,2*np.pi)
         #robotHeading = self.heading #math.atan2(xVec[0],xVec[1])
 
         if not self.robotArrow is None:
-            self.robotArrow.setStyle(angle = robotHeading*180.0/np.pi + 90.0)
+            self.robotArrow.setStyle(angle = 180 - robotHeading*180.0/np.pi)
             self.robotArrow.setPos(pixX, pixY)
             self.robotArrow.update()
 

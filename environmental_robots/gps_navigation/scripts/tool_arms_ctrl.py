@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     sensor_arm_fbk = sensor_arm.get_next_feedback()
 
-    sensor_angles_down = [-0.9, -0.9]
+    sensor_angles_down = [-1.0, -1.0]
     sensor_angles_up = [1.0, 1.0]
 
     t = rospy.get_time()

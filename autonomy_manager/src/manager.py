@@ -3,22 +3,24 @@ import rospy
 from autonomy_manager.msg import ManagerStatus
 from autonomy_manager.srv import DeployAutonomy, NavigateGPS, RunSensorPrep, Complete, ScanData
 from sensor_msgs.msg import NavSatFix
+from nav_msgs.msg import Odometry
 from dummy_services import dummy_search
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
 from adaptiveROS import adaptiveROS
 from boundaryConversion import conversion
+from sensor_msgs.msg import Joy
 
 class manager(object):
     def __init__(self):
         rospy.init_node('manager', anonymous=True)
-        rospy.Subscriber('/sensor_prep_status',Bool,self.checkSensorPrepStatus)
         self.statusPub = rospy.Publisher('/autonomy_manager/status', ManagerStatus, queue_size=10,latch=True)
-        #########################change it back to /gps_avg#########################################################
-        rospy.Subscriber('/gnss1/fix', NavSatFix, self.gps_callback)
-        self.update_status('waiting for navigation to be ready')
-        self.sensorPrep = rospy.ServiceProxy('/run_sensor_prep',RunSensorPrep)
         self.update_status('standby')
+        rospy.Subscriber('/sensor_prep_status',Bool,self.checkSensorPrepStatus)
+        rospy.Subscriber("/joy", Joy, self.manualBehaviorSkip)
+        #########################change it back to /gps_avg#########################################################
+        rospy.Subscriber('/gps_avg', Odometry, self.gps_callback)
+        self.sensorPrep = rospy.ServiceProxy('/run_sensor_prep',RunSensorPrep)
         #intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
         self.conversion = conversion()
@@ -29,17 +31,19 @@ class manager(object):
         self.goalComplete = False
         self.pxrfComplete = False
         self.value = None
+        self.gps = None
         deployService = rospy.Service('/autonomy_manager/deploy_autonomy', DeployAutonomy,self.deployService)
         goal_reach = rospy.Service('goal_reach', Complete, self.goal_reach)
         clear = rospy.Service('clear', Complete, self.clear)
         pxrf = rospy.Service('pxrf_complete', ScanData, self.pxrf)
-        # wait until the gps calibration is finishedlon
 
-        ################################uncomment#########################################
-        # while self.lon is None or self.lat is None: 
-        #     print("waiting for the calibration to finish")
-        #     rospy.sleep(1)
-        ##################################################################################
+        # wait until the gps calibration is finished
+        while self.lon is None or self.lat is None: 
+             self.update_status('waiting for calibration to finish')
+             print(self.status)
+             rospy.sleep(1)
+        
+        self.update_status('standby')
 
         # publish status
         rate = rospy.Rate(10)
@@ -57,13 +61,34 @@ class manager(object):
                 self.runSensorPrep()
             elif self.status == 'finished raking':
                 print("scan")
-                self.scan()
+                runScan = True
+                for i in range(100):
+                    rospy.sleep(0.1)
+                    if self.status != 'finished raking':
+                        runScan = False
+                        break
+                if runScan:
+                    self.scan()
             elif self.status == 'finished scan':
                 print("algo")
                 self.runSearchAlgo()
             rate.sleep()
 
+    def manualBehaviorSkip(self,data):
+        if data.buttons[1]>0 and (not hasattr(self,'lastSkipButtonStatus') or not self.lastSkipButtonStatus):
+            if self.status == 'raking':
+                self.sensorPrep(False)
+                self.update_status('finished raking')
+            elif self.status == 'navigating to scan loc':
+                cancel_goal = rospy.ServiceProxy('cancel_goal',NavigateGPS)
+                cancel_goal(0,0)
+                self.update_status('arrived at scan loc')
+            elif self.status == 'finished raking':
+                self.update_status('finished scan')
+        self.lastSkipButtonStatus = data.buttons[1]>0
+
     def scan(self):
+        self.update_status('scanning')
         #call ros service to start scanning 
         #rospy.wait_for_service('scan_start')
         try:
@@ -85,8 +110,10 @@ class manager(object):
         if data.status == True:
             self.pxrfComplete = True
             self.value = data.mean
+            print(self.value)
         else:
             self.pxrfComplete = False
+        return True
 
     def deployService(self,data):
         # data.boundart_lServiceat and data.boundary_lon lists, put then in the format of [[lat1,lon1],[lat2,lon2],...]
@@ -117,22 +144,22 @@ class manager(object):
         #predict the next location
         print(self.adaptiveROS)
         self.nextScanLoc = self.adaptiveROS.predict()
-        gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
+        self.gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
         print("sending")
-        self.send_location(gps[0],gps[1])
+        self.send_location(self.gps[0],self.gps[1])
         self.update_status('received next scan loc')
 
     def navigateToScanLoc(self):
         self.update_status('navigating to scan loc')
         #self.navigation(self.nextScanLoc[0],self.nextScanLoc[1])
-        self.send_nav(self.nextScanLoc[0], self.nextScanLoc[1])
+        self.send_nav(self.gps[0], self.gps[1])
 
     def runSensorPrep(self):
-        self.update_status('raking')
         self.sensorPrep(True)
-
+        self.update_status('raking')
+        
     def checkSensorPrepStatus(self,data):
-        if data.data == True and self.status == 'raking':
+        if data.data == False and self.status == 'raking':
             self.update_status('finished raking')
 
     def update_status(self,newStatus):
@@ -143,8 +170,8 @@ class manager(object):
         self.statusPub.publish(msg)
     
     def gps_callback(self,data):
-        self.lat = data.latitude
-        self.lon = data.longitude
+        self.lat = data.pose.pose.position.y 
+        self.lon = data.pose.pose.position.x 
     
     def send_location(self,x,y):
         #rospy.wait_for_service('next_goal')
@@ -181,6 +208,5 @@ class manager(object):
 
         return True
             
-
 if __name__ == '__main__':
     manager()

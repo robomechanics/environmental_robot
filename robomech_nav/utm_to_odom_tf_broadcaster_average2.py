@@ -15,6 +15,7 @@ import tf2_ros, tf2_geometry_msgs
 import geometry_msgs.msg
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
+from microstrain_inertial_msgs.msg import FilterHeading
 
 # ------------------------------------
 firstTime = True
@@ -22,7 +23,8 @@ thetaHeading = 0
 utmDefault = 'EPSG:32617'
 
 # ------------------------------------
-thetaOffset = -0.56
+thetaOffset = 0
+thetaTrue = 0.0
 
 #get the zone based on the location
 def get_zone(posx, posy):
@@ -52,6 +54,7 @@ def utm_broadcaster(data):
 	global x_UTM_start
 	global y_UTM_start
 	global thetaOffset
+	global thetaTrue
 	
 	#initialization
 	Odom = Odometry()
@@ -78,7 +81,7 @@ def utm_broadcaster(data):
 	quatRaw[2] = data.pose.pose.orientation.z
 	quatRaw[3] = data.pose.pose.orientation.w
 	eulers =  tf.transformations.euler_from_quaternion(quatRaw,'sxyz') #sxyz
-	thetaHeading = eulers[2]
+	thetaHeading = thetaTrue
 	#thetaHeading = np.arctan2(np.sin(thetaHeading), np.cos(thetaHeading))
 	thetaHeading = np.mod(np.arctan2(np.sin(thetaHeading),np.cos(thetaHeading))+(thetaOffset),2*np.pi)
 	#print(thetaHeading/np.pi*180)
@@ -147,11 +150,17 @@ def utm_broadcaster(data):
 	start_pub.publish(OdomStart)
 	br.sendTransform(t)
 
+def thetaListen(data):
+	global thetaTrue
+	
+	thetaTrue = data.heading_rad
+
 if __name__ == '__main__':
 	# Initiate ros subscriber and publisher
 	rospy.init_node('utm_node2', anonymous=True)
 	utm_odom_pub = rospy.Publisher("utm_odom2", Odometry, queue_size=1)
 	start_pub = rospy.Publisher("utm_start", Odometry, queue_size=1,latch=True)
 	gps_listener = rospy.Subscriber("/nav/odom", Odometry, utm_broadcaster)
+	theta_listen = rospy.Subscriber("/heading_true", FilterHeading, thetaListen)
 	rospy.spin()
 
