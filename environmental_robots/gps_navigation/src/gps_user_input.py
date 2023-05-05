@@ -22,7 +22,7 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-from autonomy_manager.srv import NavigateGPS, DeployAutonomy
+from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep
 #testing
 lat_set = 0
 lon_set = 0
@@ -71,6 +71,8 @@ class GpsNavigationGui:
         self.prev_lat = 0
         self.prev_lon = 0
         self.prev_heading = 0
+        self.latitude = None
+        self.longitude = None
 
         #pxrf control
         self.pxrfRunning = False
@@ -152,9 +154,9 @@ class GpsNavigationGui:
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
         self.goal_pub = rospy.Publisher('/gps_navigation/goal', PoseStamped, queue_size=5)
 
-        self.location_sub = rospy.Subscriber('/gnss1/fix', NavSatFix, self.on_gps_update)
+        self.location_sub = rospy.Subscriber('/gps_avg', NavSatFix, self.on_gps_update)
         #self.heading_sub = rospy.Subscriber('/nav/heading', FilterHeading, self.on_heading_update)
-        self.odom_sub = rospy.Subscriber('/nav/odom_throttle', Odometry, self.on_odom_update) # plotRobotPosition
+        self.gps_sub = rospy.Subscriber('/heading_true', FilterHeading, self.robot_update) # plotRobotPosition
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
         #rospy.spin()
@@ -347,13 +349,21 @@ class GpsNavigationGui:
         self.boundaryPlot.setData(x=[], y=[])
         self.pathPlot.setData(x=[], y=[])
         self.updateGoalMarker()
+        self.clear_map()
     
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
-        rospy.wait_for_service('/autonomy_manager/depoly_autonomy')
+        rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
         try:
+            print("try")
             sendBoundary = rospy.ServiceProxy('/autonomy_manager/deploy_autonomy', DeployAutonomy)
-            res = sendBoundary(boundary)
+            if len(boundary) > 0:
+                boundary.pop()
+            lat = [float(lat[0]) for lat in boundary]
+            lon = [float(lon[1]) for lon in boundary]
+            print(lat)
+            res = sendBoundary(lat,lon)
+            print("set")
         except rospy.ServiceException:
             print("boundary sent unsuccessfully")
             
@@ -387,6 +397,7 @@ class GpsNavigationGui:
                 self.boundaryPlot.setData(x=list(x), y=list(y))
                 self.pathRoi.setPoints([])
                 self.pathPlotPoints = []
+                self.sendBoundary(self.boundaryPath)
                 print(self.boundaryPath)
 
     # This function turns on/off editing mode
@@ -420,9 +431,16 @@ class GpsNavigationGui:
     def toggleAdaptive(self):
         if not self.editPathMode and not self.editBoundaryMode and not self.pathRoi.handles == []:
             self.adaptive = not self.adaptive
+            rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
+            try:
+                start = rospy.ServiceProxy('/start', RunSensorPrep)
+                res = start(True)
+            except rospy.ServiceException:
+                print("start sent unsuccessfully")
             self.adaptiveBtn.setText('Stop Adaptive')
-            #todo: publish adaptive mode
-
+        else:
+            self.adaptiveBtn.setText('Start Adaptive')
+        
     def toggleGrid(self):
         self.grid = not self.grid
         #to do
@@ -490,25 +508,27 @@ class GpsNavigationGui:
             self.currentGoalMarker.setData(x=[], y=[])
 
     # This function is called by subscriber of gps sensor
-    def on_odom_update(self,data: Odometry):
+    def robot_update(self,data: FilterHeading):
         #print('Incoming Odom')
-        lat = data.pose.pose.position.x
-        lon = data.pose.pose.position.y
+        if self.latitude == None or self.longitude == None:
+            return
+        lat = self.latitude
+        lon = self.longitude
 
         #calculate heading based on gps coordinates 
         pixX, pixY = self.satMap.coord2Pixel(lat, lon)
         #print(f"GPS -> pixels ({lat}, {lon}) -> {pixX}, {pixY}")
-        prevpixX, prevpixY = self.satMap.coord2Pixel(self.prev_lat, self.prev_lon)
-        robotHeading = self.heading
+        #prevpixX, prevpixY = self.satMap.coord2Pixel(self.prev_lat, self.prev_lon)
+        robotHeading = data.heading_rad
         #print("robotHeading "+ str(robotHeading))
-        quat = data.pose.pose.orientation
-        r = R.from_quat([quat.x, quat.y, quat.z, quat.w])
+        #quat = data.pose.pose.orientation
+        #r = R.from_quat([quat.x, quat.y, quat.z, quat.w])
         #xVec = r.as_dcm()[:,0]
         #robotHeading = np.mod(math.atan2(xVec[1],xVec[0])+np.pi/3.0,2*np.pi)
         #robotHeading = self.heading #math.atan2(xVec[0],xVec[1])
 
         if not self.robotArrow is None:
-            self.robotArrow.setStyle(angle = robotHeading*180.0/np.pi + 90.0)
+            self.robotArrow.setStyle(angle = 180 - robotHeading*180.0/np.pi)
             self.robotArrow.setPos(pixX, pixY)
             self.robotArrow.update()
 
@@ -585,6 +605,16 @@ class GpsNavigationGui:
         else:
             self.parkBtn.setText('PARK OFF')
             self.parkBtn.setStyleSheet("background-color : green")
+
+    def clear_map(self):
+        rospy.wait_for_service('clear')
+        try:
+            clear = rospy.ServiceProxy('clear', Complete)
+            res = clear(True)
+        except rospy.ServiceException as e:
+            print("failed")
+
+
 
     def toggle_pxrf_collection(self):
         self.pxrfStatus = not self.pxrfStatus

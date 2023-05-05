@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     sensor_arm_fbk = sensor_arm.get_next_feedback()
 
-    sensor_angles_down = [-0.9, -0.9]
+    sensor_angles_down = [-1.0, -1.0]
     sensor_angles_up = [1.0, 1.0]
 
     t = rospy.get_time()
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     rospy.Service('deploy_tool', SetBool, tool_arm_cb)
     rospy.Service('deploy_sensor', SetBool, sensor_arm_cb)
 
-    dig_torque = 0.0
+    dig_torque = -30.0
     def dig_cb(msg):
         global dig_torque
         dig_torque = msg.data

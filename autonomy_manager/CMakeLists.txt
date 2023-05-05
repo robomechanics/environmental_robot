@@ -59,6 +59,8 @@ add_service_files(
   DeployAutonomy.srv
   NavigateGPS.srv
   RunSensorPrep.srv
+  Complete.srv
+  ScanData.srv
 )
 
 ## Generate actions in the 'action' folder

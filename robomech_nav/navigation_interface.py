@@ -17,6 +17,8 @@ import tf2_ros, tf2_geometry_msgs
 import geometry_msgs.msg
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
+from autonomy_manager.srv import NavigateGPS
+from autonomy_manager.srv import Complete
 
 # ------------------------------------
 
@@ -25,8 +27,7 @@ class NavigationInterface(object):
 	def __init__(self):
 	
 		rospy.init_node('NavigationInterfaceNode')
-		
-		self.useDummyValues = True
+		self.useDummyValues = False
 		self.dummyMatrix = np.array([[0,5,5,5,5,0,0,0]])
 		self.obstacleCounter = 0
 		self.goal = MoveBaseGoal()
@@ -35,12 +36,18 @@ class NavigationInterface(object):
 		self.lat = 0
 		self.lon = 0
 		self.firstTime = True
+		self.utmDefault = 'EPSG:32616'
+		self.dummyFirst = True
+		self.dummyX = 0
+		self.dummyY = 0
 		
 		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, self.xy_listener)
 		
 		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
 		
-		self.report_status = rospy.ServiceProxy('thing', Thing)
+		self.cancel_goal_nav = rospy.Service('cancel_goal', NavigateGPS, self.cancelGoal)
+		
+		self.goal_reach = rospy.ServiceProxy('goal_reach', Complete)
 		
 		self.client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
 		self.client.wait_for_server()
@@ -49,7 +56,7 @@ class NavigationInterface(object):
 		while not rospy.is_shutdown():
 			# Check for if next command is wanted. Always false after goal is met.
 			if self.goalFlag == True:
-				if self.firstTime == True
+				if self.firstTime == True:
 					self.get_zone()
 					self.firstTime = False
 				self.get_utm()
@@ -59,12 +66,19 @@ class NavigationInterface(object):
 			rate.sleep()
 			
 	def setGoal(self, data):
+                
 		self.goalFlag = True
 		self.lat = data.goal_lat
 		self.lon = data.goal_lon
+		print("goal received")
+		print(self.lat,self.lon)
+		return True
+		
+	def cancelGoal(self, data):
+		self.client.cancel_all_goals()
 		return True
 	
-	def xy_listener(data,self):
+	def xy_listener(self,data):
 		self.x_UTM_initial = data.pose.pose.position.x
 		self.y_UTM_initial = data.pose.pose.position.y
 		
@@ -106,20 +120,28 @@ class NavigationInterface(object):
 			self.goal = MoveBaseGoal()
 			self.goal.target_pose.header.frame_id = "utm_odom2"
 			self.goal.target_pose.header.stamp = rospy.Time.now()
+			#if self.dummyFirst == True:
+				#self.dummyX = self.x_UTM - 2
+				#self.dummyY = self.y_UTM - 2
+				#self.dummyFirst = False
 			self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
-			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_iniital
+			print(self.x_UTM,self.x_UTM_initial,self.y_UTM,self.y_UTM_initial)
+			#self.goal.target_pose.pose.position.x = self.x_UTM-self.dummyX
+			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_initial
+			#self.goal.target_pose.pose.position.y = self.y_UTM-self.dummyY
 			self.goal.target_pose.pose.orientation.x = 0
 			self.goal.target_pose.pose.orientation.y = 0
 			self.goal.target_pose.pose.orientation.z = 0
 			self.goal.target_pose.pose.orientation.w = 1
 			print(self.goal)
+			print(self.utmDefault," 2")
 	
 	def send_goal(self):
 		self.client.send_goal(self.goal,self.done_callback)
 		print("Goal is sent")
 		self.goalFlag = False
 		self.goalFinished = False
-		if self.useDummyValues == true:
+		if self.useDummyValues == True:
 			self.obstacleCounter = self.obstacleCounter + 1
 	
 	def done_callback(self,status,result):
@@ -129,12 +151,15 @@ class NavigationInterface(object):
 		if status == 3:
 			self.goalStatusManager = 1 #Made it to the goal successfully!
 			self.goalFinished = True
+			res = self.goal_reach(self.goalFinished)
 			print("Goal is met")
 		elif status == 4:
 			self.goalStatusManager = 2 #Goal was aborted due to some failure
+			res = self.goal_reach(self.goalFinished)
 			print("Goal failed somehow")
 		elif  status == 5:
 			self.goalStatusManager = 3 #Unattainable or invalid goal
+			res = self.goal_reach(self.goalFinished)
 			print("Invalid goal")
 	
 	def active_callback(self,status,result):

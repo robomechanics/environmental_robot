@@ -17,7 +17,7 @@ class autonomy_teleop(object):
         self.lowerPXRF = rospy.ServiceProxy('/deploy_sensor',SetBool)
         rospy.Service('/deploy_tool_auto', SetBool, self.deploy_tool_auto)
         self.lowerRake = rospy.ServiceProxy('/deploy_tool',SetBool)
-        self.dig_torque = -5
+        self.dig_torque = -2.5
         self.dig_torque_pub = rospy.Publisher('/dig_torque',Float64, queue_size=10,latch=True)
         
         rospy.Subscriber('/cmd_vel_auto',Twist,self.autoDriveCallback)
@@ -38,7 +38,10 @@ class autonomy_teleop(object):
                 self.managedDrive((0,0))
             rate.sleep()
     def managedDrive(self,driveCommand):
+        origSteer = driveCommand[1]
         self.lastCommandTime = rospy.get_time()
+        if driveCommand[0]!=0 and np.abs(driveCommand[1]*0.235/driveCommand[0]) > 0.25:
+            driveCommand = (0,driveCommand[1])
         motorMag = np.abs(driveCommand[0]) + np.abs(driveCommand[1])*0.235
         if motorMag > self.maxMotorMag:
             driveCommand = (driveCommand[0]*self.maxMotorMag/motorMag,driveCommand[1]*self.maxMotorMag/motorMag)
@@ -77,12 +80,12 @@ class autonomy_teleop(object):
                 self.lowerPXRF(False)
             elif data.axes[7]<-0.5:
                 self.lowerPXRF(True)
-            if data.axes[1] > 0.5:
+            if data.axes[6] > 0.5:
                 msg = Float64()
                 msg.data = self.dig_torque
                 self.dig_torque_pub.publish(msg)
                 self.lowerRake(False)
-            elif data.axes[1] < -0.5:
+            elif data.axes[6] < -0.5:
                 msg = Float64()
                 msg.data = self.dig_torque
                 self.dig_torque_pub.publish(msg)

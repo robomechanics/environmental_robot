@@ -22,7 +22,7 @@ thetaHeading = 0
 utmDefault = 'EPSG:32617'
 
 # ------------------------------------
-thetaOffset = -120
+thetaOffset = -0.56
 
 #get the zone based on the location
 def get_zone(posx, posy):
@@ -37,6 +37,7 @@ def get_zone(posx, posy):
 	)
 	utm_crs = CRS.from_epsg(utm_crs_list[0].code)
 	utmDefault = utm_crs
+	print(utmDefault," 1")
 	return utm_crs
 
 # get utm positions
@@ -58,6 +59,7 @@ def utm_broadcaster(data):
 	pose_Odom = geometry_msgs.msg.Pose()
 	pose_Odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 	quatRaw = [0,0,0,0]	
+	useTimeNow = False
 	# Set the condition for the first time running
 	if firstTime == True:
 		# Set the averages of lat and lon
@@ -79,7 +81,7 @@ def utm_broadcaster(data):
 	thetaHeading = eulers[2]
 	#thetaHeading = np.arctan2(np.sin(thetaHeading), np.cos(thetaHeading))
 	thetaHeading = np.mod(np.arctan2(np.sin(thetaHeading),np.cos(thetaHeading))+(thetaOffset),2*np.pi)
-	print(thetaHeading/np.pi*180)
+	#print(thetaHeading/np.pi*180)
 	
 	quat = tf.transformations.quaternion_from_euler(0,0,thetaHeading,'sxyz')
 	# Creating a pose message for location in Odom
@@ -94,6 +96,8 @@ def utm_broadcaster(data):
 	
 	#Formatting the Odom message
 	Odom.header.stamp = data.header.stamp
+	if useTimeNow:
+		Odom.header.stamp = rospy.Time.now()
 	#print(data.header.stamp)
 	Odom.header.frame_id = "utm_odom2"
 	Odom.child_frame_id = "base_link"
@@ -101,6 +105,8 @@ def utm_broadcaster(data):
 	
 	#Formatting the Odom TF message
 	OdomStart.header.stamp = data.header.stamp
+	if useTimeNow:
+		OdomStart.header.stamp = rospy.Time.now()
 	#print(data.header.stamp)
 	OdomStart.header.frame_id = "utm_odom2"
 	OdomStart.child_frame_id = "base_link"
@@ -119,6 +125,8 @@ def utm_broadcaster(data):
 	t = geometry_msgs.msg.TransformStamped()
 	
 	t.header.stamp = data.header.stamp
+	if useTimeNow:
+		t.header.stamp = rospy.Time.now()
 	t.header.frame_id = "base_link"
 	t.child_frame_id = "utm_odom2"
 	
@@ -132,6 +140,7 @@ def utm_broadcaster(data):
 	t.transform.rotation.y = quatInv[1]
 	t.transform.rotation.z = quatInv[2]
 	t.transform.rotation.w = quatInv[3]
+	#print(t)
 	
 	# Publishing the Odom message and transformation
 	utm_odom_pub.publish(Odom)

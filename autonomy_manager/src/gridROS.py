@@ -50,11 +50,9 @@ class gridROS:
         self.y_bound = [coord[1] for coord in boundary]
         self.x_bound.append(boundary[0][0])
         self.y_bound.append(boundary[0][1])
-        print("!!!!!!!!!!!!!!!!!!")
         print(boundary)
 
         for point in self.grid_points:
             if not boundaryCheck(self.boundary, point):
                 self.grid_points.remove(point)
-    
-
+                
