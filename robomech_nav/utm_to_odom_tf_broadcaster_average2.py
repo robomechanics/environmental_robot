@@ -20,7 +20,7 @@ from microstrain_inertial_msgs.msg import FilterHeading
 # ------------------------------------
 firstTime = True
 thetaHeading = 0
-utmDefault = 'EPSG:32617'
+utmDefault = 'EPSG:3651'
 
 # ------------------------------------
 thetaOffset = 0

@@ -91,7 +91,7 @@ if __name__ == '__main__':
     rospy.Service('deploy_tool', SetBool, tool_arm_cb)
     rospy.Service('deploy_sensor', SetBool, sensor_arm_cb)
 
-    dig_torque = 0.0
+    dig_torque = -30.0
     def dig_cb(msg):
         global dig_torque
         dig_torque = msg.data

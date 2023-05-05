@@ -17,7 +17,7 @@ from boundaryCheck import *
 
 class conversion:
     def __init__(self):
-        self.utm = 'EPSG:32617' #default to pittsburgh
+        self.utm = 'EPSG:32616' #default to pittsburgh
         self.height = 0
         self.width = 0
         self.origin_utm = (0,0)

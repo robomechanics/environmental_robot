@@ -8,6 +8,7 @@ from dummy_services import dummy_search
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
 from adaptiveROS import adaptiveROS
+from gridROS import gridROS
 from boundaryConversion import conversion
 from sensor_msgs.msg import Joy
 
@@ -18,19 +19,21 @@ class manager(object):
         self.update_status('standby')
         rospy.Subscriber('/sensor_prep_status',Bool,self.checkSensorPrepStatus)
         rospy.Subscriber("/joy", Joy, self.manualBehaviorSkip)
+        self.isOverride = False
         #########################change it back to /gps_avg#########################################################
         rospy.Subscriber('/gps_avg', Odometry, self.gps_callback)
         self.sensorPrep = rospy.ServiceProxy('/run_sensor_prep',RunSensorPrep)
         #intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
+        self.gridROS = None
         self.conversion = conversion()
         self.searchBoundary = []
         #######################change it to None#################################
-        self.lat = 40.442083526
-        self.lon = -79.94610353
+        self.lat = 39.1893
+        self.lon = -84.7638
         self.goalComplete = False
         self.pxrfComplete = False
-        self.value = None
+        self.value = -1
         self.gps = None
         deployService = rospy.Service('/autonomy_manager/deploy_autonomy', DeployAutonomy,self.deployService)
         goal_reach = rospy.Service('goal_reach', Complete, self.goal_reach)
@@ -51,7 +54,8 @@ class manager(object):
             print(self.status)
             if self.status == 'received search area':
                 print("receive")
-                self.runSearchAlgo()
+                self.runGridAlgo()
+                #self.runSearchAlgo()
                 print(self.nextScanLoc)
             elif self.status == 'received next scan loc':
                 print("next")
@@ -71,10 +75,12 @@ class manager(object):
                     self.scan()
             elif self.status == 'finished scan':
                 print("algo")
-                self.runSearchAlgo()
+                #self.runSearchAlgo()
+                self.runGridAlgo()
             rate.sleep()
 
     def manualBehaviorSkip(self,data):
+        self.isOverride = data.buttons[5] == 1
         if data.buttons[1]>0 and (not hasattr(self,'lastSkipButtonStatus') or not self.lastSkipButtonStatus):
             if self.status == 'raking':
                 self.sensorPrep(False)
@@ -110,7 +116,7 @@ class manager(object):
         if data.status == True:
             self.pxrfComplete = True
             self.value = data.mean
-            print(self.value)
+            print("the value is :" + str(self.value))
         else:
             self.pxrfComplete = False
         return True
@@ -126,16 +132,28 @@ class manager(object):
         #when you receive the search area, define the robot position as the starting point, make sure to drive the 
         # the robot into the boundary first 
         startx, starty = self.conversion.gps2map(self.lat,self.lon)
-        print(startx, starty)
         self.adaptiveROS = adaptiveROS(self.conversion.width, self.conversion.height, [startx, starty])
         self.adaptiveROS.updateBoundary(boundary_utm_offset)
-        print(self.adaptiveROS)
+        self.gridROS = gridROS(self.conversion.width, self.conversion.height, [0, 0], 25)
+        self.gridROS.updateBoundary(boundary_utm_offset)
+        print("received")
         self.update_status('received search area')
         return True
+    
+    def runGridAlgo(self):
+        #print("here")
+        self.update_status('running grid algo')
+        self.nextScanLoc = self.gridROS.next()
+        self.gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
+        print("sending")
+        print(self.gps)
+        self.send_location(self.gps[0],self.gps[1])
+        self.update_status('received next scan loc')
+
 
     def runSearchAlgo(self):
         self.update_status('running search algo')
-        if self.pxrfComplete == True and self.value != None:
+        if self.pxrfComplete == True and self.value != -1:
             pos = self.conversion.gps2map(self.lat, self.lon)
             self.adaptiveROS.update(pos[0], pos[1], self.value)
         #reset
@@ -159,7 +177,7 @@ class manager(object):
         self.update_status('raking')
         
     def checkSensorPrepStatus(self,data):
-        if data.data == False and self.status == 'raking':
+        if data.data == False and self.status == 'raking' and not self.isOverride:
             self.update_status('finished raking')
 
     def update_status(self,newStatus):

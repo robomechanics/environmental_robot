@@ -22,7 +22,7 @@ TrajectoryPlannerROS:
 
   # Goal Tolerance Parameters
   yaw_goal_tolerance: 10.0
-  xy_goal_tolerance: 1.0
+  xy_goal_tolerance: 0.6
   latch_xy_goal_tolerance: false
 
   # Forward Simulation Parameters

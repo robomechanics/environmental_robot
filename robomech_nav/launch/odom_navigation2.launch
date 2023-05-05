@@ -25,8 +25,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
 -->
 <launch>
 
-  <!--node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average2.py" output="screen"/-->
-  <node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="screen"/>
+  <!--node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average2.py" output="screen" /-->
+  <!--node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="screen"/-->
 
   <arg name="no_static_map" default="true"/>
   
@@ -38,7 +38,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
     <!--remap from="/odom" to="/utm_odom2" /-->
     <remap from="/cmd_vel" to="/cmd_vel_auto" />
     <param name="base_global_planner" value="$(arg base_global_planner)"/>
-    <param name="base_local_planner" value="$(arg base_local_planner)"/>
+    <param name="base_local_planner" value="$(arg base_local_planner)"/>  
     <rosparam file="$(find robomech_nav)/config/planner.yaml" command="load"/>
 
     <!-- observation sources located in costmap_common.yaml -->
@@ -46,15 +46,15 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
     <rosparam file="$(find robomech_nav)/config/costmap_common.yaml" command="load" ns="local_costmap" />
 
     <!-- local costmap, needs size -->
-    <rosparam file="$(find robomech_nav)/config/costmap_local.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find robomech_nav)/config/odom_costmap_local.yaml" command="load" ns="local_costmap" />
     <param name="local_costmap/width" value="6.0"/>
     <param name="local_costmap/height" value="6.0"/>
 
     <!-- static global costmap, static map provides size -->
-    <rosparam file="$(find robomech_nav)/config/costmap_global_static.yaml" command="load" ns="global_costmap" unless="$(arg no_static_map)"/>
+    <rosparam file="$(find robomech_nav)/config/odom_costmap_global_static.yaml" command="load" ns="global_costmap" unless="$(arg no_static_map)"/>
     
     <!-- global costmap with laser, for odom_navigation_demo -->
-    <rosparam file="$(find robomech_nav)/config/costmap_global_laser.yaml" command="load" ns="global_costmap" if="$(arg no_static_map)"/>
+    <rosparam file="$(find robomech_nav)/config/odom_costmap_global_laser.yaml" command="load" ns="global_costmap" if="$(arg no_static_map)"/>
     <param name="global_costmap/width" value="100.0" if="$(arg no_static_map)"/>
     <param name="global_costmap/height" value="100.0" if="$(arg no_static_map)"/>
     <param name="global_costmap/origin_x" value="-50.0" if="$(arg no_static_map)"/>
@@ -62,5 +62,6 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
   </node>
   
   <!--node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" /-->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="link3_broadcaster" args="0 0 0 0 0 0 1 odom utm_odom2" />
  
 </launch>

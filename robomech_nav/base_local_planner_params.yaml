@@ -19,7 +19,8 @@ TrajectoryPlannerROS:
   #g_dist_scale: 5.0
   #heading_scoring: true
   #meter_scoring: true
-  
+  #controller_patience: 60 
+  #planner_patience: 60
 DWAPlannerROS:
   max_vel_x: 0.3
   min_vel_x: 0.1
@@ -33,11 +34,13 @@ DWAPlannerROS:
 
   holonomic_robot: false
   controller_frequency: 10.0
-  
   sim_time: 0.5
   sim_granularity: 0.02
   angular_sim_granularity: 0.02
-  
+ 
+   
+  #controller_patience: 60 
+  #planner_patience: 60
   #p_dist_scale: 4.5
   #g_dist_scale: 5.0
   #heading_scoring: true

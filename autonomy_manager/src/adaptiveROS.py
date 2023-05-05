@@ -34,6 +34,8 @@ class adaptiveROS:
         self.x1 = np.linspace(0,sizex - 1, sizex)
         self.x2 = np.linspace(0,sizey - 1, sizey)
         self.x1x2 = np.array([(a,b) for a in self.x1 for b in self.x2])
+        self.lastLocation = []
+        self.lastMap = np.zeros((sizex,sizey))
 
         #initialize values
         self.sampled = [[0,0]]
@@ -100,11 +102,26 @@ class adaptiveROS:
             next_x, next_y = r2[0], r2[1]
             next = [next_x, next_y]
 
+            #if the next location is the same as the last location, then we need to find a new next location
+            while(next in self.lastLocation):
+                print("repeated location, find a new location")
+                new_bin[r2] = -1
+                r2 = np.unravel_index(new_bin.argmax(), bin_entropy_constraint.shape)
+                next_x, next_y = r2[0], r2[1]
+                next = [next_x, next_y]
+
         elif self.mode == 2: # greedy approach
             r1 = np.unravel_index(bin_entropy_constraint.argmax(), bin_entropy_constraint.shape)
             next_x, next_y = r1[0], r1[1]
             next = [next_x, next_y]
         
+        #check if two arrays are the same
+        if self.lastMap.all() != bin_entropy_constraint.all():
+            self.lastLocation = []
+
+        self.lastLocation.append(next)
+        self.lastMap = bin_entropy_constraint
+
         return next
 
     def plot(self):

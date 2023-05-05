@@ -80,12 +80,12 @@ class autonomy_teleop(object):
                 self.lowerPXRF(False)
             elif data.axes[7]<-0.5:
                 self.lowerPXRF(True)
-            if data.axes[1] > 0.5:
+            if data.axes[6] > 0.5:
                 msg = Float64()
                 msg.data = self.dig_torque
                 self.dig_torque_pub.publish(msg)
                 self.lowerRake(False)
-            elif data.axes[1] < -0.5:
+            elif data.axes[6] < -0.5:
                 msg = Float64()
                 msg.data = self.dig_torque
                 self.dig_torque_pub.publish(msg)

@@ -1,10 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="useJoy" default="true"/>
+    <arg name="useJoy" default="false"/>
     <arg name="useMicrostrain" default="true"/>
     <arg name="useHebi" default="true"/>
-    <arg name="useLidar" default="true"/>
+    <arg name="useLidar" default="false"/>
     <arg name="useManager" default="true"/>
+    <arg name="useCamera" default ="true"/>
 
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
@@ -28,7 +29,10 @@
     </node>
 
     <node name="tool_interface" pkg="gps_navigation" type="tool_arms_ctrl.py" if="$(arg useHebi)"/>
-    <node name="pan_tilt_ctrl" pkg="gps_navigation" type="pan_tilt_ctrl.py" if="$(arg useHebi)"/>
+    <!--node name="pan_tilt_ctrl" pkg="gps_navigation" type="pan_tilt_ctrl.py" if="$(arg useHebi)"/-->
+
+    <!-- camera node-->
+    <include file="$(find camera)/launch/camera.launch" if="$(arg useCamera)"/>
 
     <!-- gps driver -->
     <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)">
@@ -51,5 +55,5 @@
     
     <!--static transformation-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
-    <node pkg="tf2_ros" type="static_transform_publisher" name="link3_broadcaster" args="-0.17 -0.12 0.65 0 0 0 -1 base_link os_sensor" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="-0.17 -0.12 0.65 0 0 0 -1 base_link os_sensor" />
 </launch>
