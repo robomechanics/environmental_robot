@@ -6,6 +6,7 @@ from sensor_msgs.msg import NavSatFix
 from dummy_services import dummy_search
 from std_msgs.msg import Bool
 from adaptiveROS import adaptiveROS
+from gridROS import gridROS
 from boundaryConversion import conversion
 
 class manager(object):
@@ -21,6 +22,7 @@ class manager(object):
         self.update_status('standby')
         #intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
+        self.gridROS = None
         self.conversion = conversion()
         self.searchBoundary = []
         self.lat = None
@@ -32,14 +34,13 @@ class manager(object):
             print("waiting for the calibration to finish")
             rospy.sleep(1)
 
-
-
         # publish status
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             if self.status == 'received search area':
                 rospy.sleep(1)
-                self.runSearchAlgo()
+                self.runGridAlgo()
+                #self.runSearchAlgo()
             elif self.status == 'received next scan loc':
                 rospy.sleep(1)
                 self.navigateToScanLoc()
@@ -49,7 +50,8 @@ class manager(object):
                 self.runSensorPrep()
             elif self.status == 'finished raking':
                 rospy.sleep(1)
-                self.runSearchAlgo()
+                #self.runSearchAlgo()
+                self.runGridAlgo()
             rate.sleep()
 
     def deployService(self,data):
@@ -65,6 +67,10 @@ class manager(object):
         startx, starty = self.conversion.gps2map(self.lat,self.lon)
         self.adaptiveROS = adaptiveROS(self.conversion.width, self.conversion.height, [startx, starty])
         self.adaptiveROS.updateBoundary(boundary_utm_offset)
+
+        #grid ROS Algorithm 
+        self.gridROS = gridROS(self.conversion.width, self.conversion.height, [startx, starty], 9)
+        self.gridROS.updateBoundary(boundary_utm_offset)
         return True
 
     def runSearchAlgo(self):
@@ -73,6 +79,13 @@ class manager(object):
         gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
         self.send_location(gps[0],gps[1])
         self.update_status('received next scan loc')
+
+    def runGridAlgo(self):
+        self.update_status('running grid algo')
+        self.nextScanLoc = self.gridROS.next()
+        gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
+        self.send_location(gps[0],gps[1])
+        self.update_status('received next scan loc - grid ROS')
 
     def navigateToScanLoc(self):
         self.update_status('navigating to scan loc')
