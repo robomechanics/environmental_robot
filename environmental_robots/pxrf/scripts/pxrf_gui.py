@@ -46,6 +46,7 @@ class App:
         self.pubCTRL = rospy.Publisher('pxrf_cmd', String, queue_size=10)
         self.subCTRL = rospy.Subscriber("pxrf_response", String, self.listener)
         self.gps = rospy.Subscriber("/gnss1/fix", NavSatFix, self.location)
+        rospy.Subscriber("pxrf_data", PxrfMsg, self.writeData)
         # add sleep after button press (prevent overclicks)
         self.rate = rospy.Rate(1)
 

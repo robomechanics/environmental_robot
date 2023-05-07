@@ -48,6 +48,11 @@ class manager(object):
         
         self.update_status('standby')
 
+        # get ros param
+        self.grid_sampling = rospy.get_param('~grid', False)
+        self.adaptive_sampling = rospy.get_param('~adaptive', True)
+        self.number_points = rospy.get_param('~number_points', 9)
+
         # publish status
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
@@ -75,8 +80,12 @@ class manager(object):
                     self.scan()
             elif self.status == 'finished scan':
                 print("algo")
-                #self.runSearchAlgo()
-                self.runGridAlgo()
+                if self.grid_sampling:
+                    self.runGridAlgo()
+                elif self.adaptive_sampling:
+                    self.runSearchAlgo()
+                # #self.runSearchAlgo()
+                # self.runGridAlgo()
             rate.sleep()
 
     def manualBehaviorSkip(self,data):
@@ -134,7 +143,7 @@ class manager(object):
         startx, starty = self.conversion.gps2map(self.lat,self.lon)
         self.adaptiveROS = adaptiveROS(self.conversion.width, self.conversion.height, [startx, starty])
         self.adaptiveROS.updateBoundary(boundary_utm_offset)
-        self.gridROS = gridROS(self.conversion.width, self.conversion.height, [0, 0], 25)
+        self.gridROS = gridROS(self.conversion.width, self.conversion.height, [0, 0], self.number_points)
         self.gridROS.updateBoundary(boundary_utm_offset)
         print("received")
         self.update_status('received search area')
@@ -228,6 +237,7 @@ class manager(object):
         if data.status == True:
             print("clear")
             self.adaptiveROS = None
+            self.gridROS = None
             self.conversion = conversion()
             self.searchBoundary = []
 

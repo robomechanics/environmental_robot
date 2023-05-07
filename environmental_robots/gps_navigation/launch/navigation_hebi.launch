@@ -1,0 +1,8 @@
+<launch>
+    <param name="" type="bool" value="True" />
+    <param name="my_float" type="double" value="3.14" />
+    <param name="my_string" type="str" value="hello" />
+
+    <node pkg=
+
+</launch>

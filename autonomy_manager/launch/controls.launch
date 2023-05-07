@@ -7,6 +7,11 @@
     <arg name="useManager" default="true"/>
     <arg name="useCamera" default ="true"/>
 
+    <!-- rosparam default value -->
+    <param name="grid" type="bool" value="false" />
+    <param name="adaptive" type="bool" value="true" />
+    <param name="number_points" type="int" value="9" />
+
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
 	    <param name="dev" type="string" value="/dev/input/js0"/>
