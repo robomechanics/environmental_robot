@@ -36,7 +36,7 @@ class NavigationInterface(object):
 		self.lat = 0
 		self.lon = 0
 		self.firstTime = True
-		self.utmDefault = 'EPSG:32616'
+		self.utmDefault = 'EPSG:3651'
 		self.dummyFirst = True
 		self.dummyX = 0
 		self.dummyY = 0

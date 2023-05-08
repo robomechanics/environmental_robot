@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # setting rake torque
     dig_torque_publisher = rospy.Publisher('/dig_torque',Float64, queue_size=10)
     msg = Float64()
-    msg.data = -10
+    msg.data = -30
     while True:
         dig_torque_publisher.publish(msg)
         rospy.sleep(1)

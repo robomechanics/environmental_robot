@@ -9,7 +9,7 @@ from std_msgs.msg import Float64, Bool
 from std_srvs.srv import SetBool
 from autonomy_manager.srv import RunSensorPrep
 
-# script used for rake and scan
+# script used for rake and scan and pxrf only
 sensorPrepScript_broom = (
         #('drive',(1,0,0)),
         ('rake',-2.5,2), # lower torque (non-negative for raise), time to wait for raise
@@ -42,7 +42,15 @@ sensorPrepScript_rake = (
         #('drive',(0,0,0)),
         )
 
-sensorPrepScript = sensorPrepScript_rake
+sensorPrepScript_pxrf_only = (
+        #('drive',(1,0,0)),
+        ('pxrf',-1,5),
+        #('wait',5),
+        #('pxrf',1,2),
+        #('drive',(0,0,0)),
+        )
+
+sensorPrepScript = sensorPrepScript_pxrf_only
 
 # move forward
 scriptForward = (

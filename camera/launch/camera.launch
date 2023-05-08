@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <!--hebi camera node-->
+    <node name="hebi_camera" pkg="gps_navigation" type="pan_tilt_ctrl.py" output="screen"/>
+    <!--camera control node -->
+    <node name="camera_ctrl" pkg="camera" type="camera_teleop.py" output="screen"/>
+</launch>

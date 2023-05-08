@@ -25,7 +25,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
 -->
 <launch>
 
-  <!--node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average2.py" output="screen"/-->
+  <node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average2.py" output="screen"/>
   <node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="screen"/>
 
   <arg name="no_static_map" default="true"/>
