@@ -154,10 +154,10 @@ def visualizer(robot_path, distribution_map, mu, bin_entropy, x_bound, y_bound, 
 	if fig is None:
 		fig = plt.figure(figsize=(17,4))
 	line_color = (0.733,0,0)
-
+	ax1 = plt.subplot(131)
 	# Plot the underlying distribution and overlay the obstacle map
 	if distribution_map is not None:
-		ax1 = plt.subplot(131)
+		
 		ax1.plot(sampled[:,1], sampled[:,0], '.', color=line_color)
 		plotMap(distribution_map, distribution_map, plt.gca())
 		plt.title('Original Distribution')
@@ -198,6 +198,7 @@ def visualizer(robot_path, distribution_map, mu, bin_entropy, x_bound, y_bound, 
 	ax3 = plt.subplot(133)
 	ax3.plot(sampled[:,1], sampled[:,0], '.', color=line_color)
 	plotMap(bin_entropy, bin_entropy, plt.gca())
+	plt.plot(x_bound, y_bound, linewidth=3, color=(0.733,0,0))
 	plt.title('Uncertainty')
 
 	plt.show()
@@ -227,6 +228,9 @@ def plotPathResult(robot_path, obstacle_map, distribution_map, sample_points='',
 	if fig is None:
 		fig = plt.figure(figsize=(17,4))
 	line_color = (0.733,0,0)
+
+	# yellow
+	dot_color = (1,1,0)
 
 	# Plot the underlying distribution and overlay the obstacle map
 	ax1 = plt.subplot(131)
@@ -279,7 +283,7 @@ def plotPathResult(robot_path, obstacle_map, distribution_map, sample_points='',
 		plt.plot(robot_path[:,1], robot_path[:,0], linewidth=2, color=line_color)
 	
 	ax3 = plt.subplot(133)
-	ax3.plot(sample_points[:,1], sample_points[:,0], '.', color=line_color)
+	ax3.plot(sample_points[:,1], sample_points[:,0], '.', color=dot_color)
 	plotMap(obstacle_map,np.abs(recreated_distribution_map-distribution_map,normalize=True), plt.gca())
 	plt.colorbar(im)
 	plt.title('Error')

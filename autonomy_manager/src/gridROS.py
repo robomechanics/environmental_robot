@@ -17,7 +17,7 @@ class gridROS:
         self.startpoint = startpoint
         self.start_x = startpoint[0]
         self.start_y = startpoint[1]
-        self.aspect = sizex/sizey
+        self.aspect = sizey/sizex
         self.n_x = int(np.round(np.sqrt(n_points * self.aspect)))
         self.n_y = int(np.round(n_points / self.n_x))
         while self.n_x * self.n_y < n_points:
@@ -43,6 +43,10 @@ class gridROS:
             return self.grid_points.pop(0)
         else:
             return None
+    
+    #function that returns all the grid points
+    def getGrid(self):
+        return self.grid_points
 
     def updateBoundary(self, boundary):
         self.boundary = boundary
@@ -50,9 +54,9 @@ class gridROS:
         self.y_bound = [coord[1] for coord in boundary]
         self.x_bound.append(boundary[0][0])
         self.y_bound.append(boundary[0][1])
+        print(boundary)
 
-        #for point in self.grid_points:
-        #    if not boundaryCheck(self.boundary, point):
-        #        self.grid_points.remove(point)
-    
-
+        for point in self.grid_points:
+            if not boundaryCheck(self.boundary, point):
+                self.grid_points.remove(point)
+                

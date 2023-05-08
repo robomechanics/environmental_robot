@@ -22,7 +22,7 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep
+from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep, Waypoints
 #testing
 lat_set = 0
 lon_set = 0
@@ -102,16 +102,6 @@ class GpsNavigationGui:
         self.click_plot.setAspectLocked()
         self.click_plot.invertY()
 
-        # with open('locations.csv') as f:
-        #     reader = csv.reader(f)
-        #     self.num_measurements = 0
-        #     for row in reader:
-        #         self.num_measurements += 1
-        #         label = row[0]
-        #         lat = float(row[1])
-        #         lon = float(row[2])
-        #         self.add_marker_at(lat, lon, label=label)
-
         # add arrow to show robot
         self.robotArrow = pg.ArrowItem(headLen=40, tipAngle=30, brush='r')
         self.click_plot.addItem(self.robotArrow)
@@ -137,12 +127,13 @@ class GpsNavigationGui:
 
         # robot's history (path measured by gps)
         self.historyPoints: list[list[int]] = []
-        self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=3))
+        self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=2))
         self.setHistory()
 
         # ros services
         self.parking_brake = rospy.ServiceProxy('/parking_brake', SetBool)
         self.nextPoint = rospy.Service('next_goal', NavigateGPS, self.on_next_goal_update)
+        self.grid_points = rospy.Service('grid_points', Waypoints, self.on_grid_points)
         #############################################
         # add buttons
         self.setup_widgets()
@@ -162,7 +153,6 @@ class GpsNavigationGui:
         #rospy.spin()
     def add_marker_at(self, lat: float, lon: float, label=None, size=20):
         pos = self.satMap.coord2Pixel(lat, lon)
-
         marker = pg.TargetItem(
             pos=pos,
             movable=False,
@@ -172,11 +162,11 @@ class GpsNavigationGui:
         self.click_plot.addItem(marker)
 
     def setup_widgets(self):
-        def prevGoal():
-            self.changeGoal(changeDir=-1)
+        # def prevGoal():
+        #     self.changeGoal(changeDir=-1)
 
-        def nextGoal():
-            self.changeGoal(changeDir=1)
+        # def nextGoal():
+        #     self.changeGoal(changeDir=1)
 
         def clearHistory():
             self.setHistory(clear = True)
@@ -192,22 +182,22 @@ class GpsNavigationGui:
         self.editPathBtn.setStyleSheet("background-color : yellow")
         self.editPathMode = False
         self.editPathBtn.clicked.connect(self.toggleEditPathMode)
-        loadPathFileBtn = QtWidgets.QPushButton('Load Path')
-        loadPathFileBtn.setStyleSheet("background-color : yellow")
-        loadPathFileBtn.clicked.connect(self.loadPathFile)
-        savePathBtn = QtWidgets.QPushButton('Save Path')
-        savePathBtn.setStyleSheet("background-color : yellow")
-        savePathBtn.clicked.connect(self.savePath)
+        # loadPathFileBtn = QtWidgets.QPushButton('Load Path')
+        # loadPathFileBtn.setStyleSheet("background-color : yellow")
+        # loadPathFileBtn.clicked.connect(self.loadPathFile)
+        # savePathBtn = QtWidgets.QPushButton('Save Path')
+        # savePathBtn.setStyleSheet("background-color : yellow")
+        # savePathBtn.clicked.connect(self.savePath)
         self.startPauseBtn = QtWidgets.QPushButton('Start')
         self.startPauseBtn.setStyleSheet("background-color : yellow")
         self.is_navigating = False
         self.startPauseBtn.clicked.connect(self.startPause)
-        prevGoalBtn = QtWidgets.QPushButton('Prev Goal')
-        prevGoalBtn.setStyleSheet("background-color : yellow")
-        prevGoalBtn.clicked.connect(prevGoal)
-        nextGoalBtn = QtWidgets.QPushButton('Next Goal')
-        nextGoalBtn.setStyleSheet("background-color : yellow")
-        nextGoalBtn.clicked.connect(nextGoal)
+        # prevGoalBtn = QtWidgets.QPushButton('Prev Goal')
+        # prevGoalBtn.setStyleSheet("background-color : yellow")
+        # prevGoalBtn.clicked.connect(prevGoal)
+        # nextGoalBtn = QtWidgets.QPushButton('Next Goal')
+        # nextGoalBtn.setStyleSheet("background-color : yellow")
+        # nextGoalBtn.clicked.connect(nextGoal)
         self.stopStatus = True
         self.parking_brake(self.stopStatus)
         self.parkBtn = QtWidgets.QPushButton('PARK ON')
@@ -245,21 +235,19 @@ class GpsNavigationGui:
     
         # add buttons to the layout
         self.widget.addWidget(self.statusGPS,     row=1, col=0, colspan=3)
-        self.widget.addWidget(self.statusNav,     row=1, col=3, colspan=1)
-        self.widget.addWidget(self.statusPxrf,    row=1, col=4, colspan=2)
+        self.widget.addWidget(self.statusNav,     row=1, col=3, colspan=2)
+        self.widget.addWidget(self.statusPxrf,    row=1, col=5, colspan=2)
         
         self.widget.addWidget(clearHistoryBtn,    row=2, col=4, colspan=2)
-        self.widget.addWidget(clearPathBtn,       row=2, col=1, colspan=1)
-        self.widget.addWidget(self.editPathBtn,   row=2, col=0, colspan=1)
-        self.widget.addWidget(loadPathFileBtn,    row=2, col=2, colspan=1)
-        self.widget.addWidget(savePathBtn,        row=2, col=3, colspan=1)
-        self.widget.addWidget(nextGoalBtn,        row=2, col=6, colspan=1)
-        self.widget.addWidget(self.startPauseBtn, row=2, col=7, colspan=1)
+        self.widget.addWidget(clearPathBtn,       row=2, col=2, colspan=2)
+        self.widget.addWidget(self.editPathBtn,   row=2, col=0, colspan=2)
+        # self.widget.addWidget(loadPathFileBtn,    row=2, col=2, colspan=1)
+        # self.widget.addWidget(savePathBtn,        row=2, col=3, colspan=1)
+        # self.widget.addWidget(nextGoalBtn,        row=2, col=6, colspan=1)
+        self.widget.addWidget(self.startPauseBtn, row=2, col=6, colspan=2)
        
-        #self.widget.addWidget(prevGoalBtn,        row=2, col=7, colspan=1)
-        
-        self.widget.addWidget(self.addBoundaryBtn,row=3, col=0, colspan=1)
-        self.widget.addWidget(clearBoundaryBtn,   row=3, col=1, colspan=1)
+        self.widget.addWidget(self.addBoundaryBtn,row=3, col=0, colspan=2)
+        self.widget.addWidget(clearBoundaryBtn,   row=3, col=2, colspan=2)
         self.widget.addWidget(self.gridBtn,       row=3, col=6, colspan=2)
         self.widget.addWidget(self.adaptiveBtn,   row=3, col=4, colspan=2)
 
@@ -296,7 +284,6 @@ class GpsNavigationGui:
         if self.editPathMode or self.editBoundaryMode:
             print('click: Add Point')
             points = [[handle['pos'].x(),handle['pos'].y()] for handle in self.pathRoi.handles]
-
             points.append(point)
             self.pathRoi.setPoints(points)
     
@@ -355,20 +342,31 @@ class GpsNavigationGui:
     def sendBoundary(self, boundary):
         rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
         try:
-            print("try")
             sendBoundary = rospy.ServiceProxy('/autonomy_manager/deploy_autonomy', DeployAutonomy)
             if len(boundary) > 0:
                 boundary.pop()
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
-            print(lat)
             res = sendBoundary(lat,lon)
-            print("set")
-        except rospy.ServiceException:
+            print("boundary set")
+        except rospy.ServiceException as e:
+            print(e)
             print("boundary sent unsuccessfully")
-            
+
+    def sendWaypoints(self, waypoints):
+        rospy.wait_for_service('/waypoints')
+        try:
+            sendWaypoints = rospy.ServiceProxy('/waypoints', Waypoints)
+            lat = [float(lat[0]) for lat in waypoints]
+            lon = [float(lon[1]) for lon in waypoints]
+            res = sendWaypoints(lat,lon)
+            print("waypoints set")
+        except rospy.ServiceException:
+            print("waypoints sent unsuccessfully")
+        
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
+            print("boundarymode")
             if self.editPathMode:
                 print("Warning: Please finish editing the path first")
                 return
@@ -422,59 +420,79 @@ class GpsNavigationGui:
             for handle in self.pathRoi.handles:
                 pos = handle['pos']
                 self.pathPlotPoints.append([pos.x(), pos.y()])
+
             self.pathGPS = self.pixels_to_gps(self.pathPlotPoints)
             x, y = zip(*self.pathPlotPoints)
+            #size of x
             self.pathPlot.setData(x=list(x), y=list(y))
+            print(self.pathGPS)
             self.pathRoi.setPoints([])
-            self.updateGoalMarker()
+            self.sendWaypoints(self.pathGPS)
     
     def toggleAdaptive(self):
         if not self.editPathMode and not self.editBoundaryMode and not self.pathRoi.handles == []:
             self.adaptive = not self.adaptive
-            rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
             try:
                 start = rospy.ServiceProxy('/start', RunSensorPrep)
                 res = start(True)
             except rospy.ServiceException:
                 print("start sent unsuccessfully")
+            rospy.set_param('/adaptive', True)
+            rospy.set_param('/grid', False)
+            rospy.set_param('/waypoint', False)
             self.adaptiveBtn.setText('Stop Adaptive')
         else:
             self.adaptiveBtn.setText('Start Adaptive')
+            rospy.set_param('/adaptive', False)
         
     def toggleGrid(self):
-        self.grid = not self.grid
-        #to do
-        pass
+        if True:
+        #if not self.editPathMode and not self.editBoundaryMode and not self.pathRoi.handles == []:
+            print("start grid")
+            self.grid = not self.grid
+            try:
+                start = rospy.ServiceProxy('/start', RunSensorPrep)
+                res = start(True)
+            except rospy.ServiceException as e:
+                print(e) 
+                print("start sent unsuccessfully")
+            rospy.set_param('/grid', True)
+            rospy.set_param('/adaptive', False)
+            rospy.set_param('/waypoint', False)
+            self.gridBtn.setText('Stop Grid')
+        else:
+            self.gridBtn.setText('Start Grid')
+            rospy.set_param('/grid', False)
 
     # This function loads path from csv file chosen by user
-    def loadPathFile(self):
-        fn = str(QtGui.QFileDialog.getOpenFileName()[0])
-        #pathFn = easygui.fileopenbox()
-        if fn =='':
-            return
-        if self.editPathMode:
-            self.toggleEditPathMode()
-        self.clearPath()
-        csvData = pd.read_csv(fn)
-        csvData = np.array(csvData.iloc[:,:])
-        for i in range(csvData.shape[0]):
-            toStop = True
-            if csvData.shape[1]>2:
-                toStop = bool(csvData[i,2])
-            gpsPoint = [csvData[i,0],csvData[i,1],toStop]
-            self.pathGPS.append(gpsPoint)
-        self.gps_to_pixels()
-        self.pathPlot.setData(x=[point[0] for point in self.pathPlotPoints],y=[point[1] for point in self.pathPlotPoints])
-        self.changeGoal(reset=True)
+    # def loadPathFile(self):
+    #     fn = str(QtGui.QFileDialog.getOpenFileName()[0])
+    #     #pathFn = easygui.fileopenbox()
+    #     if fn =='':
+    #         return
+    #     if self.editPathMode:
+    #         self.toggleEditPathMode()
+    #     self.clearPath()
+    #     csvData = pd.read_csv(fn)
+    #     csvData = np.array(csvData.iloc[:,:])
+    #     for i in range(csvData.shape[0]):
+    #         toStop = True
+    #         if csvData.shape[1]>2:
+    #             toStop = bool(csvData[i,2])
+    #         gpsPoint = [csvData[i,0],csvData[i,1],toStop]
+    #         self.pathGPS.append(gpsPoint)
+    #     self.gps_to_pixels()
+    #     self.pathPlot.setData(x=[point[0] for point in self.pathPlotPoints],y=[point[1] for point in self.pathPlotPoints])
+    #     self.changeGoal(reset=True)
 
     # this function saves the current path as csv file
-    def savePath(self):
-        fn = str(QtGui.QFileDialog.getSaveFileName()[0])
-        csvFile = open(fn,'w',newline='')
-        csvWriter = csv.writer(csvFile,delimiter=',')
-        csvWriter.writerow(['lat','lon','stop'])
-        for gpsPoint in self.pathGPS:
-            csvWriter.writerow(gpsPoint)
+    # def savePath(self):
+    #     fn = str(QtGui.QFileDialog.getSaveFileName()[0])
+    #     csvFile = open(fn,'w',newline='')
+    #     csvWriter = csv.writer(csvFile,delimiter=',')
+    #     csvWriter.writerow(['lat','lon','stop'])
+    #     for gpsPoint in self.pathGPS:
+    #         csvWriter.writerow(gpsPoint)
 
     # This function starts/ pauses the navigation
     def startPause(self):
@@ -483,29 +501,41 @@ class GpsNavigationGui:
         self.is_navigating = not self.is_navigating
         if self.is_navigating:
             self.startPauseBtn.setText('Pause')
+            print("here")
+            #rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
+            try:
+                start = rospy.ServiceProxy('/start', RunSensorPrep)
+                res = start(True)
+            except rospy.ServiceException:
+                print("start sent unsuccessfully")
+
+            rospy.set_param('/waypoint', True)
+            rospy.set_param('/adaptive', False)
+            rospy.set_param('/grid', False)
         elif self.pathIndex == 0:
             self.startPauseBtn.setText('Start')
+            rospy.set_param('/waypoint', False)
         else:
             self.startPauseBtn.setText('Continue')
 
     # This function changes the goal to another waypoint on path
-    def changeGoal(self,reset=False,changeDir=1):
-        self.pathIndex = self.pathIndex + changeDir
-        if self.pathIndex < 0:
-            self.pathIndex = max(self.pathIndex+len(self.pathPlotPoints), 0)
-        if reset or self.pathIndex >= len(self.pathPlotPoints):
-            self.pathIndex = 0
-            if self.is_navigating:
-                self.startPause()
-        self.updateGoalMarker()
+    # def changeGoal(self,reset=False,changeDir=1):
+    #     self.pathIndex = self.pathIndex + changeDir
+    #     if self.pathIndex < 0:
+    #         self.pathIndex = max(self.pathIndex+len(self.pathPlotPoints), 0)
+    #     if reset or self.pathIndex >= len(self.pathPlotPoints):
+    #         self.pathIndex = 0
+    #         if self.is_navigating:
+    #             self.startPause()
+    #     self.updateGoalMarker()
 
     # This function updates the marked goal on the path
-    def updateGoalMarker(self):
-        if self.pathIndex < len(self.pathPlotPoints):
-            point = self.pathPlotPoints[self.pathIndex]
-            self.currentGoalMarker.setData(x=[point[0]], y=[point[1]])
-        else:
+    def updateGoalMarker(self, point = None):
+        if point == None:
             self.currentGoalMarker.setData(x=[], y=[])
+        else:
+            self.currentGoalMarker.setData(x=[point[0]], y=[point[1]])
+       
 
     # This function is called by subscriber of gps sensor
     def robot_update(self,data: FilterHeading):
@@ -517,15 +547,7 @@ class GpsNavigationGui:
 
         #calculate heading based on gps coordinates 
         pixX, pixY = self.satMap.coord2Pixel(lat, lon)
-        #print(f"GPS -> pixels ({lat}, {lon}) -> {pixX}, {pixY}")
-        #prevpixX, prevpixY = self.satMap.coord2Pixel(self.prev_lat, self.prev_lon)
         robotHeading = data.heading_rad
-        #print("robotHeading "+ str(robotHeading))
-        #quat = data.pose.pose.orientation
-        #r = R.from_quat([quat.x, quat.y, quat.z, quat.w])
-        #xVec = r.as_dcm()[:,0]
-        #robotHeading = np.mod(math.atan2(xVec[1],xVec[0])+np.pi/3.0,2*np.pi)
-        #robotHeading = self.heading #math.atan2(xVec[0],xVec[1])
 
         if not self.robotArrow is None:
             self.robotArrow.setStyle(angle = 180 - robotHeading*180.0/np.pi)
@@ -549,50 +571,38 @@ class GpsNavigationGui:
 
     # This function updates the goal and displays it on the map
     def on_next_goal_update(self, req: NavigateGPS):
-        
-        if self.adaptive or self.grid or True: #remove this later
-            #x_loc = self.gps_to_pixels(req.goal_lon)
-            #y_loc = self.gps_to_pixels(req.goal_lat)
+        if self.adaptive:
+            print("adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
-            self.gps_to_pixels()
-
             #self.pathPlot.setData(x = x_loc, y = y_loc)
        
             x, y = zip(*self.pathPlotPoints)
             self.pathPlot.setData(x=list(x), y=list(y))
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
-            #self.pathRoi.setPoints([])
-            #self.addROIPoint(x_loc, y_loc)
-            self.updateGoalMarker()
-            return True
-
-    #this function checks status of navigation controller
-    def readNavigation(self,data: PoseStamped):
-        print('Incoming nav update')
-        if self.is_navigating:
-            self.statusNav.setText("Automatic navigation")
-            currNavGoal = np.array([data.pose.position.y, data.pose.position.x])
-            desNavGoal = np.array(self.pathGPS[self.pathIndex][0:2])
-            onCurrentGoal = np.linalg.norm(desNavGoal-currNavGoal) < 1e-4
-            navFinished = data.pose.position.z < 0
-            if onCurrentGoal and navFinished:
-                if self.pathGPS[self.pathIndex][2]:
-                    self.startPause()
-                self.changeGoal()
-            else:
-                msg = PoseStamped()
-                msg.pose.position.y = desNavGoal[0]
-                msg.pose.position.x = desNavGoal[1]
-                self.goal_pub.publish(msg)
+            point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
+            self.updateGoalMarker(point)
         else:
-            # stop the navigation
-            self.statusNav.setText("Manual")
-            msg = PoseStamped()
-            msg.pose.position.x = float('nan')
-            msg.pose.position.y = float('nan')
-            msg.pose.position.z = -1
-            self.goal_pub.publish(msg)
+            point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
+            self.updateGoalMarker(point)
+
+        return True
+    
+    def on_grid_points(self, req: Waypoints):
+        #display it on the map by setting the data of the pathPlot
+        if True:
+            print("Printing grid points")
+            self.pathGPS = []
+            self.pathPlotPoints = []
+            for i in range(len(req.waypoints_lat)):
+                self.pathGPS.append([req.waypoints_lat[i], req.waypoints_lon[i]])
+                self.pathPlotPoints.append(self.satMap.coord2Pixel(req.waypoints_lat[i], req.waypoints_lon[i]))
+               
+            x, y = zip(*self.pathPlotPoints)
+            self.pathPlot.setData(x=list(x), y=list(y))
+            self.pathRoi.setPoints([])
+            self.pathPlotPoints = []
+        return True
 
     def toggle_brake(self):
         self.stopStatus = not self.stopStatus
@@ -613,8 +623,6 @@ class GpsNavigationGui:
             res = clear(True)
         except rospy.ServiceException as e:
             print("failed")
-
-
 
     def toggle_pxrf_collection(self):
         self.pxrfStatus = not self.pxrfStatus

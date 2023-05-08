@@ -16,6 +16,7 @@ class dummy_services(object):
         rospy.Service('/run_sensor_prep', RunSensorPrep,self.dummy)
         rospy.Service('/next_goal_nav', NavigateGPS,self.dummy)
         rospy.Service('/deploy_sensor', SetBool, self.dummy2)
+        rospy.Service('/start', SetBool, self.dummy2)
         rospy.spin()
 
     def dummy(self,data):
