@@ -43,6 +43,10 @@ class gridROS:
             return self.grid_points.pop(0)
         else:
             return None
+    
+    #function that returns all the grid points
+    def getGrid(self):
+        return self.grid_points
 
     def updateBoundary(self, boundary):
         self.boundary = boundary

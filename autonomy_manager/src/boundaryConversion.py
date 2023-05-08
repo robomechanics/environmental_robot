@@ -17,7 +17,7 @@ from boundaryCheck import *
 
 class conversion:
     def __init__(self):
-        self.utm = 'EPSG:32616' #default to pittsburgh
+        self.utm = 'EPSG:32617' #default to pittsburgh
         self.height = 0
         self.width = 0
         self.origin_utm = (0,0)
@@ -95,14 +95,14 @@ class conversion:
 
     # x - Easting, y - Northing
     def get_utm(self, posx, posy):
-        wgs84 = pyproj.CRS('EPSG:4326') # WGS 84
+        wgs84 = pyproj.CRS('EPSG:4326') 
         utm17n = pyproj.CRS(self.get_zone(posx, posy)) 
+        self.utm = utm17n
         transformer = pyproj.Transformer.from_crs(wgs84, utm17n)
         return transformer.transform(posx, posy)
 
     #get the utm zone
     def get_zone(self, posx, posy):
-        
         utm_crs_list = query_utm_crs_info( 
         datum_name="WGS 84", 
         area_of_interest=AreaOfInterest( 

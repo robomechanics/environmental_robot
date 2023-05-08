@@ -1,0 +1,4 @@
+float64[] waypoints_lat
+float64[] waypoints_lon
+---
+bool success

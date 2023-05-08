@@ -11,6 +11,7 @@
     <param name="grid" type="bool" value="false" />
     <param name="adaptive" type="bool" value="true" />
     <param name="number_points" type="int" value="9" />
+    <param name="waypoint" type="bool" value="false" />
 
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
