@@ -117,6 +117,8 @@ class GpsNavigationGui:
         self.pathGPS = []
         self.boundaryPath = []
         self.heading = 0
+        self.waypointsGPS = []
+        self.waypointsPath = []
         self.pathPlot = self.click_plot.plot(symbolBrush=(255, 0, 255))
         self.boundaryPlot = self.click_plot.plot(symbolBrush=(255, 255, 255))
         self.currentGoalMarker = self.click_plot.plot(symbolBrush=(0, 0, 255))
@@ -195,7 +197,7 @@ class GpsNavigationGui:
         # prevGoalBtn = QtWidgets.QPushButton('Prev Goal')
         # prevGoalBtn.setStyleSheet("background-color : yellow")
         # prevGoalBtn.clicked.connect(prevGoal)
-        CalibrateBtn = QtWidgets.QPushButton('Calibrate')
+        CalibrateBtn = QtWidgets.QPushButton('Calibrate & Set')
         CalibrateBtn.setStyleSheet("background-color : red")
         CalibrateBtn.clicked.connect(self.calibrate)
         self.stopStatus = True
@@ -233,10 +235,14 @@ class GpsNavigationGui:
         self.gridBtn.setStyleSheet("background-color : orange")
         self.gridBtn.clicked.connect(self.toggleGrid)
     
+
+        self.textbox = QtWidgets.QLineEdit("9")
+
         # add buttons to the layout
-        self.widget.addWidget(self.statusGPS,     row=1, col=0, colspan=3)
-        self.widget.addWidget(self.statusNav,     row=1, col=3, colspan=2)
-        self.widget.addWidget(self.statusPxrf,    row=1, col=5, colspan=2)
+        self.widget.addWidget(self.statusGPS,     row=1, col=0, colspan=2)
+        self.widget.addWidget(self.statusNav,     row=1, col=2, colspan=2)
+        self.widget.addWidget(self.statusPxrf,    row=1, col=4, colspan=2)
+        self.widget.addWidget(self.textbox,       row=1, col=6, colspan=2)
         
         self.widget.addWidget(clearHistoryBtn,    row=2, col=4, colspan=2)
         self.widget.addWidget(clearPathBtn,       row=2, col=2, colspan=2)
@@ -281,6 +287,11 @@ class GpsNavigationGui:
         #self.prev_heading = self. heading
 
     def calibrate(self):
+        try: 
+            value = int(self.textbox.text())
+            rospy.set_param('/number_points', value)
+        except:
+            print("not a valid number")
         try:
             start = rospy.ServiceProxy('/start', RunSensorPrep)
             res = start(True)
@@ -349,7 +360,7 @@ class GpsNavigationGui:
     
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
-        rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
+        #rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
         try:
             sendBoundary = rospy.ServiceProxy('/autonomy_manager/deploy_autonomy', DeployAutonomy)
             if len(boundary) > 0:
@@ -363,7 +374,7 @@ class GpsNavigationGui:
             print("boundary sent unsuccessfully")
 
     def sendWaypoints(self, waypoints):
-        rospy.wait_for_service('/waypoints')
+        #rospy.wait_for_service('/waypoints')
         try:
             sendWaypoints = rospy.ServiceProxy('/waypoints', Waypoints)
             lat = [float(lat[0]) for lat in waypoints]
@@ -439,7 +450,7 @@ class GpsNavigationGui:
             self.sendWaypoints(self.pathGPS)
     
     def toggleAdaptive(self):
-        if not self.editPathMode and not self.editBoundaryMode and not self.pathRoi.handles == []:
+        if not self.editPathMode and not self.editBoundaryMode:
             self.adaptive = not self.adaptive
             rospy.set_param('/adaptive', True)
             rospy.set_param('/grid', False)
@@ -450,13 +461,17 @@ class GpsNavigationGui:
             rospy.set_param('/adaptive', False)
         
     def toggleGrid(self):
-        if True:
-        #if not self.editPathMode and not self.editBoundaryMode and not self.pathRoi.handles == []:
+        if not self.editPathMode and not self.editBoundaryMode:
             print("start grid")
             self.grid = not self.grid
             rospy.set_param('/grid', True)
             rospy.set_param('/adaptive', False)
             rospy.set_param('/waypoint', False)
+            x, y = zip(*self.waypointsPath)
+            self.pathPlot.setData(x=list(x), y=list(y))
+            self.pathRoi.setPoints([])
+            self.pathGPS = self.waypointsGPS
+            self.waypointsPath = []
             self.gridBtn.setText('Stop Grid')
         else:
             self.gridBtn.setText('Start Grid')
@@ -523,12 +538,12 @@ class GpsNavigationGui:
         if self.adaptive:
             print("adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
+            self.pathPlotPoints.append(self.satMap.coord2Pixel(req.goal_lat, req.goal_lon))
             #self.pathPlot.setData(x = x_loc, y = y_loc)
-       
             x, y = zip(*self.pathPlotPoints)
             self.pathPlot.setData(x=list(x), y=list(y))
             self.pathRoi.setPoints([])
-            self.pathPlotPoints = []
+            #self.pathPlotPoints = []
             point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
             self.updateGoalMarker(point)
         else:
@@ -542,16 +557,11 @@ class GpsNavigationGui:
         #display it on the map by setting the data of the pathPlot
         if True:
             print("Printing grid points")
-            self.pathGPS = []
-            self.pathPlotPoints = []
+            self.waypointsGPS = []
+            self.waypointsPath = []
             for i in range(len(req.waypoints_lat)):
-                self.pathGPS.append([req.waypoints_lat[i], req.waypoints_lon[i]])
-                self.pathPlotPoints.append(self.satMap.coord2Pixel(req.waypoints_lat[i], req.waypoints_lon[i]))
-               
-            x, y = zip(*self.pathPlotPoints)
-            self.pathPlot.setData(x=list(x), y=list(y))
-            self.pathRoi.setPoints([])
-            self.pathPlotPoints = []
+                self.waypointsGPS.append([req.waypoints_lat[i], req.waypoints_lon[i]])
+                self.waypointsPath.append(self.satMap.coord2Pixel(req.waypoints_lat[i], req.waypoints_lon[i]))
         return True
 
     def toggle_brake(self):
@@ -567,7 +577,7 @@ class GpsNavigationGui:
             self.parkBtn.setStyleSheet("background-color : green")
 
     def clear_map(self):
-        rospy.wait_for_service('clear')
+        #rospy.wait_for_service('clear')
         try:
             clear = rospy.ServiceProxy('clear', Complete)
             res = clear(True)
