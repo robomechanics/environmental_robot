@@ -17,6 +17,10 @@ class autonomy_teleop(object):
         self.lowerPXRF = rospy.ServiceProxy('/deploy_sensor',SetBool)
         rospy.Service('/deploy_tool_auto', SetBool, self.deploy_tool_auto)
         self.lowerRake = rospy.ServiceProxy('/deploy_tool',SetBool)
+
+        rospy.Service('/deploy_home_auto', SetBool, self.deploy_home_auto)
+        self.homeRake = rospy.ServiceProxy('/deploy_home',SetBool)
+
         self.dig_torque = -2.5
         self.dig_torque_pub = rospy.Publisher('/dig_torque',Float64, queue_size=10,latch=True)
         
@@ -95,6 +99,8 @@ class autonomy_teleop(object):
                 msg.data = self.dig_torque
                 self.dig_torque_pub.publish(msg)
                 self.lowerRake(True)
+            if data.buttons[4] > 0.5: # Added this in -Ian
+                self.homeRake(True)
     def deploy_sensor_auto(self,data):
         if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
             self.lowerPXRF(data.data)
@@ -103,6 +109,11 @@ class autonomy_teleop(object):
     def deploy_tool_auto(self,data):
         if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
             self.lowerRake(data.data)
+            return True,''
+        return False,''
+    def deploy_home_auto(self,data):
+        if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
+            self.homeRake(data.data)
             return True,''
         return False,''
 

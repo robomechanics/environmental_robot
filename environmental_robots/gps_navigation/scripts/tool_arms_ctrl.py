@@ -24,6 +24,7 @@ if __name__ == '__main__':
     family = 'Chevron'
     names = ['J1_rake']
     tool_arm = lookup.get_group_from_names(family, names)
+
     while tool_arm is None:
         tool_arm = lookup.get_group_from_names(family, names)
 
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     tool_ctrl_mode = ToolMode.Position
     tool_angle_down = 1.0
     tool_angle_up = 2.5
+    tool_angle_mid = 1.5
 
 
     family = 'Chevron'
@@ -70,7 +72,21 @@ if __name__ == '__main__':
             tool_ctrl_mode = ToolMode.Position
             tool_arm_trajectory = hebi.trajectory.create_trajectory(times, [curr_pos, tool_angle_up])
         return []
+    
+    # Added this in - Ian
+    def tool_home_cb(request: SetBoolRequest):
+        global tool_arm_trajectory, tool_ctrl_mode
+        t = rospy.get_time()
+        times = [t, t+1]
+        curr_pos = tool_arm_fbk.position[0]
 
+        if request.data:
+            tool_ctrl_mode = ToolMode.Position
+            tool_arm_trajectory = hebi.trajectory.create_trajectory(times, [curr_pos, tool_angle_mid])
+        else:
+            tool_ctrl_mode = ToolMode.Position
+            tool_arm_trajectory = hebi.trajectory.create_trajectory(times, [curr_pos, tool_angle_up])
+        return []
     
     def sensor_arm_cb(request):
         global sensor_arm_trajectory
@@ -89,6 +105,7 @@ if __name__ == '__main__':
         return []
 
     rospy.Service('deploy_tool', SetBool, tool_arm_cb)
+    rospy.Service('deploy_home', SetBool, tool_home_cb) # Added this in - Ian
     rospy.Service('deploy_sensor', SetBool, sensor_arm_cb)
 
     dig_torque = -30.0

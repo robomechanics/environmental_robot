@@ -37,8 +37,8 @@ class manager(object):
         rospy.set_param('waypoint', False)
 
         #######################change it to None#################################
-        self.lat = 40.44
-        self.lon = -79.945
+        self.lat = None
+        self.lon = None
         self.goalComplete = False
         self.pxrfComplete = False
         self.value = -1
