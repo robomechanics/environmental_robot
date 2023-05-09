@@ -22,6 +22,7 @@ class conversion:
         self.width = 0
         self.origin_utm = (0,0)
         self.new_boundary = []
+        self.inner_boundary_offset = []
 
     #this function is not used. only for testing purpose
     def gps_to_meters(lat1, lon1, lat2, lon2):

@@ -197,17 +197,6 @@ class manager(object):
         self.update_status('received search area')
         return True
     
-    # def runGridAlgo(self):
-    #     #print("here")
-    #     self.update_status('running grid algo')
-    #     self.nextScanLoc = self.gridROS.next()
-    #     self.gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
-    #     print("sending")
-    #     print(self.gps)
-    #     self.send_location(self.gps[0],self.gps[1])
-    #     self.update_status('received next scan loc')
-
-
     def runSearchAlgo(self):
         self.update_status('running search algo')
         if self.pxrfComplete == True and self.value != -1:
