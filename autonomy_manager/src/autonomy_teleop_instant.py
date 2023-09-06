@@ -21,17 +21,19 @@ class autonomy_teleop(object):
         rospy.Service('/deploy_home_auto', SetBool, self.deploy_home_auto)
         self.homeRake = rospy.ServiceProxy('/deploy_home',SetBool)
 
-        self.dig_torque = -2.5
+        self.dig_torque = -5.0
         self.dig_torque_pub = rospy.Publisher('/dig_torque',Float64, queue_size=10,latch=True)
         
         rospy.Subscriber('/cmd_vel_auto',Twist,self.autoDriveCallback)
         rospy.Subscriber("/joy", Joy, self.joyDriveCallback)
         self.joyTimeout = 0.25
         self.lastJoyTime = rospy.get_time()
-        self.joyThrottleScale = 0.3
-        self.joySteerScale = 0.3/0.235
+        self.joyThrottleScale = 1.0
+        self.joySteerScale = 1.0/0.235
         self.manualOverride = True # whether to use joystick instead of autonomy
         self.joyInit = [False,False]
+        self.turnFactor = 3.5
+        self.curbMotors = False
         
         self.drivePub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         self.maxMotorMag = 0.3
@@ -44,20 +46,23 @@ class autonomy_teleop(object):
     def managedDrive(self,driveCommand):
         origSteer = driveCommand[1]
         self.lastCommandTime = rospy.get_time()
-        if driveCommand[0]!=0 and np.abs(driveCommand[1]*0.235/driveCommand[0]) > 0.25:
-            driveCommand = (0,driveCommand[1])
-        motorMag = np.abs(driveCommand[0]) + np.abs(driveCommand[1])*0.235
-        if motorMag > self.maxMotorMag:
-            driveCommand = (driveCommand[0]*self.maxMotorMag/motorMag,driveCommand[1]*self.maxMotorMag/motorMag)
-        if motorMag < 0.01:
-            driveCommand = (0,0)
+        # if driveCommand[0]!=0 and np.abs(driveCommand[1]*0.235/driveCommand[0]) > 0.25:
+        #     driveCommand = (0,driveCommand[1])
+        # motorMag = np.abs(driveCommand[0]) + np.abs(driveCommand[1])*0.235
+        # if motorMag > self.maxMotorMag:
+        #     driveCommand = (driveCommand[0]*self.maxMotorMag/motorMag,driveCommand[1]*self.maxMotorMag/motorMag)
+        # if motorMag < 0.01:
+        #     driveCommand = (0,0)
+        if not self.curbMotors:
+            driveCommand = (driveCommand[0],driveCommand[1])
+
         pubCommand = Twist()
         pubCommand.linear.x = driveCommand[0]
         pubCommand.angular.z = driveCommand[1]
         self.drivePub.publish(pubCommand)
     def autoDriveCallback(self,data):
         self.lastAutoCommandTime = rospy.get_time()-self.lastJoyTime 
-        autonomyCommand = (data.linear.x,data.angular.z)
+        autonomyCommand = (data.linear.x,data.angular.z*self.turnFactor)
         if not self.manualOverride and rospy.get_time()-self.lastJoyTime < self.joyTimeout:
             self.managedDrive(autonomyCommand)
     def joyDriveCallback(self,data):

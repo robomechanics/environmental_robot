@@ -91,5 +91,5 @@ if __name__ == "__main__":
     dataDir = os.path.expanduser('~/pxrf_results')
     # if os.path.isdir(dataDir):
     #     os.mkdir(dataDir)
-    elementOfInterest = 'Pb'
+    elementOfInterest = 'Cl'
     pxrf_handler(dataDir,elementOfInterest)

@@ -50,7 +50,7 @@ sensorPrepScript_pxrf_only = (
         #('drive',(0,0,0)),
         )
 
-sensorPrepScript = sensorPrepScript_pxrf_only
+sensorPrepScript = sensorPrepScript_broom
 
 # move forward
 scriptForward = (

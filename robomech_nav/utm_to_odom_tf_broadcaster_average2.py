@@ -20,7 +20,7 @@ from microstrain_inertial_msgs.msg import FilterHeading
 # ------------------------------------
 firstTime = True
 thetaHeading = 0
-utmDefault = 'EPSG:3651'
+utmDefault = 'EPSG:32613'
 
 # ------------------------------------
 thetaOffset = 0
@@ -38,7 +38,7 @@ def get_zone(posx, posy):
 	    ), 
 	)
 	utm_crs = CRS.from_epsg(utm_crs_list[0].code)
-	utmDefault = utm_crs
+	utmDefault = 'EPSG:32613'#utm_crs
 	print(utmDefault," 1")
 	return utm_crs
 
@@ -149,6 +149,10 @@ def utm_broadcaster(data):
 	utm_odom_pub.publish(Odom)
 	start_pub.publish(OdomStart)
 	br.sendTransform(t)
+	print('XBroad: ',x_UTM)
+	print('yBroad: ',y_UTM)
+	print('XInit: ',x_UTM_start)
+	print('YInit: ',y_UTM_start)
 
 def thetaListen(data):
 	global thetaTrue

@@ -36,11 +36,14 @@ class NavigationInterface(object):
 		self.lat = 0
 		self.lon = 0
 		self.firstTime = True
-		self.utmDefault = 'EPSG:3651'
+		self.utmDefault = 'EPSG:32613' #32671
 		self.dummyFirst = True
 		self.dummyX = 0
 		self.dummyY = 0
+		self.latFirst = 0
+		self.lonFirst = 0
 		
+		self.latlon = rospy.Subscriber("/gnss1/fix", NavSatFix, self.latlon)
 		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, self.xy_listener)
 		
 		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
@@ -65,6 +68,11 @@ class NavigationInterface(object):
 				#self.navStatus.publish(self.goalStatusManager)
 			rate.sleep()
 			
+
+	def latlon(self,data):
+		self.latFirst = data.latitude
+		self.lonFirst = data.longitude
+
 	def setGoal(self, data):
                 
 		self.goalFlag = True
@@ -86,14 +94,14 @@ class NavigationInterface(object):
 		utm_crs_list = query_utm_crs_info( 
 		datum_name="WGS 84", 
 		area_of_interest=AreaOfInterest( 
-		    west_lon_degree=self.lon, 
-		    south_lat_degree=self.lat, 
-		    east_lon_degree=self.lon, 
-		    north_lat_degree=self.lat, 
+		    west_lon_degree=self.lonFirst, 
+		    south_lat_degree=self.latFirst, 
+		    east_lon_degree=self.lonFirst, 
+		    north_lat_degree=self.latFirst, 
 		    ), 
 		)
 		utm_crs = CRS.from_epsg(utm_crs_list[0].code)
-		self.utmDefault = utm_crs
+		self.utmDefault = 'EPSG:32613'
 
 	# get utm positions
 	def get_utm(self):
@@ -134,6 +142,10 @@ class NavigationInterface(object):
 			self.goal.target_pose.pose.orientation.z = 0
 			self.goal.target_pose.pose.orientation.w = 1
 			print(self.goal)
+			print('XNav: ',self.x_UTM)
+			print('YNav: ',self.y_UTM)
+			print('XInit: ',self.x_UTM_initial)
+			print('Yinit: ',self.y_UTM_initial)
 			print(self.utmDefault," 2")
 	
 	def send_goal(self):

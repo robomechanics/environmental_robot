@@ -13,13 +13,14 @@ import os
 import rospkg
 rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf')
+print(pxrf_path)
 
 def generate_plot():
 #setable parameters
 	threshold = 0.01
 	number_of_elements_display_limit = 10
 
-	with open(os.path.join(pxrf_path, '/scripts/chemistry.csv'),'r') as csvfile:
+	with open(pxrf_path + '/scripts/chemistry.csv','r') as csvfile:
 		data = list(csv.reader(csvfile, delimiter = ','))
 		for row in range(len(data)):
 		    if(len(data[row])>2):
@@ -59,3 +60,5 @@ def generate_plot():
 	plt.legend(patches, labels, loc = 'best', bbox_to_anchor = (-0.1, 1.), fontsize = 10)
 	plt.tight_layout()
 	plt.show()
+
+generate_plot()

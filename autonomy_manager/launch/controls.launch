@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="useJoy" default="false"/>
-    <arg name="useMicrostrain" default="true"/>
+    <arg name="useMicrostrain" default="false"/>
     <arg name="useHebi" default="true"/>
     <arg name="useLidar" default="false"/>
     <arg name="useManager" default="true"/>
-    <arg name="useCamera" default ="true"/>
+    <arg name="useCamera" default ="false"/>
 
     <!-- rosparam default value -->
     <param name="grid" type="bool" value="false" />
@@ -20,8 +20,15 @@
     </node>
 
     <!-- lidar -->
-    <include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
+    <!--include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
 	    <arg name="sensor_hostname" value="10.10.1.111"/>
+	    <arg name="lidar_mode" value="512x10"/>
+	    <arg name="timestamp_mode" value="TIME_FROM_ROS_TIME"/>
+	    <arg name="viz" value="false"/>
+    </include-->
+
+    <include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
+	    <arg name="sensor_hostname" value="os-122227002359.local"/>
 	    <arg name="lidar_mode" value="512x10"/>
 	    <arg name="timestamp_mode" value="TIME_FROM_ROS_TIME"/>
 	    <arg name="viz" value="false"/>
@@ -61,5 +68,5 @@
     
     <!--static transformation-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
-    <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="-0.17 -0.12 0.65 0 0 0 -1 base_link os_sensor" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0.12 0 0.65 0 0 -0.7071068 0.7071068 base_link os_sensor" />
 </launch>

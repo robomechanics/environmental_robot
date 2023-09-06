@@ -100,6 +100,7 @@ class conversion:
         utm17n = pyproj.CRS(self.get_zone(posx, posy)) 
         self.utm = utm17n
         transformer = pyproj.Transformer.from_crs(wgs84, utm17n)
+        print(self.utm,' 3')
         return transformer.transform(posx, posy)
 
     #get the utm zone

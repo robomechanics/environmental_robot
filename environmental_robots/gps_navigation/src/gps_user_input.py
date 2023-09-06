@@ -13,6 +13,7 @@ import csv
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import NavSatFix
 from microstrain_inertial_msgs.msg import FilterHeading
+from autonomy_manager.msg import ManagerStatus
 from tile import TileMap
 import actionlib
 from pxrf.msg import TakeMeasurementAction, TakeMeasurementGoal, TakeMeasurementResult
@@ -150,6 +151,7 @@ class GpsNavigationGui:
         self.location_sub = rospy.Subscriber('/gps_avg', Odometry, self.on_gps_update)
         #self.heading_sub = rospy.Subscriber('/nav/heading', FilterHeading, self.on_heading_update)
         self.gps_sub = rospy.Subscriber('/heading_true', FilterHeading, self.robot_update) # plotRobotPosition
+        self.statusSub = rospy.Subscriber('/autonomy_manager/status', ManagerStatus, self.state_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
         #rospy.spin()
@@ -215,7 +217,7 @@ class GpsNavigationGui:
         self.statusNav.setText('Manual Mode')
         self.statusNav.setReadOnly(True)
         self.statusPxrf = QtWidgets.QLineEdit()
-        self.statusPxrf.setText('Ready to collect')
+        self.statusPxrf.setText('Waiting for the manager')
         self.statusPxrf.setReadOnly(True)
         
         # set the boundary on the map 
@@ -260,6 +262,9 @@ class GpsNavigationGui:
         self.widget.addWidget(self.pxrfBtn,       row=4, col=0, colspan=2)
         # self.widget.addWidget(self.parkBtn,       row=4, col=6, colspan=2)
         self.widget.addWidget(CalibrateBtn,        row=4, col=6, colspan=2)
+
+    def robot_update(self, data:ManagerStatus):
+        self.statusPxrf.setText(data.status)
 
     def on_pxrf_measurement_complete(self, status, result: TakeMeasurementResult):
         print(f'pxrf cb result: {result.result.data}')
@@ -564,18 +569,6 @@ class GpsNavigationGui:
                 self.waypointsPath.append(self.satMap.coord2Pixel(req.waypoints_lat[i], req.waypoints_lon[i]))
         return True
 
-    def toggle_brake(self):
-        self.stopStatus = not self.stopStatus
-        self.is_navigating = 0
-
-        self.parking_brake(self.stopStatus)
-        if self.stopStatus:
-            self.parkBtn.setText('PARK ON')
-            self.parkBtn.setStyleSheet("background-color : red")
-        else:
-            self.parkBtn.setText('PARK OFF')
-            self.parkBtn.setStyleSheet("background-color : green")
-
     def clear_map(self):
         #rospy.wait_for_service('clear')
         try:
@@ -590,15 +583,12 @@ class GpsNavigationGui:
             self.statusPxrf.setText("Collecting")
             self.pxrfRunning = True
             self.pxrfBtn.setText("STOP pxrf")
-            #self.pubCTRL.publish("start")
-            goal = TakeMeasurementGoal()
-            self.pxrf_client.send_goal(goal, done_cb=self.on_pxrf_measurement_complete)
+            self.pubCTRL.publish("start")
         else:
             self.statusPxrf.setText("Ready to collect")
             self.pxrfRunning = False
             self.pxrfBtn.setText("Sample")
-            #self.pubCTRL.publish("stop")
-            self.pxrf_client.cancel_all_goals()
+            self.pubCTRL.publish("stop")
 
 if __name__ == '__main__':
     rospy.init_node('gps_user_input',anonymous=True)

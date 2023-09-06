@@ -106,6 +106,8 @@ class manager(object):
 
     def runWaypointAlgo(self):
         self.update_status('running waypoint algorithm')
+        self.pxrfComplete = False
+        self.value = None
         self.nextScanLoc = self.waypoints.pop(0)
         self.send_location(self.nextScanLoc[0],self.nextScanLoc[1])
         self.gps = [self.nextScanLoc[0],self.nextScanLoc[1]]
@@ -215,10 +217,12 @@ class manager(object):
 
     def runGridAlgo(self):
         self.update_status('running grid algo')
+        self.pxrfComplete = False
+        self.value = None
         self.nextScanLoc = self.gridROS.next()
         self.gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
         self.send_location(self.gps[0],self.gps[1])
-        self.update_status('received next scan loc - grid ROS')
+        self.update_status('received next scan loc')
 
     def navigateToScanLoc(self):
         self.update_status('navigating to scan loc')
