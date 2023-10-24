@@ -10,7 +10,6 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 import pandas as pd
 import csv
-from std_msgs.msg import String
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import NavSatFix
 from microstrain_inertial_msgs.msg import FilterHeading
@@ -135,7 +134,7 @@ class GpsNavigationGui:
         self.setHistory()
 
         # ros services
-        # self.parking_brake = rospy.ServiceProxy('/parking_brake', SetBool)
+        self.parking_brake = rospy.ServiceProxy('/parking_brake', SetBool)
         self.nextPoint = rospy.Service('next_goal', NavigateGPS, self.on_next_goal_update)
         self.grid_points = rospy.Service('grid_points', Waypoints, self.on_grid_points)
         #############################################
@@ -154,8 +153,7 @@ class GpsNavigationGui:
         self.gps_sub = rospy.Subscriber('/heading_true', FilterHeading, self.robot_update) # plotRobotPosition
         self.statusSub = rospy.Subscriber('/autonomy_manager/status', ManagerStatus, self.state_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
-        self.pubCTRL = rospy.Publisher('pxrf_cmd', String, queue_size=1)
-        self.pxrf = rospy.Subscriber('/pxrf_response', String, self.responseListener)
+        
         #rospy.spin()
     def add_marker_at(self, lat: float, lon: float, label=None, size=20):
         pos = self.satMap.coord2Pixel(lat, lon)
@@ -205,10 +203,10 @@ class GpsNavigationGui:
         CalibrateBtn.setStyleSheet("background-color : red")
         CalibrateBtn.clicked.connect(self.calibrate)
         self.stopStatus = True
-        # self.parking_brake(self.stopStatus)
-        # self.parkBtn = QtWidgets.QPushButton('PARK ON')
-        # self.parkBtn.setStyleSheet("background-color : red")
-        # self.parkBtn.clicked.connect(self.toggle_brake)
+        self.parking_brake(self.stopStatus)
+        self.parkBtn = QtWidgets.QPushButton('PARK ON')
+        self.parkBtn.setStyleSheet("background-color : red")
+        self.parkBtn.clicked.connect(self.toggle_brake)
         self.pxrfStatus = False
         self.pxrfBtn = QtWidgets.QPushButton('Sample')
         self.pxrfBtn.clicked.connect(self.toggle_pxrf_collection)
@@ -265,8 +263,24 @@ class GpsNavigationGui:
         # self.widget.addWidget(self.parkBtn,       row=4, col=6, colspan=2)
         self.widget.addWidget(CalibrateBtn,        row=4, col=6, colspan=2)
 
-    def state_update(self, data:ManagerStatus):
+    def robot_update(self, data:ManagerStatus):
         self.statusPxrf.setText(data.status)
+
+    def on_pxrf_measurement_complete(self, status, result: TakeMeasurementResult):
+        print(f'pxrf cb result: {result.result.data}')
+        self.pxrfRunning = False
+        self.pxrfBtn.setText('Sample')
+        self.statusPxrf.setText("Ready to collect")
+        self.pxrfStatus = False
+
+        self.num_measurements += 1
+        with open('measurement_locations.csv', 'a') as f:
+            f.write(f'Sample{self.num_measurements},{self.prev_lat},{self.prev_lon}\n')
+
+        self.add_marker_at(self.prev_lat, self.prev_lon, f'Sample#{self.num_measurements}')
+
+        if result.result.data == "201":
+            generate_plot()
 
     #This function sets the heading of the robot
     def on_heading_update(self, data: FilterHeading):
@@ -575,16 +589,6 @@ class GpsNavigationGui:
             self.pxrfRunning = False
             self.pxrfBtn.setText("Sample")
             self.pubCTRL.publish("stop")
-    
-    def responseListener(self, data):
-        print("test complete")
-        if data.data == "201":
-            self.statusPxrf.setText("Ready to collect")
-            self.pxrfRunning = False
-            self.pxrfStatus = False
-            self.pxrfBtn.setText("Sample")
-    
-
 
 if __name__ == '__main__':
     rospy.init_node('gps_user_input',anonymous=True)

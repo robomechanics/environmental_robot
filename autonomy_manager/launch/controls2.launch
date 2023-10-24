@@ -40,29 +40,29 @@
     <node name="heading_throttler" pkg="topic_tools" type="throttle" args="messages /nav/heading 5.0"/>
 
     <!-- vanta pxrf -->
-    <node name="pxrf_driver" pkg="pxrf" type="main" />
-    <node name="pxrf_handle" pkg="pxrf" type="pxrf_handler.py" />
+    <node name="pxrf_driver" pkg="pxrf" type="main" output="screen"/>
+    <node name="pxrf_handle" pkg="pxrf" type="pxrf_handler.py" output="screen"/>
 
     <!--manager, scripted motion with speed control -->
-    <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop_instant.py" output="screen" if="$(arg useManager)"/>
-    <node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="screen" if="$(arg useManager)"/>
-    <node name="manager" pkg="autonomy_manager" type="manager.py" output="screen" if="$(arg useManager)"/>
-	    <!--<node name="calibration" pkg="autonomy_manager" type="calibration.py" output="screen" if="$(arg useManager)"/>-->
+    <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop_instant.py" output="log" if="$(arg useManager)"/>
+    <node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="log" if="$(arg useManager)"/>
+    <node name="manager" pkg="autonomy_manager" type="manager.py" output="log" if="$(arg useManager)"/>
+	    <!--<node name="calibration" pkg="autonomy_manager" type="calibration.py" output="log" if="$(arg useManager)"/>-->
     
     <!--static transformation-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
     <node pkg="tf2_ros" type="static_transform_publisher" name="link3_broadcaster" args="-0.17 -0.12 0.65 0 0 0 -1 base_link os_sensor" />
     
     <!--nav stack interface -->
-    <node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average2.py" output="screen"/>
-    <node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="screen"/>
+    <node name="utm_odom2" pkg="robomech_nav" type="utm_to_odom_tf_broadcaster_average2.py" output="log"/>
+    <node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="log"/>
 
     <!--param and arg -->
     <arg name="no_static_map" default="true"/>
     <arg name="base_global_planner" default="navfn/NavfnROS"/>
     <arg name="base_local_planner" default="dwa_local_planner/DWAPlannerROS"/>
     <param name="base_global_planner" value="asr_navfn/NavfnROS"/>
-    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="log">
     <!--remap from="/odom" to="/utm_odom2" /-->
     <remap from="/cmd_vel" to="/cmd_vel_auto" />
     <param name="base_global_planner" value="$(arg base_global_planner)"/>

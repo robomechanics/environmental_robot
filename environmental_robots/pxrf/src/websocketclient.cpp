@@ -85,6 +85,8 @@ void WebSocketClient::onDisconnected()
 void WebSocketClient::onTextMessageReceived(QString message)
 {
     std::string statusMessage;
+    
+    std::cout << "Status Message: " << statusMessage << std::endl;
 
     if (message.contains(userLoggedIn)) {
         m_connectionState = SockNotConnected;

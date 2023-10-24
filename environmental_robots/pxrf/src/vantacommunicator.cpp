@@ -36,7 +36,7 @@ void VantaCommunicator::publishChemistry(std::string chemistry, int dailyId, int
 
 void VantaCommunicator::callback(const std_msgs::String::ConstPtr& msg)
 {
-    std::cout << msg->data << std::endl;
+    std::cout << "MSG: " << msg->data << std::endl;
     if (msg->data == "start" && !isRunning)
     {
         // isRunning = true;
@@ -73,13 +73,13 @@ void VantaCommunicator::messageResponse(std::string response)
         break;
 
     case MessageFactory::Notification:
-        std::cout << id << std::endl;
+        std::cout << "ID: " << id << std::endl;
         switch(id) {
             case MessageFactory::SystemStatus: {
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
-                std::cout << "System status message " << systemStatus << std::endl;
+                std::cout << "System status message: " << systemStatus << std::endl;
                 if (info.length() > 0)
-                    std::cout << "System status info " << info << std::endl;
+                    std::cout << "System status info: " << info << std::endl;
                 break;
             }
             case MessageFactory::ResultReceived: {
@@ -114,13 +114,15 @@ void VantaCommunicator::messageResponse(std::string response)
         break;
 
     default:
-        // std::cout << "some response " << response << std::endl;
+        std::cout << "Some response: " << response << std::endl;
         break;
     }
 }
 
 void VantaCommunicator::status(std::string status)
 {
+    std::cout << "Status: " << status << std::endl;
+
     if (status.compare(std::string("ok"))==0) {
 
         std::cout << "Established a websocket connection with the Vanta." << std::endl;
@@ -146,6 +148,7 @@ void VantaCommunicator::start(QCoreApplication *app)
 
     /* Now connect to the device using the OTG interface. */
     std::string deviceIpAddr("192.168.7.2");//"192.168.7.10"); // change from 2 to 10
+    // std::string deviceIpAddr("10.10.1.109");//"192.168.7.10"); // newIP for wireless
 
     std::cout << "Connecting to Vanta over the OTG interface " << deviceIpAddr << std::endl;
     m_vantaConnection.connectToVanta(deviceIpAddr);
