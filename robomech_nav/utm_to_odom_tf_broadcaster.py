@@ -10,45 +10,36 @@ import tf2_ros
 import geometry_msgs.msg
 from nav_msgs.msg import Odometry
 
-# x = 0
-# y = 0
-# z = 0
-
-# xr = 0
-# yr = 0
-# zr = 0
-# wr = 0
-
 class UTMToOdom():
     def __init__(self, parent_frame_id="base_link", child_frame_id="utm_odom2"):
         self.first_time = True
 
         self.lat_GPS = 0
         self.long_GPS = 0
+        self.lat_GPS_start = 0
+        self.long_GPS_start = 0
 
         self.XY_UTM = 0
         self.x_UTM = 0
         self.y_UTM = 0
+        self.x_UTM_start = 0
+        self.y_UTM_start = 0
+        
+        self.crs_GPS = CRS
+        self.crs_UTM = CRS
 
-        self.theta_declination = -9.0
+        self.g = 0
+        self.gInv = 0
+
+        self.xBack = 0
+        self.yBack = 0
 
         self.theta_heading = 0
-        self.thetaStart = 0
 
-        self.currentSample = 0
-        self.numSamples = 10
-
-        self.lat_array = np.zeros(self.numSamples)
-        self.lon_array = np.zeros(self.numSamples)
-        self.head_array = np.zeros(self.numSamples)
-
-        self.pose_UTM = geometry_msgs.msg.Pose()
-        self.pose_UTM_covariance = geometry_msgs.msg.PoseWithCovariance()
         self.pose_odom = geometry_msgs.msg.Pose()
         self.pose_odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 
-        self.quat_raw = tf.transformations.random_quaternion()
-        self.quat = tf.transformations.random_quaternion()
+        self.quaternion = tf.transformations.random_quaternion()
 
         self.odom = Odometry()
 
@@ -67,78 +58,70 @@ class UTMToOdom():
 
     def utm_broadcaster(self, data):
         self.odom = Odometry()
+        self.firstTimeCode(data)
+        self.handleGPS_MSG(data)
+        self.create_UTM_Odom(data)
+        self.findInverses(data)
+        self.sendBackTF(data)
 
-        # Set the condition for the first time running
-        if first_time == True:
+    def firstTimeCode(self,data):
+        if self.first_time == True:
             # Set the averages of lat and lon
-            lat_GPS_start = data.pose.pose.position.x
-            lon_GPS_start = data.pose.pose.position.y
+            self.lat_GPS_start = data.pose.pose.position.x
+            self.lon_GPS_start = data.pose.pose.position.y
 
             # Convert from lat-lon to UTM using py proj
-            crs_GPS = CRS.from_epsg(4326)
-            crs_UTM = CRS.from_epsg(3651)
+            self.grabCRS()
 
-            transformer = Transformer.from_crs(crs_GPS, crs_UTM)
-            XY_UTM_start = transformer.transform(lat_GPS_start, lon_GPS_start)
-            x_UTM_start = XY_UTM_start[0]
-            y_UTM_start = XY_UTM_start[1]
-            self.quat_raw[0] = data.pose.pose.orientation.x
-            self.quat_raw[1] = data.pose.pose.orientation.y
-            self.quat_raw[2] = data.pose.pose.orientation.z
-            self.quat_raw[3] = data.pose.pose.orientation.w
-            eulers = euler_from_quaternion(self.quat_raw, 'sxyz')  # sxyz
+            transformer = Transformer.from_crs(self.crs_GPS, self.crs_UTM)
+            XY_UTM_start = transformer.transform(self.lat_GPS_start, self.lon_GPS_start)
+            self.x_UTM_start = XY_UTM_start[0]
+            self.y_UTM_start = XY_UTM_start[1]
+            self.quaternion[0] = data.pose.pose.orientation.x
+            self.quaternion[1] = data.pose.pose.orientation.y
+            self.quaternion[2] = data.pose.pose.orientation.z
+            self.quaternion[3] = data.pose.pose.orientation.w
+            eulers = euler_from_quaternion(self.quaternion, 'sxyz')  # sxyz
             theta_heading = eulers[2] + (0.0)/180*np.pi
             theta_heading = np.arctan2(
                 np.sin(theta_heading), np.cos(theta_heading))
 
-            first_time = False
+            self.first_time = False
 
-        crs_GPS = CRS.from_epsg(4326)
-        crs_UTM = CRS.from_epsg(3651)  # was 3857
+    def grabCRS(self):
+        self.crs_GPS = CRS.from_epsg(4326)
+        self.crs_UTM = CRS.from_epsg(3651)
 
-        transformer = Transformer.from_crs(crs_GPS, crs_UTM)
+    def handleGPS_MSG(self,data):
+        transformer = Transformer.from_crs(self.crs_GPS, self.crs_UTM)
 
-        lat_GPS = data.pose.pose.position.x
-        lon_GPS = data.pose.pose.position.y
+        self.lat_GPS = data.pose.pose.position.x
+        self.lon_GPS = data.pose.pose.position.y
 
-        XY_UTM = transformer.transform(lat_GPS, lon_GPS)
-        x_UTM = XY_UTM[0]
-        y_UTM = XY_UTM[1]
+        # Grabbing XY values
+        self.XY_UTM = transformer.transform(self.lat_GPS, self.lon_GPS)
+        self.x_UTM = self.XY_UTM[0]
+        self.y_UTM = self.XY_UTM[1]
 
-        self.quat_raw[0] = data.pose.pose.orientation.x
-        self.quat_raw[1] = data.pose.pose.orientation.y
-        self.quat_raw[2] = data.pose.pose.orientation.z
-        self.quat_raw[3] = data.pose.pose.orientation.w
-        eulers = tf.transformations.euler_from_quaternion(
-            self.quat_raw, 'sxyz')  # sxyz
-        # print(eulers)
-        # print(-eulers[2]/3.1415*180)
-        theta_heading = eulers[2] + (0.0)/180*np.pi
-        theta_heading = np.arctan2(
-            np.sin(theta_heading), np.cos(theta_heading))
-        print(eulers[2]*180/np.pi)
+        # Grabbing the quaternion
+        self.quaternion[0] = data.pose.pose.orientation.x
+        self.quaternion[1] = data.pose.pose.orientation.y
+        self.quaternion[2] = data.pose.pose.orientation.z
+        self.quaternion[3] = data.pose.pose.orientation.w
 
-        quat = tf.transformations.quaternion_from_euler(
-            0, 0, theta_heading, 'sxyz')
+        # Grabbing a heading angle
+        eulerVals = euler_from_quaternion(self.quaternion, 'sxyz')
+        self.theta_heading = eulerVals[2]
 
-        # Creating a pose message for UTM
-        #pose_UTM.position.x = x_UTM
-        #pose_UTM.position.y = y_UTM
-        #pose_UTM.position.z = 0.0
-        #pose_UTM.orientation.x = quat[0]
-        #pose_UTM.orientation.y = quat[1]
-        #pose_UTM.orientation.z = quat[2]
-        #pose_UTM.orientation.w = quat[3]
-        #pose_UTM_covariance.pose = pose_UTM
-
+    def create_UTM_Odom(self,data):
         # Creating a pose message for location in Odom
-        self.pose_odom.position.x = x_UTM - x_UTM_start
-        self.pose_odom.position.y = y_UTM - y_UTM_start
+        self.pose_odom.position.x = self.x_UTM - self.x_UTM_start
+        self.pose_odom.position.y = self.y_UTM - self.y_UTM_start
         self.pose_odom.position.z = 0.0
-        self.pose_odom.orientation.x = quat[0]
-        self.pose_odom.orientation.y = quat[1]
-        self.pose_odom.orientation.z = quat[2]
-        self.pose_odom.orientation.w = quat[3]
+        self.pose_odom.orientation.x = self.quaternion[0]
+        self.pose_odom.orientation.y = self.quaternion[1]
+        self.pose_odom.orientation.z = self.quaternion[2]
+        self.pose_odom.orientation.w = self.quaternion[3]
         self.pose_odom_covariance.pose = self.pose_odom
 
         # Formatting the Odom message
@@ -147,36 +130,27 @@ class UTMToOdom():
         self.odom.child_frame_id = "base_link"
         self.odom.pose = self.pose_odom_covariance
 
+    def findInverses(self,data):
         # Publishing the Odom message
         self.utm_odom_pub.publish(self.odom)
 
-        #x = Odom.pose.pose.position.x
-        #y = Odom.pose.pose.position.y
-        #z = Odom.pose.pose.position.z
-
-        #xr = Odom.pose.pose.orientation.x
-        #yr = Odom.pose.pose.orientation.y
-        #zr = Odom.pose.pose.orientation.z
-        #wr = Odom.pose.pose.orientation.w
-
-        # Finding the reverse translation
-        #rad = np.arctan2((y_UTM - y_UTM_start),(x_UTM - x_UTM_start))
-
-        g = np.array([[np.cos(theta_heading), -np.sin(theta_heading), 0, (x_UTM - x_UTM_start)], [np.sin(theta_heading),
-                     np.cos(theta_heading), 0, (y_UTM - y_UTM_start)], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+        # Inverse transformation matrix
+        g = np.array([[np.cos(self.theta_heading), -np.sin(self.theta_heading), 0, (self.x_UTM - self.x_UTM_start)], [np.sin(self.theta_heading),
+                     np.cos(self.theta_heading), 0, (self.y_UTM - self.y_UTM_start)], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
         gInv = tf.transformations.inverse_matrix(g)
 
-        xBack = gInv[0][3]
-        yBack = gInv[1][3]
+        self.xBack = gInv[0][3]
+        self.yBack = gInv[1][3]
 
+    def sendBackTF(self,data):
+        # Defining the backwards transformation
         self.t.header.stamp = data.header.stamp
 
-        self.t.transform.translation.x = xBack
-        self.t.transform.translation.y = yBack
+        self.t.transform.translation.x = self.xBack
+        self.t.transform.translation.y = self.yBack
         self.t.transform.translation.z = 0
 
-        #quatT = tf.transformations.quaternion_from_euler(0,0,theta_heading,'rxyz')
-        quatInv = tf.transformations.quaternion_inverse(quat)
+        quatInv = tf.transformations.quaternion_inverse(self.quaternion)
 
         self.t.transform.rotation.x = quatInv[0]
         self.t.transform.rotation.y = quatInv[1]
