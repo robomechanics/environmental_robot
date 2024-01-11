@@ -12,17 +12,34 @@ from gridROS import gridROS
 from boundaryConversion import conversion
 from sensor_msgs.msg import Joy
 
-class manager(object):
+RECEIVED_SEARCH_AREA = 'received search area'
+RECEIVED_NEXT_SCAN_LOC = 'received next scan loc'
+ARRIVED_AT_SCAN_LOC = 'arrived at scan loc'
+FINISHED_RAKING = 'finished raking'
+FINISHED_SCAN = 'finished scan'
+RAKING = 'raking'
+NAVIGATIN_TO_SCAN_LOC = 'navigating to scan loc'
+RUNNING_SEARCH_ALGO = 'running search algo'
+STANDBY = 'standby'
+WAITING_FOR_CALIBRATION_TO_FINISH = 'waiting for calibration to finish'
+RUNNING_GRID_ALGO = 'running grid algo'
+RUNNING_WAYPOINT_ALGO = 'running waypoint algorithm'
+SCANNING = 'scanning'
+
+class Manager(object):
     def __init__(self):
         rospy.init_node('manager', anonymous=True)
-        self.statusPub = rospy.Publisher('/autonomy_manager/status', ManagerStatus, queue_size=10,latch=True)
-        self.update_status('standby')
-        rospy.Subscriber('/sensor_prep_status',Bool,self.checkSensorPrepStatus)
-        rospy.Subscriber("/joy", Joy, self.manualBehaviorSkip)
+        rospy.sleep(1)
+        self.load_ros_params()
+
+        self.statusPub = rospy.Publisher(self._status_topic, ManagerStatus, queue_size=10,latch=True)
+        self.update_status(STANDBY)
+        rospy.Subscriber(self._sensor_prep_status_topic,Bool,self.check_sensor_prep_status)
+        rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
         self.isOverride = False
         #########################change it back to /gps_avg#########################################################
-        rospy.Subscriber('/gps_avg', Odometry, self.gps_callback)
-        self.sensorPrep = rospy.ServiceProxy('/run_sensor_prep',RunSensorPrep)
+        rospy.Subscriber(self._gps_topic, Odometry, self.gps_callback)
+        self.sensorPrep = rospy.ServiceProxy(self._sensor_prep_service_name, RunSensorPrep)
         #intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
         self.gridROS = None
@@ -43,92 +60,111 @@ class manager(object):
         self.pxrfComplete = False
         self.value = -1
         self.gps = None
-        deployService = rospy.Service('/autonomy_manager/deploy_autonomy', DeployAutonomy,self.deployService)
-        goal_reach = rospy.Service('goal_reach', Complete, self.goal_reach)
-        clear = rospy.Service('clear', Complete, self.clear)
-        pxrf = rospy.Service('pxrf_complete', ScanData, self.pxrf)
-        waypoints = rospy.Service('waypoints', Waypoints, self.setWaypoints)
+        deploy_service = rospy.Service(self._deploy_service_name, DeployAutonomy,self.deploy_service)
+        goal_reach = rospy.Service(self._goal_reach_service, Complete, self.goal_reach)
+        clear = rospy.Service(self._clear_service_name, Complete, self.clear)
+        pxrf = rospy.Service(self._pxrf_service_name, ScanData, self.pxrf)
+        waypoints = rospy.Service(self._waypoints_service_name, Waypoints, self.set_waypoints)
 
         # wait until the gps calibration is finished
         while self.lon is None or self.lat is None: 
-             self.update_status('waiting for calibration to finish')
+             self.update_status(WAITING_FOR_CALIBRATION_TO_FINISH)
              print(self.status)
              rospy.sleep(1)
         
-        self.update_status('standby')
+        self.update_status(STANDBY)
 
         # get ros param 
-        print("waiting to start")
+        print("Waiting to start")
         while self.grid_sampling == False and self.adaptive_sampling == False and self.waypoint_sampling == False:
             self.grid_sampling = rospy.get_param('grid', False)
             self.adaptive_sampling = rospy.get_param('adaptive', False)
             self.waypoint_sampling = rospy.get_param('waypoint', False)
             self.number_points = rospy.get_param('number_points', 9)
 
+    def run(self):
         # publish status
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             print(self.status)
-            if self.status == 'received search area':
+            if self.status == RECEIVED_SEARCH_AREA:
                 print("receive")
                 if self.adaptive_sampling:
-                    self.runSearchAlgo()
+                    self.run_search_algo()
                 elif self.grid_sampling:
-                    self.runGridAlgo()
+                    self.run_grid_algo()
                 elif self.waypoint_sampling:
-                    self.runWaypointAlgo()
+                    self.run_waypoint_algo()
                 print(self.nextScanLoc)
-            elif self.status == 'received next scan loc':
+            elif self.status == RECEIVED_NEXT_SCAN_LOC:
                 print("next")
-                self.navigateToScanLoc()
-            elif self.status == 'arrived at scan loc':
+                self.navigate_to_scan_loc()
+            elif self.status == ARRIVED_AT_SCAN_LOC:
                 print("arrive")
-                self.runSensorPrep()
-            elif self.status == 'finished raking':
+                self.run_sensor_prep()
+            elif self.status == FINISHED_RAKING:
                 print("scan")
                 runScan = True
                 for i in range(100):
                     rospy.sleep(0.1)
-                    if self.status != 'finished raking':
+                    if self.status != FINISHED_RAKING:
                         runScan = False
                         break
                 if runScan:
                     self.scan()
-            elif self.status == 'finished scan':
+            elif self.status == FINISHED_SCAN:
                 print("algo")
                 if self.grid_sampling:
-                    self.runGridAlgo()
+                    self.run_grid_algo()
                 elif self.adaptive_sampling:
-                    self.runSearchAlgo()
+                    self.run_search_algo()
                 elif self.waypoint_sampling:
-                    self.runWaypointAlgo()
+                    self.run_waypoint_algo()
             rate.sleep()
 
-    def runWaypointAlgo(self):
-        self.update_status('running waypoint algorithm')
+    def load_ros_params(self):
+        # Load topic names into params
+        self._status_topic = rospy.get_param('status_topic')
+        self._sensor_prep_status_topic = rospy.get_param('sensor_prep_status_topic')
+        self._joy_topic = rospy.get_param('joy_topic')
+        self._gps_topic = rospy.get_param('gps_topic')
+        
+        # Load service names into params
+        self._sensor_prep_service_name = rospy.get_param('sensor_prep_service_name')
+        self._deploy_service_name = rospy.get_param('deploy_service_name')
+        self._goal_reach_service_name = rospy.get_param('goal_reach_service_name')
+        self._clear_service_name = rospy.get_param('clear_service_name')
+        self._pxrf_service_name = rospy.get_param('pxrf_service_name')
+        self._waypoints_service_name = rospy.get_param('waypoints_service_name')
+        self._grid_points_service_name = rospy.get_param('grid_points_service_name')
+        self._next_goal_service_name = rospy.get_param('next_goal_service_name')
+        self._next_goal_nav_service_name = rospy.get_param('next_goal_nav_service_name')
+
+    def run_waypoint_algo(self):
+        self.update_status(RUNNING_WAYPOINT_ALGO)
         self.pxrfComplete = False
         self.value = None
         self.nextScanLoc = self.waypoints.pop(0)
         self.send_location(self.nextScanLoc[0],self.nextScanLoc[1])
         self.gps = [self.nextScanLoc[0],self.nextScanLoc[1]]
-        self.update_status('received next scan loc')
+        self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
-    def manualBehaviorSkip(self,data):
+    def manual_behavior_skip(self,data):
         self.isOverride = data.buttons[5] == 1
         if data.buttons[1]>0 and (not hasattr(self,'lastSkipButtonStatus') or not self.lastSkipButtonStatus):
-            if self.status == 'raking':
+            if self.status == RAKING:
                 self.sensorPrep(False)
-                self.update_status('finished raking')
-            elif self.status == 'navigating to scan loc':
+                self.update_status(FINISHED_RAKING)
+            elif self.status == NAVIGATIN_TO_SCAN_LOC:
                 cancel_goal = rospy.ServiceProxy('cancel_goal',NavigateGPS)
                 cancel_goal(0,0)
-                self.update_status('arrived at scan loc')
-            elif self.status == 'finished raking':
-                self.update_status('finished scan')
+                self.update_status(ARRIVED_AT_SCAN_LOC)
+            elif self.status == FINISHED_RAKING:
+                self.update_status(FINISHED_SCAN)
         self.lastSkipButtonStatus = data.buttons[1]>0
 
     def scan(self):
-        self.update_status('scanning')
+        self.update_status(SCANNING)
         #call ros service to start scanning 
         #rospy.wait_for_service('scan_start')
         try:
@@ -144,7 +180,7 @@ class manager(object):
         lowerPXRF = rospy.ServiceProxy('/deploy_sensor',SetBool)
         lowerPXRF(False)
         rospy.sleep(2)
-        self.update_status('finished scan')
+        self.update_status(FINISHED_SCAN)
 
     def pxrf(self, data):
         if data.status == True:
@@ -155,7 +191,7 @@ class manager(object):
             self.pxrfComplete = False
         return True
 
-    def deployService(self,data):
+    def deploy_service(self,data):
         # data.boundart_lServiceat and data.boundary_lon lists, put then in the format of [[lat1,lon1],[lat2,lon2],...]
         for i in range(len(data.boundary_lat)):
             self.searchBoundary.append([data.boundary_lat[i],data.boundary_lon[i]])
@@ -179,7 +215,7 @@ class manager(object):
             lon.append(gps[1])
         print(len(lat))
         try:
-            grid_points = rospy.ServiceProxy('grid_points', Waypoints)
+            grid_points = rospy.ServiceProxy(self._grid_points_service_name, Waypoints)
             res = grid_points(lat,lon)
         except rospy.ServiceException as e:
             print(e)
@@ -187,20 +223,20 @@ class manager(object):
 
         #self.gridROS.updateBoundary(boundary_utm_offset)
         #print(boundary_utm_offset)
-        self.update_status('received search area')
+        self.update_status(RECEIVED_SEARCH_AREA)
         return True
     
-    def setWaypoints(self,data):
+    def set_waypoints(self,data):
         self.waypoints = []
         for i in range(len(data.waypoints_lat)):
             self.waypoints.append([data.waypoints_lat[i],data.waypoints_lon[i]])
         # fake search area to faciliate the state machine
         print("received waypoints")
-        self.update_status('received search area')
+        self.update_status(RECEIVED_SEARCH_AREA)
         return True
     
-    def runSearchAlgo(self):
-        self.update_status('running search algo')
+    def run_search_algo(self):
+        self.update_status(RUNNING_SEARCH_ALGO)
         if self.pxrfComplete == True and self.value != -1:
             pos = self.conversion.gps2map(self.lat, self.lon)
             self.adaptiveROS.update(pos[0], pos[1], self.value)
@@ -213,29 +249,29 @@ class manager(object):
         self.gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
         print("sending")
         self.send_location(self.gps[0],self.gps[1])
-        self.update_status('received next scan loc')
+        self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
-    def runGridAlgo(self):
-        self.update_status('running grid algo')
+    def run_grid_algo(self):
+        self.update_status(RUNNING_GRID_ALGO)
         self.pxrfComplete = False
         self.value = None
         self.nextScanLoc = self.gridROS.next()
         self.gps = self.conversion.map2gps(self.nextScanLoc[0],self.nextScanLoc[1])
         self.send_location(self.gps[0],self.gps[1])
-        self.update_status('received next scan loc')
+        self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
-    def navigateToScanLoc(self):
-        self.update_status('navigating to scan loc')
+    def navigate_to_scan_loc(self):
+        self.update_status(NAVIGATIN_TO_SCAN_LOC)
         #self.navigation(self.nextScanLoc[0],self.nextScanLoc[1])
         self.send_nav(self.gps[0], self.gps[1])
 
-    def runSensorPrep(self):
+    def run_sensor_prep(self):
         self.sensorPrep(True)
-        self.update_status('raking')
+        self.update_status(RAKING)
         
-    def checkSensorPrepStatus(self,data):
-        if data.data == False and self.status == 'raking' and not self.isOverride:
-            self.update_status('finished raking')
+    def check_sensor_prep_status(self,data):
+        if data.data == False and self.status == RAKING and not self.isOverride:
+            self.update_status(FINISHED_RAKING)
 
     def update_status(self,newStatus):
         self.status = newStatus
@@ -251,7 +287,7 @@ class manager(object):
     def send_location(self,x,y):
         #rospy.wait_for_service('next_goal')
         try:
-            next_goal = rospy.ServiceProxy('next_goal', NavigateGPS)
+            next_goal = rospy.ServiceProxy(self._next_goal_service_name, NavigateGPS)
             res = next_goal(x,y)
         except rospy.ServiceException as e:
             print("location failed")
@@ -260,7 +296,7 @@ class manager(object):
         #note x,y are in gps coordinate
         #rospy.wait_for_service('next_goal_nav')
         try:
-            next_goal = rospy.ServiceProxy('next_goal_nav', NavigateGPS)
+            next_goal = rospy.ServiceProxy(self._next_goal_nav_service_name, NavigateGPS)
             res = next_goal(x,y)
         except rospy.ServiceException as e:
             print("Navigation failed")
@@ -268,7 +304,7 @@ class manager(object):
     def goal_reach(self, data):
         if data.status == True:
             self.goalComplete = True
-            self.update_status('arrived at scan loc') 
+            self.update_status(ARRIVED_AT_SCAN_LOC) 
         else:
             self.goalComplete = False
         
@@ -285,4 +321,5 @@ class manager(object):
         return True
             
 if __name__ == '__main__':
-    manager()
+    manager = Manager()
+    manager.run()

@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
 <launch>
+	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
     <node name="manager" pkg="autonomy_manager" type="manager.py" output="screen"/>
 </launch>
