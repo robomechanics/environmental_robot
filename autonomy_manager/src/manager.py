@@ -18,7 +18,7 @@ ARRIVED_AT_SCAN_LOC = 'arrived at scan loc'
 FINISHED_RAKING = 'finished raking'
 FINISHED_SCAN = 'finished scan'
 RAKING = 'raking'
-NAVIGATIN_TO_SCAN_LOC = 'navigating to scan loc'
+NAVIGATION_TO_SCAN_LOC = 'navigating to scan loc'
 RUNNING_SEARCH_ALGO = 'running search algo'
 STANDBY = 'standby'
 WAITING_FOR_CALIBRATION_TO_FINISH = 'waiting for calibration to finish'
@@ -155,7 +155,7 @@ class Manager(object):
             if self.status == RAKING:
                 self.sensorPrep(False)
                 self.update_status(FINISHED_RAKING)
-            elif self.status == NAVIGATIN_TO_SCAN_LOC:
+            elif self.status == NAVIGATION_TO_SCAN_LOC:
                 cancel_goal = rospy.ServiceProxy('cancel_goal',NavigateGPS)
                 cancel_goal(0,0)
                 self.update_status(ARRIVED_AT_SCAN_LOC)
@@ -261,7 +261,7 @@ class Manager(object):
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
     def navigate_to_scan_loc(self):
-        self.update_status(NAVIGATIN_TO_SCAN_LOC)
+        self.update_status(NAVIGATION_TO_SCAN_LOC)
         #self.navigation(self.nextScanLoc[0],self.nextScanLoc[1])
         self.send_nav(self.gps[0], self.gps[1])
 
