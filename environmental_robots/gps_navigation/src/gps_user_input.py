@@ -69,6 +69,10 @@ class PolyLineROI_noHover(pg.PolyLineROI):
 
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height):
+        # Load ROS Params
+        self.load_ros_params()
+        
+        #set variables
         self.prev_lat = 0
         self.prev_lon = 0
         self.prev_heading = 0
@@ -134,27 +138,56 @@ class GpsNavigationGui:
         self.setHistory()
 
         # ros services
-        self.parking_brake = rospy.ServiceProxy('/parking_brake', SetBool)
-        self.nextPoint = rospy.Service('next_goal', NavigateGPS, self.on_next_goal_update)
-        self.grid_points = rospy.Service('grid_points', Waypoints, self.on_grid_points)
+        self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
+        self.nextPoint = rospy.Service(self._next_point_service, NavigateGPS, self.on_next_goal_update)
+        self.grid_points = rospy.Service(self._grid_points_service, Waypoints, self.on_grid_points)
         #############################################
         # add buttons
         self.setup_widgets()
 
         # ros action clients
-        self.pxrf_client = actionlib.SimpleActionClient('/take_measurement', TakeMeasurementAction)
+        self.pxrf_client = actionlib.SimpleActionClient(self._pxrf_client_topic, TakeMeasurementAction)
 
         # ros sub pub
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
-        self.goal_pub = rospy.Publisher('/gps_navigation/goal', PoseStamped, queue_size=5)
+        self.goal_pub = rospy.Publisher(self._goal_pub_topic, PoseStamped, queue_size=5)
 
-        self.location_sub = rospy.Subscriber('/gps_avg', Odometry, self.on_gps_update)
+        self.location_sub = rospy.Subscriber(self._location_sub_topic, Odometry, self.on_gps_update)
         #self.heading_sub = rospy.Subscriber('/nav/heading', FilterHeading, self.on_heading_update)
-        self.gps_sub = rospy.Subscriber('/heading_true', FilterHeading, self.robot_update) # plotRobotPosition
-        self.statusSub = rospy.Subscriber('/autonomy_manager/status', ManagerStatus, self.state_update)
+        self.gps_sub = rospy.Subscriber(self._gps_sub_topic, FilterHeading, self.robot_update) # plotRobotPosition
+        self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.state_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
         #rospy.spin()
+
+    def load_ros_params(self):
+        loadFromParamFile = False
+        if loadFromParamFile:
+            # Load topic names into params
+            self._goal_pub_topic = '/gps_navigation/goal'
+            self._location_sub_topic = '/gps_avg'
+            self._gps_sub_topic = '/heading_true'
+            self._status_sub_topic = '/autonomy_manager/status'
+            # Load service names into params
+            self._parking_brake_service = '/parking_brake'
+            self._next_point_service = 'next_goal'
+            self._grid_points_service = 'grid_points'
+            # Load action client topic names
+            self._pxrf_client_topic = '/take_measurement'
+        else:
+            # Load topic names into params
+            self._goal_pub_topic = rospy.get_param('goal_pub_topic')
+            self._location_sub_topic = rospy.get_param('location_sub_topic')
+            self._gps_sub_topic = rospy.get_param('gps_sub_topic')
+            self._status_sub_topic = rospy.get_param('status_sub_topic')
+            # Load service names into params
+            self._parking_brake_service = rospy.get_param('parking_break_service_name')
+            self._next_point_service = rospy.get_param('next_goal_service_name')
+            self._grid_points_service = rospy.get_param('grid_points_service_name')
+            # Load action client topic names
+            self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
+
+
     def add_marker_at(self, lat: float, lon: float, label=None, size=20):
         pos = self.satMap.coord2Pixel(lat, lon)
         marker = pg.TargetItem(
