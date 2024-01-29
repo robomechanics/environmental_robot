@@ -31,6 +31,9 @@ zoom_set = 0
 width_set = 0
 height_set = 0
 
+# calibrate(self) is outdated due to calibration not being needed
+# widgets sizing and options can be adjusted as needed in the final product
+
 class MeasurementMarker(pg.GraphicsObject):
     def __init__(self, x, y, parent=None):
         super().__init__(parent)
@@ -172,6 +175,7 @@ class GpsNavigationGui:
             self._parking_brake_service = '/parking_brake'
             self._next_point_service = 'next_goal'
             self._grid_points_service = 'grid_points'
+            self._calibrate_start_service = '/start'
             # Load action client topic names
             self._pxrf_client_topic = '/take_measurement'
         else:
@@ -184,6 +188,7 @@ class GpsNavigationGui:
             self._parking_brake_service = rospy.get_param('parking_break_service_name')
             self._next_point_service = rospy.get_param('next_goal_service_name')
             self._grid_points_service = rospy.get_param('grid_points_service_name')
+            self._calibrate_start_service = rospy.get_param('calibrate_start_service_name')
             # Load action client topic names
             self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
 
@@ -331,7 +336,7 @@ class GpsNavigationGui:
         except:
             print("not a valid number")
         try:
-            start = rospy.ServiceProxy('/start', RunSensorPrep)
+            start = rospy.ServiceProxy(self._calibrate_start_service, RunSensorPrep)
             res = start(True)
             print("calibration start")
         except rospy.ServiceException:
