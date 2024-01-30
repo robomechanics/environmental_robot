@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="useJoy" default="false"/>
+    <arg name="useMicrostrain" default="false"/>
+    <arg name="useHebi" default="true"/>
+    <arg name="useLidar" default="false"/>
+    <arg name="useManager" default="true"/>
+    <arg name="useCamera" default ="false"/>
+
+    <!-- rosparam default value -->
+    <param name="grid" type="bool" value="false" />
+    <param name="adaptive" type="bool" value="true" />
+    <param name="number_points" type="int" value="9" />
+    <param name="waypoint" type="bool" value="false" />
+
+    <!-- joy stick -->
+    <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
+	    <param name="dev" type="string" value="/dev/input/js0"/>
+	    <param name="autorepeat_rate" value="10"/>
+    </node>
+
+    <!-- lidar -->
+    <!--include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
+	    <arg name="sensor_hostname" value="10.10.1.111"/>
+	    <arg name="lidar_mode" value="512x10"/>
+	    <arg name="timestamp_mode" value="TIME_FROM_ROS_TIME"/>
+	    <arg name="viz" value="false"/>
+    </include-->
+
+    <include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
+	    <arg name="sensor_hostname" value="os-122227002359.local"/>
+	    <arg name="lidar_mode" value="512x10"/>
+	    <arg name="timestamp_mode" value="TIME_FROM_ROS_TIME"/>
+	    <arg name="viz" value="false"/>
+    </include>
+
+    <!-- hebi nodes -->
+    <rosparam file="$(find hebi_cpp_api_examples)/config/wheelie_params.yaml" command="load" />
+    <node name="base_node" pkg="hebi_cpp_api_examples" type="wheelie_node" if="$(arg useHebi)" />
+    <node name="mobile_io_teleop" pkg="gps_navigation" type="hebi_teleop.py" if="$(arg useHebi)" >
+        <remap from="~cmd_vel" to="/cmd_vel"/>
+    </node>
+
+    <node name="tool_interface" pkg="gps_navigation" type="tool_arms_ctrl.py" if="$(arg useHebi)"/>
+    <!--node name="pan_tilt_ctrl" pkg="gps_navigation" type="pan_tilt_ctrl.py" if="$(arg useHebi)"/-->
+
+    <!-- camera node-->
+    <include file="$(find camera)/launch/camera.launch" if="$(arg useCamera)"/>
+
+    <!-- gps driver -->
+    <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)">
+        <arg name="params_file" value="$(find autonomy_manager)/config/hebi_microstrain.yaml"/>
+    </include>
+
+    <!-- throttle /nav/odom and /nav/heading for gui stability -->
+    <node name="odom_throttler" pkg="topic_tools" type="throttle" args="messages /nav/odom 5.0"/>
+    <node name="heading_throttler" pkg="topic_tools" type="throttle" args="messages /nav/heading 5.0"/>
+
+    <!-- vanta pxrf -->
+    <node name="pxrf_driver" pkg="pxrf" type="main" />
+    <node name="pxrf_handle" pkg="pxrf" type="pxrf_handler.py" />
+
+    <!--manager, scripted motion with speed control -->
+    <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop.py" output="screen" if="$(arg useManager)"/>
+    <node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="screen" if="$(arg useManager)"/>
+	    <!-- <rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" /> -->
+        <!-- <node name="manager" pkg="autonomy_manager" type="manager.py" output="screen" if="$(arg useManager)"/> -->
+    <node name="calibration" pkg="autonomy_manager" type="calibration.py" output="screen" if="$(arg useManager)"/>
+    
+    <!--static transformation-->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 base_footprint base_link" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="link2_broadcaster" args="0.12 0 0.65 0 0 -0.7071068 0.7071068 base_link os_sensor" />
+</launch>
