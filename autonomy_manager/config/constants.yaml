@@ -1,6 +1,7 @@
-status_topic: "/autonomy_manager/status"
-sensor_prep_status_topic: "/sensor_prep_status"
-joy_topic: "/joy"
+# Autonomy Manager (autonomy_teleop.py)
+status_topic: '/autonomy_manager/status'
+sensor_prep_status_topic: '/sensor_prep_status'
+joy_topic: '/joy'
 gps_topic: '/gps_avg'
 sensor_prep_service_name: '/run_sensor_prep'
 deploy_service_name: '/autonomy_manager/deploy_autonomy'
@@ -11,3 +12,23 @@ waypoints_service_name: 'waypoints'
 grid_points_service_name: 'grid_points'
 next_goal_service_name: 'next_goal'
 next_goal_nav_service_name: 'next_goal_nav'
+
+# GUI (gps_user_input.py)
+goal_pub_topic: '/gps_navigation/goal'
+gps_sub_topic: '/heading_true'
+parking_break_service_name: '/parking_brake'
+calibrate_start_service_name: '/start'
+pxrf_client_topic_name: '/take_measurement'
+#todo: location_sub_topic = gps_topic
+location_sub_topic: '/gps_avg'
+
+# Autonomy Teleop (autonomy_teleop.py)
+deploy_sensor_auto_service_name: '/deploy_sensor_auto'
+deploy_sensor_service_name: '/deploy_sensor'
+deploy_tool_auto_service_name: '/deploy_tool_auto'
+deploy_tool_service_name: '/deploy_tool'
+deploy_home_auto_service_name: '/deploy_home_auto'
+deploy_home_service_name: '/deploy_home'
+dig_torque_topic: '/dig_torque'
+cmd_vel_auto_topic: '/cmd_vel_auto'
+cmd_vel_topic: '/cmd_vel'

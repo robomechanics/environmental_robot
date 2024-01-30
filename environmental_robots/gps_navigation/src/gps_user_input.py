@@ -183,7 +183,7 @@ class GpsNavigationGui:
             self._goal_pub_topic = rospy.get_param('goal_pub_topic')
             self._location_sub_topic = rospy.get_param('location_sub_topic')
             self._gps_sub_topic = rospy.get_param('gps_sub_topic')
-            self._status_sub_topic = rospy.get_param('status_sub_topic')
+            self._status_sub_topic = rospy.get_param('status_topic')
             # Load service names into params
             self._parking_brake_service = rospy.get_param('parking_break_service_name')
             self._next_point_service = rospy.get_param('next_goal_service_name')

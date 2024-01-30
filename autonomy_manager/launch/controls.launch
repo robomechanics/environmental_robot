@@ -6,6 +6,9 @@
     <arg name="useLidar" default="true"/>
     <arg name="useManager" default="true"/>
 
+    <!-- load rosparams -->
+	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
+
     <!-- joy stick -->
     <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
 	    <param name="dev" type="string" value="/dev/input/js0"/>
@@ -46,7 +49,6 @@
     <!--manager, scripted motion with speed control -->
     <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop.py" output="screen" if="$(arg useManager)"/>
     <node name="scripted_motion" pkg="rake_scan" type="scripted_sensor_prep.py" output="screen" if="$(arg useManager)"/>
-	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
     <node name="manager" pkg="autonomy_manager" type="manager.py" output="screen" if="$(arg useManager)"/>
 	    <!--<node name="calibration" pkg="autonomy_manager" type="calibration.py" output="screen" if="$(arg useManager)"/>-->
     
