@@ -118,9 +118,3 @@ kraton:
 
 autonomy_manager, gps_user_input.py and pxrf.py
 - pxrf change timings
-
-# Tomorrow
-- PXRF
-  - pxrf scan
-  - store in excel
-  - add ros timing
