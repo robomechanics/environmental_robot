@@ -14,10 +14,12 @@ import copy
 from scipy.stats import norm
 from scipy.spatial.distance import *
 from boundaryCheck import *
+from sklearn.gaussian_process.kernels import Matern
 
 class adaptiveROS:
     #init 50,50, [0,0], [[1,0],[30,5],[35,40],[2,40]], 5, 15
-    def __init__(self, sizex, sizey, startpoint, total_number, minDist = 3, maxDist = 40, simu = True, mode = 1, boundary = []):
+    def __init__(self, sizex, sizey, startpoint, total_number, minDist = 0, maxDist = 100,
+                 simu = True, mode = 1, boundary = [], kernel = RBF(8e-4)): #Matern(length_scale=5, nu=0.5
         self.sizex = sizex
         self.sizey = sizey
         self.startpoint = startpoint
@@ -28,14 +30,17 @@ class adaptiveROS:
         self.total_number = total_number
         self.x_bound = [coord[0] for coord in boundary]
         self.y_bound = [coord[1] for coord in boundary]
-        self.kernel = RBF(1.0) # covariance function
+        self.kernel = kernel # covariance function
         self.gp = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=50)
         self.bin_entropy = np.full((sizex,sizey), 0.5)
         self.x1 = np.linspace(0,sizex - 1, sizex)
         self.x2 = np.linspace(0,sizey - 1, sizey)
         self.x1x2 = np.array([(a,b) for a in self.x1 for b in self.x2])
-        self.lastLocation = []
-        self.lastMap = np.zeros((sizex,sizey))
+
+        self.norm_range = 0
+        self.norm_min = 0
+        self.min = 0
+        self.max = 0
 
         #initialize values
         self.sampled = [[0,0]]
@@ -43,19 +48,25 @@ class adaptiveROS:
         self.mu = []
         self.std_var = []
         self.path_len = 0
-        self.delta = 25
+        self.delta = 1
         
         #scale beta from 0 to 30
-        self.beta = self.path_len / self.total_number * self.delta
-
+        #beta balances mu and var. when the number of samples is low, the algorithm prioritizes high mean regions. when the number of samples approaches the set number, it prioritizes high-variance regions. Beta is dependent on how many samples have been collected already and delta. delta is a tuning parameter that needs to be scaled correctly based on the environment.
+        #self.beta = self.path_len / self.total_number * self.delta
+        self.beta1 = self.delta
 
     def update(self, x, y, val):
         self.sampled.append([x,y])
         self.sampledVal.append(val)
+        self.min = np.min(self.sampledVal)
+        self.max = np.max(self.sampledVal)
+        self.norm_range = np.max(self.sampledVal) - np.min(self.sampledVal)
+        self.norm_min = np.min(self.sampledVal)
+        sampledVal_n = list(np.array(self.sampledVal-self.norm_min)/self.norm_range)
         self.path_len += 1
-        self.beta = self.path_len / self.total_number * self.delta
-        self.gp.fit(self.sampled, self.sampledVal)
-      
+        #self.beta = self.path_len / self.total_number * self.delta
+        self.beta1 = self.delta
+        self.gp.fit(self.sampled, sampledVal_n)
 
     def reset(self):
         self.sampled = []
@@ -76,7 +87,7 @@ class adaptiveROS:
         # print("-----------------")
 
         # print(self.std_var)
-        self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
+        self.bin_entropy = 0*self.mu + sqrt(self.beta1) * self.std_var
         bin_entropy_constraint = copy.deepcopy(self.bin_entropy)
         currx = self.sampled[-1][0]
         curry = self.sampled[-1][1]
@@ -85,7 +96,7 @@ class adaptiveROS:
         idx_max = np.where(dist > self.maxDist)
         bin_entropy_constraint[idx_min] = -1 
         bin_entropy_constraint[idx_max] = -1    
- 
+
         #include boundary constraint
         for i_row in range(len(bin_entropy_constraint)):
             for j_col in range(len(bin_entropy_constraint[i_row])):
@@ -109,34 +120,21 @@ class adaptiveROS:
             dist_to_location += c
             dist_to_location = dist_to_location.reshape((self.sizex ,self.sizey))
             dist_to_location = np.interp(dist_to_location, (dist_to_location.min(), dist_to_location.max()), (1, 3))
-            coeficient = 0.005
+            coeficient = 0.5 #gamma 0.005
+            #print(dist_to_location)
 
             #new_bin = bin_entropy_constraint / (dist_to_location * coeficient)
             new_bin = bin_entropy_constraint - dist_to_location * coeficient
             r2 = np.unravel_index(new_bin.argmax(), bin_entropy_constraint.shape)
             next_x, next_y = r2[0], r2[1]
             next = [next_x, next_y]
-
-            #if the next location is the same as the last location, then we need to find a new next location
-            while(next in self.lastLocation):
-                print("repeated location, find a new location")
-                new_bin[r2] = -1
-                r2 = np.unravel_index(new_bin.argmax(), bin_entropy_constraint.shape)
-                next_x, next_y = r2[0], r2[1]
-                next = [next_x, next_y]
+            #print(next)
 
         elif self.mode == 2: # greedy approach
             r1 = np.unravel_index(bin_entropy_constraint.argmax(), bin_entropy_constraint.shape)
             next_x, next_y = r1[0], r1[1]
             next = [next_x, next_y]
         
-        #check if two arrays are the same
-        if self.lastMap.all() != bin_entropy_constraint.all():
-            self.lastLocation = []
-
-        self.lastLocation.append(next)
-        self.lastMap = bin_entropy_constraint
-
         return next
 
     def plot(self):
@@ -156,4 +154,3 @@ class adaptiveROS:
         self.y_bound = [coord[1] for coord in boundary]
         self.x_bound.append(boundary[0][0])
         self.y_bound.append(boundary[0][1])
-
