@@ -15,7 +15,7 @@ from boundaryCheck import *
 #[40.44233453704325, -79.94584400702514, 1]
 #[40.442054721646244, -79.9459456555756, 1]
 
-class conversion:
+class Conversion:
     def __init__(self):
         self.utm = 'EPSG:32617' #default to pittsburgh
         self.height = 0

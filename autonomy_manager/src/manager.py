@@ -43,7 +43,7 @@ class Manager(object):
         #intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
         self.gridROS = None
-        self.conversion = conversion()
+        self.conversion = Conversion()
         self.searchBoundary = []
         self.waypoints = []
         self.grid_sampling = False
@@ -315,7 +315,7 @@ class Manager(object):
             print("clear")
             self.adaptiveROS = None
             self.gridROS = None
-            self.conversion = conversion()
+            self.conversion = Conversion()
             self.searchBoundary = []
 
         return True

@@ -15,7 +15,7 @@ from boundaryConversion import *
 
 boundary_point = [[40.44208352622619, -79.94610353523909, 1], [40.44236251851889, -79.94599539848328, 1], [40.44233453704325, -79.94584400702514, 1], [40.442054721646244, -79.9459456555756, 1]]
 
-conv = conversion()
+conv = Conversion()
 
 conv.get_zone(40.44208352622619, -79.94610353523909)
 for each in boundary_point:

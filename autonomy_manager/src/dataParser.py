@@ -75,7 +75,7 @@ with open(file_path, 'r') as csv_file:
 
 #boundary
 boundary = [[39.189249, -84.763784], [39.189280, -84.763434], [39.189549,-84.763486], [39.189513, -84.763819]]
-conv = conversion()
+conv = Conversion()
 conv.get_zone(39.189249, -84.763784)
 boundary_utm_offset = conv.boundaryConversion(boundary)
 print(conv.width, conv.height)

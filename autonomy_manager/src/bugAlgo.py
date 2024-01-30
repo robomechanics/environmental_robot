@@ -14,7 +14,7 @@ turn_tol = 0.5
 forward_tol = 0.5
 
 # this function slices the front of the robot and returns the left, middle, and right section density value
-def forwardSection(obstacle_map):
+def forward_section(obstacle_map):
     num_rows = 3
     #get the last 3 rows of the obstacle map
     m = len(obstacle_map)
@@ -36,9 +36,9 @@ def forwardSection(obstacle_map):
         result.append(density)
     return result
 
-def obstacleAvoidance(obstacle_map):
+def obstacle_avoidance(obstacle_map):
     #get the density of each section
-    density = forwardSection(obstacle_map)
+    density = forward_section(obstacle_map)
     #if the density of the front section is greater than 0.5, then the robot is blocked
     if density[3] > forward_tol:
         print("blocked")

@@ -18,7 +18,7 @@ from pyproj.database import query_utm_crs_info
 from pyproj.aoi import AreaOfInterest
 import pyproj
 
-class calibration(object):
+class Calibration(object):
     def __init__(self):
 
         # start node
@@ -26,7 +26,7 @@ class calibration(object):
         rospy.Subscriber('/nav/heading',FilterHeading,self.heading_callback)
         rospy.Subscriber('/nav/odom',Odometry ,self.gps_callback)
         rospy.Subscriber('/cmd_vel',Twist,self.speed_callback)
-        self.startService = rospy.Service('start', RunSensorPrep, self.startService)
+        self.start_service = rospy.Service('start', RunSensorPrep, self.start_service)
         self.heading = None
         self.queueSize = 100
         self.lon = None
@@ -136,7 +136,7 @@ class calibration(object):
         self.linear = msg.linear.x
         self.angular = msg.angular.z
 
-    def startService(self,msg):
+    def start_service(self,msg):
         self.start = msg.run
         return True
     
@@ -162,4 +162,4 @@ class calibration(object):
         return transformer.transform(posx, posy)
 
 if __name__ == "__main__":
-    calibration()
+    Calibration()
