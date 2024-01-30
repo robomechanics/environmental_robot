@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-	<node name="pxrf_driver" pkg="pxrf" type="main" output="screen" />
-	<node name="pxrfgui" pkg="pxrf" type="pxrf_gui.py" output="screen" />
-	<node name="parser" pkg="pxrf" type="chemistry_parser.py" output="screen" />
-</launch>

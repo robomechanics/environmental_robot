@@ -1,0 +1,72 @@
+16a17
+> from sklearn.gaussian_process.kernels import Matern
+20c21,22
+<     def __init__(self, sizex, sizey, startpoint, total_number, minDist = 3, maxDist = 40, simu = True, mode = 1, boundary = []):
+---
+>     def __init__(self, sizex, sizey, startpoint, total_number, minDist = 0, maxDist = 100,
+>                  simu = True, mode = 1, boundary = [], kernel = RBF(8e-4)): #Matern(length_scale=5, nu=0.5
+31c33
+<         self.kernel = RBF(1.0) # covariance function
+---
+>         self.kernel = kernel # covariance function
+37,38c39,43
+<         self.lastLocation = []
+<         self.lastMap = np.zeros((sizex,sizey))
+---
+> 
+>         self.norm_range = 0
+>         self.norm_min = 0
+>         self.min = 0
+>         self.max = 0
+46c51
+<         self.delta = 25
+---
+>         self.delta = 1
+49,50c54,56
+<         self.beta = self.path_len / self.total_number * self.delta
+< 
+---
+>         #beta balances mu and var. when the number of samples is low, the algorithm prioritizes high mean regions. when the number of samples approaches the set number, it prioritizes high-variance regions. Beta is dependent on how many samples have been collected already and delta. delta is a tuning parameter that needs to be scaled correctly based on the environment.
+>         #self.beta = self.path_len / self.total_number * self.delta
+>         self.beta1 = self.delta
+54a61,65
+>         self.min = np.min(self.sampledVal)
+>         self.max = np.max(self.sampledVal)
+>         self.norm_range = np.max(self.sampledVal) - np.min(self.sampledVal)
+>         self.norm_min = np.min(self.sampledVal)
+>         sampledVal_n = list(np.array(self.sampledVal-self.norm_min)/self.norm_range)
+56,57c67,69
+<         self.beta = self.path_len / self.total_number * self.delta
+<         self.gp.fit(self.sampled, self.sampledVal)
+---
+>         #self.beta = self.path_len / self.total_number * self.delta
+>         self.beta1 = self.delta
+>         self.gp.fit(self.sampled, sampledVal_n)
+79c91
+<         self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
+---
+>         self.bin_entropy = 0*self.mu + sqrt(self.beta1) * self.std_var
+112c124,125
+<             coeficient = 0.005
+---
+>             coeficient = 0.5 #gamma 0.005
+>             #print(dist_to_location)
+119,126c132
+< 
+<             #if the next location is the same as the last location, then we need to find a new next location
+<             while(next in self.lastLocation):
+<                 print("repeated location, find a new location")
+<                 new_bin[r2] = -1
+<                 r2 = np.unravel_index(new_bin.argmax(), bin_entropy_constraint.shape)
+<                 next_x, next_y = r2[0], r2[1]
+<                 next = [next_x, next_y]
+---
+>             #print(next)
+133,139d138
+<         #check if two arrays are the same
+<         if self.lastMap.all() != bin_entropy_constraint.all():
+<             self.lastLocation = []
+< 
+<         self.lastLocation.append(next)
+<         self.lastMap = bin_entropy_constraint
+< 
