@@ -12,6 +12,7 @@ from gridROS import gridROS
 from boundaryConversion import conversion
 from sensor_msgs.msg import Joy
 
+INIT ="initialization"
 RECEIVED_SEARCH_AREA = 'received search area'
 RECEIVED_NEXT_SCAN_LOC = 'received next scan loc'
 ARRIVED_AT_SCAN_LOC = 'arrived at scan loc'
@@ -20,8 +21,8 @@ FINISHED_SCAN = 'finished scan'
 RAKING = 'raking'
 NAVIGATION_TO_SCAN_LOC = 'navigating to scan loc'
 RUNNING_SEARCH_ALGO = 'running search algo'
-STANDBY = 'standby'
-WAITING_FOR_CALIBRATION_TO_FINISH = 'waiting for calibration to finish'
+READY = 'ready'
+WAITING_FOR_GPS_INIT = 'waiting for gps init'
 RUNNING_GRID_ALGO = 'running grid algo'
 RUNNING_WAYPOINT_ALGO = 'running waypoint algorithm'
 SCANNING = 'scanning'
@@ -33,7 +34,7 @@ class Manager(object):
         self.load_ros_params()
 
         self.statusPub = rospy.Publisher(self._status_topic, ManagerStatus, queue_size=10,latch=True)
-        self.update_status(STANDBY)
+        self.update_status(INIT)
         rospy.Subscriber(self._sensor_prep_status_topic,Bool,self.check_sensor_prep_status)
         rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
         self.isOverride = False
@@ -68,11 +69,11 @@ class Manager(object):
 
         # wait until the gps calibration is finished
         while self.lon is None or self.lat is None: 
-             self.update_status(WAITING_FOR_CALIBRATION_TO_FINISH)
+             self.update_status(WAITING_FOR_GPS_INIT)
              print(self.status)
              rospy.sleep(1)
         
-        self.update_status(STANDBY)
+        self.update_status(READY)
 
         # get ros param 
         print("Waiting to start")
