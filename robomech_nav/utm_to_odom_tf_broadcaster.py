@@ -13,36 +13,19 @@ from nav_msgs.msg import Odometry
 class UTMToOdom():
     def __init__(self, parent_frame_id="base_link", child_frame_id="utm_odom2"):
         self.first_time = True
-
-        self.lat_GPS = 0
-        self.long_GPS = 0
-        self.lat_GPS_start = 0
-        self.long_GPS_start = 0
-
-        self.XY_UTM = 0
-        self.x_UTM = 0
-        self.y_UTM = 0
-        self.x_UTM_start = 0
-        self.y_UTM_start = 0
         
         self.crs_GPS = 'EPSG:4326'
-        self.crs_UTM = 'placeholder_CRS'
-
+        self.crs_UTM = 'placeholder_EPSG'
         self.transformer = Transformer.from_crs(self.crs_GPS, self.crs_UTM)
 
-        self.g = 0
-        self.gInv = 0
-
-        self.xBack = 0
-        self.yBack = 0
-
-        self.theta_heading = 0
-
+        self.pose_odom_initial = geometry_msgs.msg.Pose()
+        self.pose_odom_covariance_initial = geometry_msgs.msg.PoseWithCovariance()
         self.pose_odom = geometry_msgs.msg.Pose()
         self.pose_odom_covariance = geometry_msgs.msg.PoseWithCovariance()
 
         self.quaternion = tf.transformations.random_quaternion()
 
+        self.odom_initial = Odometry()
         self.odom = Odometry()
 
         # Creating a transform and its broadcaster
@@ -54,13 +37,13 @@ class UTMToOdom():
 
 		# Publishers and Subscribers
         self.utm_odom_pub = rospy.Publisher("utm_odom2", Odometry, queue_size=1)
-        self.gps_sub = rospy.Subscriber("/nav/odom",
-                                        Odometry,
-                                        self.utm_broadcaster)
+        self.utm_odom_initial_pub = rospy.Publisher("utm_odom2_initial", Odometry, queue_size=1)
+        self.gps_sub = rospy.Subscriber("/nav/odom", Odometry, self.utm_broadcaster)
 
     def utm_broadcaster(self, data):
         self.odom = Odometry()
         self.firstTimeCode(data)
+        self.utm_odom_initial_pub.publish(self.odom_initial)
         self.handleGPS_MSG(data)
         self.create_UTM_Odom(data)
         self.findInverses(data)
@@ -73,32 +56,31 @@ class UTMToOdom():
             self.lon_GPS_start = data.pose.pose.position.y
 
             # Convert from lat-lon to UTM using py proj
-            #self.grabCRS()
-
             XY_UTM_start = self.transformer.transform(self.lat_GPS_start, self.lon_GPS_start)
             self.x_UTM_start = XY_UTM_start[0]
             self.y_UTM_start = XY_UTM_start[1]
-            #self.quaternion[0] = data.pose.pose.orientation.x
-            #self.quaternion[1] = data.pose.pose.orientation.y
-            #self.quaternion[2] = data.pose.pose.orientation.z
-            #self.quaternion[3] = data.pose.pose.orientation.w
-            #eulers = euler_from_quaternion(self.quaternion, 'sxyz')  # sxyz
-            #theta_heading = eulers[2] + (0.0)/180*np.pi
-            #theta_heading = np.arctan2(
-            #    np.sin(theta_heading), np.cos(theta_heading))
 
             self.first_time = False
 
-    #def grabCRS(self):
-    #    self.crs_GPS = CRS.from_epsg(4326)
-    #    self.crs_UTM = CRS.from_epsg(3651)
+            # Creating a pose message for location in Odom
+            self.pose_odom_initial.position.x = self.x_UTM_start
+            self.pose_odom_initial.position.y = self.y_UTM_start
+            self.pose_odom_initial.position.z = 0.0
+            self.pose_odom_covariance_initial.pose = self.pose_odom_covariance_initial
+
+            # Formatting the Odom message
+            self.odom_initial.header.stamp = data.header.stamp
+            self.odom_initial.header.frame_id = "utm_odom2"
+            self.odom_initial.child_frame_id = "base_link"
+            self.odom_initial.pose = self.pose_odom_covariance_initial
 
     def handleGPS_MSG(self,data):
 
+        # Grab lat and lon values
         self.lat_GPS = data.pose.pose.position.x
         self.lon_GPS = data.pose.pose.position.y
 
-        # Grabbing XY values
+        # Convert to UTM/XY values
         self.XY_UTM = self.transformer.transform(self.lat_GPS, self.lon_GPS)
         self.x_UTM = self.XY_UTM[0]
         self.y_UTM = self.XY_UTM[1]
@@ -135,14 +117,14 @@ class UTMToOdom():
         self.utm_odom_pub.publish(self.odom)
 
         # Inverse transformation matrix
-        g = np.array([[np.cos(self.theta_heading), -np.sin(self.theta_heading), 0, (self.x_UTM - self.x_UTM_start)], 
+        self.g = np.array([[np.cos(self.theta_heading), -np.sin(self.theta_heading), 0, (self.x_UTM - self.x_UTM_start)], 
                       [np.sin(self.theta_heading),  np.cos(self.theta_heading), 0, (self.y_UTM - self.y_UTM_start)],
                       [0.0, 0.0, 1.0, 0.0],
                       [0.0, 0.0, 0.0, 1.0]])
-        gInv = tf.transformations.inverse_matrix(g)
+        self.gInv = tf.transformations.inverse_matrix(g)
 
-        self.xBack = gInv[0][3]
-        self.yBack = gInv[1][3]
+        self.xBack = self.gInv[0][3]
+        self.yBack = self.gInv[1][3]
 
     def sendBackTF(self,data):
         # Defining the backwards transformation
