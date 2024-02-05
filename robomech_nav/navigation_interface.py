@@ -27,9 +27,6 @@ class NavigationInterface(object):
 	def __init__(self):
 	
 		rospy.init_node('NavigationInterfaceNode')
-		self.useDummyValues = False
-		self.dummyMatrix = np.array([[0,5,5,5,5,0,0,0]])
-		self.obstacleCounter = 0
 		self.goal = MoveBaseGoal()
 		self.goalFlag = False
 		self.goalFinished = False
@@ -44,10 +41,9 @@ class NavigationInterface(object):
 		self.lonFirst = 0
 		
 		self.latlon = rospy.Subscriber("/gnss1/fix", NavSatFix, self.latlon)
-		self.xy_iniital = rospy.Subscriber("/utm_start", Odometry, self.xy_listener)
+		self.xy_initial = rospy.Subscriber("/utm_start", Odometry, self.xy_listener)
 		
 		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
-		
 		self.cancel_goal_nav = rospy.Service('cancel_goal', NavigateGPS, self.cancelGoal)
 		
 		self.goal_reach = rospy.ServiceProxy('goal_reach', Complete)
@@ -65,7 +61,6 @@ class NavigationInterface(object):
 				self.get_utm()
 				self.make_goal()
 				self.send_goal()
-				#self.navStatus.publish(self.goalStatusManager)
 			rate.sleep()
 			
 
@@ -113,48 +108,34 @@ class NavigationInterface(object):
 		self.y_UTM = coordinates[1]
 		
 	def make_goal(self):
-		if self.useDummyValues == True and self.obstacleCounter < 4:
-			self.goal = MoveBaseGoal()
-			self.goal.target_pose.header.frame_id = "utm_odom2"
-			self.goal.target_pose.header.stamp = rospy.Time.now()
-			self.goal.target_pose.pose.position.x = self.dummyMatrix[0][2*self.obstacleCounter]
-			self.goal.target_pose.pose.position.y = self.dummyMatrix[0][2*self.obstacleCounter+1]
-			self.goal.target_pose.pose.orientation.x = 0
-			self.goal.target_pose.pose.orientation.y = 0
-			self.goal.target_pose.pose.orientation.z = 0
-			self.goal.target_pose.pose.orientation.w = 1
-			print(self.goal)
-		elif self.useDummyValues == False:
-			self.goal = MoveBaseGoal()
-			self.goal.target_pose.header.frame_id = "utm_odom2"
-			self.goal.target_pose.header.stamp = rospy.Time.now()
-			#if self.dummyFirst == True:
-				#self.dummyX = self.x_UTM - 2
-				#self.dummyY = self.y_UTM - 2
-				#self.dummyFirst = False
-			self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
-			print(self.x_UTM,self.x_UTM_initial,self.y_UTM,self.y_UTM_initial)
-			#self.goal.target_pose.pose.position.x = self.x_UTM-self.dummyX
-			self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_initial
-			#self.goal.target_pose.pose.position.y = self.y_UTM-self.dummyY
-			self.goal.target_pose.pose.orientation.x = 0
-			self.goal.target_pose.pose.orientation.y = 0
-			self.goal.target_pose.pose.orientation.z = 0
-			self.goal.target_pose.pose.orientation.w = 1
-			print(self.goal)
-			print('XNav: ',self.x_UTM)
-			print('YNav: ',self.y_UTM)
-			print('XInit: ',self.x_UTM_initial)
-			print('Yinit: ',self.y_UTM_initial)
-			print(self.utmDefault," 2")
+		self.goal = MoveBaseGoal()
+		self.goal.target_pose.header.frame_id = "utm_odom2"
+		self.goal.target_pose.header.stamp = rospy.Time.now()
+		#if self.dummyFirst == True:
+			#self.dummyX = self.x_UTM - 2
+			#self.dummyY = self.y_UTM - 2
+			#self.dummyFirst = False
+		self.goal.target_pose.pose.position.x = self.x_UTM-self.x_UTM_initial
+		print(self.x_UTM,self.x_UTM_initial,self.y_UTM,self.y_UTM_initial)
+		#self.goal.target_pose.pose.position.x = self.x_UTM-self.dummyX
+		self.goal.target_pose.pose.position.y = self.y_UTM-self.y_UTM_initial
+		#self.goal.target_pose.pose.position.y = self.y_UTM-self.dummyY
+		self.goal.target_pose.pose.orientation.x = 0
+		self.goal.target_pose.pose.orientation.y = 0
+		self.goal.target_pose.pose.orientation.z = 0
+		self.goal.target_pose.pose.orientation.w = 1
+		print(self.goal)
+		print('XNav: ',self.x_UTM)
+		print('YNav: ',self.y_UTM)
+		print('XInit: ',self.x_UTM_initial)
+		print('Yinit: ',self.y_UTM_initial)
+		print(self.utmDefault," 2")
 	
 	def send_goal(self):
 		self.client.send_goal(self.goal,self.done_callback)
 		print("Goal is sent")
 		self.goalFlag = False
 		self.goalFinished = False
-		if self.useDummyValues == True:
-			self.obstacleCounter = self.obstacleCounter + 1
 	
 	def done_callback(self,status,result):
 		self.goalStatusRaw = status
