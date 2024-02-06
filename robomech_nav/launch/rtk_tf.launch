@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+
+	<arg name="robot_type" value= "robot" />
+	<arg name="robot_x_size" value= "0.4064" />
+	<arg name="robot_y_size" value= "0.26543" />
+	<arg name="antenna_baseline" value= "0.4092" />
+
+	<group ns="$(arg robot_type)">
+    	<node pkg="tf2_ros" type="static_transform_publisher" name="world_baselink_roadcaster" args=" 0 0 0 0 0 0 1 world $(arg robot_type)/base_link" />
+
+    	<node pkg="tf2_ros" type="static_transform_publisher" name="gnss_antenna_front_broadcaster" args=" 0.2472 0.02529 0.038 0 0 0 1 $(arg robot_type)/base_link $(arg robot_type)/gnss_antenna_1" />
+		
+    	<node pkg="tf2_ros" type="static_transform_publisher" name="gnss_antenna_back_broadcaster" args="-0.162 -0.120 0.008 0 0 0 1 $(arg robot_type)/base_link $(arg robot_type)/gnss_antenna_2" />
+
+    	<node pkg="tf2_ros" type="static_transform_publisher" name="gps_imu_broadcaster" args="0.016 0.08 0.0 0 0 0 1 $(arg robot_type)/base_link $(arg robot_type)/gnss_imu_frame" />
+	</group>
+
+</launch>
+
+	
+
+    
+ 
