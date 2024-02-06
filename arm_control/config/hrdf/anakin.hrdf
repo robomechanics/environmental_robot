@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 4-DoF Arm - Anakin (RML Hebi Arm)-->
+<robot version="1.2.0">
+
+	<actuator type="X8-16"/>
+	<bracket type="X5HeavyRightOutside"/>
+	<actuator type="X8-16"/>
+	<link type="X5" extension="0.325" twist="pi"/>
+	<actuator type="X8-16"/>
+	<link type="X5" extension="0.325" twist="0.0"/>
+	<actuator type="X8-16"/>
+	<!--end-effector type="Custom" mass="0.1" com_trans="0 0 0.5" output_trans="0 0 0.1"/-->
+	<end-effector />
+
+</robot>
