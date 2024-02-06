@@ -36,3 +36,8 @@ dig_torque_topic: '/dig_torque'
 cmd_vel_auto_topic: '/cmd_vel_auto'
 cmd_vel_topic: '/cmd_vel'
 cmd_vel_managed_topic: '/cmd_vel'
+
+# Arm
+lipo_battery_voltage_topic: 'arm/lipo_battery_voltage'
+lipo_current_topic: 'arm/lipo_motor_current'
+lipo_battery_info_refresh_interval: 30  # In secs
