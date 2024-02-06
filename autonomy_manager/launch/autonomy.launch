@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="useJoy" default="true"/>
+    <arg name="useMicrostrain" default="true"/>
+    <arg name="useLidar" default="true"/>
+    <arg name="useManager" default="true"/>
+
+    <!-- load rosparams for services and topics -->
+	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
+
+    <!-- joy stick -->
+    <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
+	    <param name="dev" type="string" value="/dev/input/js0"/>
+	    <param name="autorepeat_rate" value="10"/>
+    </node>
+
+    <!-- lidar -->
+    <include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
+	    <arg name="sensor_hostname" value="10.10.1.111"/>
+	    <arg name="lidar_mode" value="512x10"/>
+	    <arg name="timestamp_mode" value="TIME_FROM_ROS_TIME"/>
+	    <arg name="viz" value="false"/>
+    </include>
+
+    <!-- gps driver -->
+    <include file="$(find microstrain_inertial_driver)/launch/microstrain.launch" if="$(arg useMicrostrain)">
+        <arg name="params_file" value="$(find autonomy_manager)/config/hebi_microstrain.yaml"/>
+    </include>
+
+    <!-- throttle /nav/odom and /nav/heading for gui stability -->
+    <node name="odom_throttler" pkg="topic_tools" type="throttle" args="messages /nav/odom 5.0"/>
+    <node name="heading_throttler" pkg="topic_tools" type="throttle" args="messages /nav/heading 5.0"/>
+
+    <!-- vanta pxrf -->
+    <node name="pxrf_driver" pkg="pxrf" type="main" />
+    <node name="pxrf_handle" pkg="pxrf" type="pxrf_handler.py" />
+
+    <!--manager, scripted motion with speed control -->
+    <node name="autonomy_teleop" pkg="autonomy_manager" type="autonomy_teleop.py" output="screen" if="$(arg useManager)"/>
+    <node name="manager" pkg="autonomy_manager" type="manager.py" output="screen" if="$(arg useManager)"/>
+	    <!--<node name="calibration" pkg="autonomy_manager" type="calibration.py" output="screen" if="$(arg useManager)"/>-->
+    
+    <!-- navigation -->
+    <include file="$(find autonomy_manager)/launch/navigation.launch" />
+   
+</launch>
