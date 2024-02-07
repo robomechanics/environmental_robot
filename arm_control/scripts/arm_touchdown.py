@@ -9,6 +9,7 @@ import hebi
 import rospkg
 import math
 import matplotlib.pyplot as plt
+from std_srvs.srv import Trigger, TriggerResponse
 
 class RobotController():
     def __init__(self, family_name, module_names, hrdf_path):
@@ -27,16 +28,26 @@ class RobotController():
         # Set the gains
         gainsCmd = hebi.GroupCommand(self.group.size)
         rospack = rospkg.RosPack()
-        ak = rospack.get_path('anakin_control')
+        ak = rospack.get_path('arm_control')
         path = ak + '/config/gains/anakin_gains.xml'
+        print("Gains path: ", path)
 		# path = "/home/rover/catkin_ws/src/anakin_control/config/gains/anakin_gains.xml"
         gainsCmd.read_gains(path)
         self.group.send_command_with_acknowledgement(gainsCmd)
 
         self.num_joints = self.group.size
         self.group_fbk = hebi.GroupFeedback(self.num_joints)
-        gainsCmd.mstop_strategy = 0
+        gainsCmd.mstop_strategy = 2
+        
+        # Register feedback callback 
+        # self.group.feedback_frequency = 100.0
+        # self.group.add_feedback_handler(self.feedback_func_callback)
+    
+    #def feedback_func_callback(self, feedback):
+        # feedback is guaranteed to be a "hebi.GroupFeedback" instance
+    #    self.feedback = feedback
 
+        
     def get_joint_angles(self):
         # Get position feedback from the robot to use as initial conditions 
         group_fbk = hebi.GroupFeedback(self.group.size)
@@ -82,9 +93,16 @@ class EndEffectorTrajectory():
         self.max_positions = [5, 2*np.pi, -1, np.pi/2]
         
         self.group_fbk = hebi.GroupFeedback(robot_controller.group.size)
+        
+    #     self.raise_arm = rospy.Service('arm/raise', Trigger, self.raise_arm_service_cb)
+    #     self.lower_arm = rospy.Service('arm/lower', Trigger, self.lower_arm_service_cb)
 
+    # def raise_arm_service_cb(req):
+    #     return TriggerResponse(True, "Success")
 
-
+    # def lower_arm_service_cb(req):
+    #     return TriggerResponse(True, "Success")
+    
     def get_trajectory(self, total_duration = 40):
 
         initial_joint_angles = self.robot_controller.get_joint_angles()
@@ -133,24 +151,26 @@ class EndEffectorTrajectory():
         #     [-3.02600002, -2.18277832, -1.97059152, -1.77164562],
         #     [-2.28942299, -1.28403595, -0.78806982, -5.93687081]
         # ])
+        
+        positions = self.positions.T
 
         self.num_joints = len(initial_joint_angles)
 
         # Position, velocity, and acceleration waypoints
-        self.pos = np.full(self.positions.shape, np.nan)
-        self.vel = np.full(self.positions.shape, np.nan)
-        self.acc = np.full(self.positions.shape, np.nan)
+        self.pos = np.full(positions.shape, np.nan)
+        self.vel = np.full(positions.shape, np.nan)
+        self.acc = np.full(positions.shape, np.nan)
 
         # Set first and last waypoint values to 0.0
         self.vel[:, 0] = self.acc[:, 0] = 0.0
         self.vel[:, -1] = self.acc[:, -1] = 0.0
 
         # set time
-        self.times = np.linspace(0, total_duration, len(self.positions))
+        self.times = np.linspace(0, total_duration, positions.shape[1])
 
         # Create the trajectory
         # trajectory = hebi.trajectory.create_trajectory(time, pos, vel, acc)
-        self.trajectory = hebi.trajectory.create_trajectory(self.times, np.copy(self.positions), self.vel, self.acc)
+        self.trajectory = hebi.trajectory.create_trajectory(self.times, np.copy(positions), self.vel, self.acc)
         
         #print("----------------\n\n")
 
@@ -170,7 +190,7 @@ class EndEffectorTrajectory():
 
         t = 0.0
         duration = self.trajectory.duration
-        while (t < duration) and (self.robot_controller.get_joint_angles() != self.positions[:, 3]).all():
+        while (t < duration):
             # self.robot_controller.group.get_next_feedback(reuse_fbk=self.group_fbk)
             self.pos_cmd, self.vel_cmd, self.acc_cmd = self.trajectory.get_state(t)
 
