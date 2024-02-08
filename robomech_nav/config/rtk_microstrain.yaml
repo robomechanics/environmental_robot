@@ -21,7 +21,8 @@ diagnostics : False
 
 # Frame IDs used in the different messages. By default these are set to arbitrary strings as not to interfere with other ROS services.
 # For more information on common frame IDs, check out: https://www.ros.org/reps/rep-0105.html
-#
+# https://wiki.ros.org/microstrain_inertial_driver/transforms
+
 # filter_frame_id and filter_child_frame_id are specifically useful as the node will also publish a transform to the /tf topic
 # that contains the transform between these two frames. Many ROS tools such as RViz will use the /tf topic to display things like robot position.
 # imu_frame_id          : "rtk"
@@ -31,12 +32,39 @@ diagnostics : False
 # filter_child_frame_id : "rtk"
 # nmea_frame_id         : "nmea"
 
+frame_id              : "rtk"
+target_frame_id       : "base_link"
+
 imu_frame_id          : "rtk"
 gnss1_frame_id        : "robot/gnss_antenna_1"
 gnss2_frame_id        : "robot/gnss_antenna_2"
 filter_frame_id       : "world"
 filter_child_frame_id : "rtk"
 nmea_frame_id         : "nmea"
+
+
+
+# (GQ7 only) Relative Position Configuration
+#     Reference frame =
+#         1 - Relative ECEF position
+#         2 - Relative LLH position
+#
+#     Source =
+#         0 - Position will be reported relative to the base station. filter_relative_position_ref will be ignored
+#         1 - Position will be reported relative to filter_relative_position_ref
+#         2 - Position will be reported relative to the first position reported by the device after it enters full nav. filter_relative_position_ref will be ignored
+#         3 - We will wait for a transform to be made available between earth_frame_id and map_frame_id and use that as the relative position reference. filter_relative_position_ref will be ignored
+#
+#     Reference position - Units provided by reference frame (ECEF - meters, LLH - deg, deg, meters)
+# Note: The source selected here will determine the transform published between earth_frame_id and map_frame_id when running in relative transform mode
+# For more information, see: https://wiki.ros.org/microstrain_inertial_driver/relative_position_configuration
+filter_relative_position_config : True
+filter_relative_position_source : 2
+# filter_relative_position_frame  : 2
+# filter_relative_position_ref    : [848579.980932, -4786586.87965, 4115623.68022]
+# filter_relative_position_ref    : [40.442168720316076,-79.94583537750725,253]
+      #[0,0,0]#[40.44205692557919,-79.94609856958824 ,250.48951716114112]
+
 
 # Waits for a configurable amount of time until the device exists
 # If poll_max_tries is set to -1 we will poll forever until the device exists
@@ -296,18 +324,6 @@ filter_init_reference_frame            : 2
 filter_init_position : [0.0, 0.0, 0.0]
 filter_init_velocity : [0.0, 0.0, 0.0]
 filter_init_attitude : [0.0, 0.0, 0.0]
-
-# (GQ7 only) Relative Position Configuration
-#   Reference frame =
-#   1 - Relative ECEF position
-#   2 - Relative LLH position
-#
-#   Reference position - Units provided by reference frame (ECEF - meters, LLH - deg, deg, meters)
-#   Note: prior to firmware version 1.0.06 this command will fail for non-positive heights.  1.0.06 fixes this)
-publish_relative_position      : True
-filter_relative_position_frame : 2
-filter_relative_position_ref   : [40.442168720316076,-79.94583537750725,253]
-      #[0,0,0]#[40.44205692557919,-79.94609856958824 ,250.48951716114112]
 
 # (GQ7 only) Speed Lever Arm Configuration
 #   Lever Arm - In vehicle reference frame (meters)
