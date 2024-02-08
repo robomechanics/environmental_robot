@@ -37,20 +37,21 @@ class PatrickTeleop:
         
     def twistMsgConstructor(self):
         if self.joyAxis:
-            self.twistMsg.linear.x = (1-self.joyAxis[2])*self.drive_factor
-            self.twistMsg.angular.z = (1-self.joyAxis[5])*self.turn_factor
+            self.twistMsg.linear.x = (self.joyAxis[1])*self.drive_factor
+            
+            self.twistMsg.angular.z = (self.joyAxis[3])*self.turn_factor
         if self.joyButtons:
             if self.joyButtons[3]:
-                self.drive_factor += 0.5
+                self.drive_factor = min(3, self.drive_factor+0.5)
                 print("Drive Factor: ", self.drive_factor)
             elif self.joyButtons[0]:
-                self.drive_factor -= 0.5
+                self.drive_factor = max(0, self.drive_factor-0.5)
                 print("Drive Factor: ", self.drive_factor)
             elif self.joyButtons[1]:
-                self.turn_factor += 0.5
+                self.turn_factor = min(6, self.turn_factor+0.5)
                 print("Turn Factor: ", self.turn_factor)
             elif self.joyButtons[2]:
-                self.turn_factor -= 0.5
+                self.turn_factor = max(4, self.turn_factor-0.5)
                 print("Turn Factor: ", self.turn_factor)
 
     def joyCallback(self,data):
