@@ -1,4 +1,20 @@
 # Jetson Environment
+# Network Information
+## HEBI Arm
+It is connected to eth0 and uses a static IP configuration.
+
+```
+ROBOT IP, Netmask, Gateway: 192.168.0.200, 24, 192.168.0.1
+HEBI IP : 192.168.0.102
+```
+
+## PXRF
+It is connected to usb1, a USB ethernet module. It might use DHCP.
+```
+ROBOT IP, Netmask, Gateway: 192.168.7.10, 24, 192.168.7.1
+HEBI IP : 192.168.7.2
+```
+
 ## Terminal Info
 - zsh is the default terminal. 
 - Instead of .bashrc, use .zshrc file to add aliases, source rosfiles, etc
