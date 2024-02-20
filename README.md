@@ -1,4 +1,7 @@
 # Jetson Environment
+## System Info
+# Power
+9.0V – 19.6V
 # Network Information
 ## HEBI Arm
 It is connected to eth0 and uses a static IP configuration.
