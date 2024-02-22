@@ -34,14 +34,28 @@ class CHEMISTRY_PARSER:
         self.latitude = 0
         self.location = ""
         # initialize node
-        rospy.init_node('chemistry_parser', anonymous=True)
+        self.load_ros_params()
+        rospy.init_node(self.node_name, anonymous=True)
         print("Parser started")
         # Subscriber
-        rospy.Subscriber("pxrf_data", PxrfMsg, self.writeData)
-        rospy.Subscriber("pxrf_response", String, self.listener)
-        rospy.Subscriber("gnss1/fix",NavSatFix,self.gps)
+        rospy.Subscriber(self.pxrf_data_topic, PxrfMsg, self.writeData)
+        rospy.Subscriber(self.pxrf_response_topic, String, self.listener)
+        rospy.Subscriber(self.gps_topic,NavSatFix,self.gps)
         # spin
         rospy.spin()
+
+    def load_ros_params(self):
+        usingYAML = False
+        if (usingYAML == True):
+            self.node_name = rospy.get_param('node_name')
+            self.pxrf_data_topic = rospy.get_param('pxrf_data_topic')
+            self.pxrf_response_topic = rospy.get_param('pxrf_response_topic')
+            self.gps_topic = rospy.get_param('gps_topic')
+        else:
+            self.node_name = 'chemistry_parser'
+            self.pxrf_data_topic = "pxrf_data"
+            self.pxrf_response_topic = "pxrf_response"
+            self.gps_topic = "gnss1/fix"
 
     def listener(self, msg):
         if msg.data == "201": # test stopped response
@@ -59,9 +73,13 @@ class CHEMISTRY_PARSER:
         self.testId = msg.testId
         self.testDateTime = msg.testDateTime
         self.chemistry = msg.chemistry
+        self.systemTime = time.localtime()
+        self.rosTime = rospy.Time.now()
         
         if self.testStopped == True:
-        	self.location = "Lon: " + str(statistics.mean(self.lon_list)) + " Lat: " + str(statistics.mean(self.lat_list))
+            self.latitude = str(statistics.mean(self.lat_list))
+            self.longitude = str(statistics.mean(self.lon_list))
+        	self.location = "Lon: " + self.longitude + " Lat: " + self.latitude
             s = self.chemistry
             s = s.strip()
             s = s.replace(" ", "") # remove whitespace
@@ -77,7 +95,7 @@ class CHEMISTRY_PARSER:
             s = s.replace("error:","")
             arr = s.split(",")
 
-            header = [self.dailyId, self.testId, self.testDateTime,self.location]
+            header = [self.dailyId, self.testId, self.testDateTime, self.location, self.systemTime, self.rosTime]
             concentration = []
             element = []
             error = []
