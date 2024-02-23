@@ -9,6 +9,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from datetime import date
 import csv
+import time
 
 def chemistryParser(chemistry):
     s = chemistry.strip()
@@ -43,15 +44,32 @@ class pxrf_handler(object):
     def __init__(self,dataDir,elementOfInterest):
         self.dataDir = dataDir
         self.elementOfInterest = elementOfInterest
-        rospy.init_node('pxrf_handler', anonymous=True)
+        self.load_ros_params()
+        rospy.init_node(self.node_name, anonymous=True)
         self.pxrfCommand = rospy.Publisher('pxrf_cmd', String, queue_size=1)
-        rospy.Subscriber('pxrf_response', String, self.responseListener)
-        rospy.Subscriber("pxrf_data", PxrfMsg, self.dataListener)
+        rospy.Subscriber(self.pxrf_response_topic, String, self.responseListener)
+        rospy.Subscriber(self.pxrf_data_topic, PxrfMsg, self.dataListener)
         rospy.Service('scan_start',Complete, self.scan_start)
         rospy.Subscriber('gps_avg', Odometry, self.gps)
         self.scanning = False
         self.location = [0, 0]
         rospy.spin()
+
+    def load_ros_params(self):
+        usingYAML = False
+        if (usingYAML == True):
+            self.node_name = rospy.get_param('node_name')
+            self.pxrf_response_topic = rospy.get_param('pxrf_response_topic')
+            self.pxrf_data_topic = rospy.get_param('pxrf_data_topic')
+            self.scan_service = rospy.get_param('scan_service')
+            self.gps_topic = rospy.get_param('gps_topic')
+        else:
+            self.node_name = 'pxrf_handler'
+            self.pxrf_response_topic = "pxrf_response"
+            self.pxrf_data_topic = "pxrf_data"
+            self.scan_service = 'scan_start'
+            self.gps_topic = 'gps_avg'
+
     def gps(self, data):
         self.location[0] = data.pose.pose.position.y
         self.location[1] = data.pose.pose.position.x
@@ -67,9 +85,12 @@ class pxrf_handler(object):
     def dataListener(self,data):
         if self.scanning and self.testStopped:
             self.scanning = False
+            #get ros and system time
+            self.systemTime = time.localtime()
+            self.rosTime = rospy.Time.now()
             #record and process received response
             element, concentration, error = chemistryParser(data.chemistry)
-            header = [data.dailyId, data.testId, data.testDateTime,self.location]
+            header = [data.dailyId, data.testId, data.testDateTime, self.location, self.systemTime, self.rosTime]
             with open(os.path.join(self.dataDir,str(date.today())+'.csv'), 'a+') as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
