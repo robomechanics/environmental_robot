@@ -49,8 +49,8 @@ class pxrf_handler(object):
         self.pxrfCommand = rospy.Publisher('pxrf_cmd', String, queue_size=1)
         rospy.Subscriber(self.pxrf_response_topic, String, self.responseListener)
         rospy.Subscriber(self.pxrf_data_topic, PxrfMsg, self.dataListener)
-        rospy.Service('scan_start',Complete, self.scan_start)
-        rospy.Subscriber('gps_avg', Odometry, self.gps)
+        rospy.Service(self.scan_service,Complete, self.scan_start)
+        rospy.Subscriber(self.odometry_topic, Odometry, self.odometry)
         self.scanning = False
         self.location = [0, 0]
         rospy.spin()
@@ -62,15 +62,15 @@ class pxrf_handler(object):
             self.pxrf_response_topic = rospy.get_param('pxrf_response_topic')
             self.pxrf_data_topic = rospy.get_param('pxrf_data_topic')
             self.scan_service = rospy.get_param('scan_service')
-            self.gps_topic = rospy.get_param('gps_topic')
+            self.odometry_topic = rospy.get_param('odometry_topic')
         else:
             self.node_name = 'pxrf_handler'
             self.pxrf_response_topic = "pxrf_response"
             self.pxrf_data_topic = "pxrf_data"
             self.scan_service = 'scan_start'
-            self.gps_topic = 'gps_avg'
+            self.odometry_topic = 'odometry'
 
-    def gps(self, data):
+    def odometry(self, data):
         self.location[0] = data.pose.pose.position.y
         self.location[1] = data.pose.pose.position.x
 
@@ -82,6 +82,12 @@ class pxrf_handler(object):
             self.pxrfCommand.publish("stop")
             self.scanning = False
         return True
+    def fileCheck(self):
+        if not os.path.exists(self.dataDir):
+            os.mkdir(self.dataDir)
+        if not os.path.exists(os.path.join(self.dataDir,str(date.today())+'.csv')):
+            a = 0 #placeholder for making a csv
+        return None
     def dataListener(self,data):
         if self.scanning and self.testStopped:
             self.scanning = False
@@ -91,6 +97,7 @@ class pxrf_handler(object):
             #record and process received response
             element, concentration, error = chemistryParser(data.chemistry)
             header = [data.dailyId, data.testId, data.testDateTime, self.location, self.systemTime, self.rosTime]
+            self.fileCheck()
             with open(os.path.join(self.dataDir,str(date.today())+'.csv'), 'a+') as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
