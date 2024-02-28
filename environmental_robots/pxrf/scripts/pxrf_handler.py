@@ -65,7 +65,7 @@ class pxrf_handler(object):
             self.odometry_topic = rospy.get_param('odometry_topic')
         else:
             self.node_name = 'pxrf_handler'
-            self.pxrf_response_topic = "pxrf_response"
+            self.pxrf_response_topic = "pxrf_response" #self._variable style
             self.pxrf_data_topic = "pxrf_data"
             self.scan_service = 'scan_start'
             self.odometry_topic = 'odometry'
