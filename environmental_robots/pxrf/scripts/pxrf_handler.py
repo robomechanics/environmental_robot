@@ -45,12 +45,12 @@ class pxrf_handler(object):
         self.dataDir = dataDir
         self.elementOfInterest = elementOfInterest
         self.load_ros_params()
-        rospy.init_node(self.node_name, anonymous=True)
+        rospy.init_node(self._node_name, anonymous=True)
         self.pxrfCommand = rospy.Publisher('pxrf_cmd', String, queue_size=1)
-        rospy.Subscriber(self.pxrf_response_topic, String, self.responseListener)
-        rospy.Subscriber(self.pxrf_data_topic, PxrfMsg, self.dataListener)
-        rospy.Service(self.scan_service,Complete, self.scan_start)
-        rospy.Subscriber(self.odometry_topic, Odometry, self.odometry)
+        rospy.Subscriber(self._pxrf_response_topic, String, self.responseListener)
+        rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.dataListener)
+        rospy.Service(self._scan_service,Complete, self.scan_start)
+        rospy.Subscriber(self._odometry_topic, Odometry, self.odometry)
         self.scanning = False
         self.location = [0, 0]
         rospy.spin()
@@ -58,17 +58,17 @@ class pxrf_handler(object):
     def load_ros_params(self):
         usingYAML = False
         if (usingYAML == True):
-            self.node_name = rospy.get_param('node_name')
-            self.pxrf_response_topic = rospy.get_param('pxrf_response_topic')
-            self.pxrf_data_topic = rospy.get_param('pxrf_data_topic')
-            self.scan_service = rospy.get_param('scan_service')
-            self.odometry_topic = rospy.get_param('odometry_topic')
+            self._node_name = rospy.get_param('node_name')
+            self._pxrf_response_topic = rospy.get_param('pxrf_response_topic')
+            self._pxrf_data_topic = rospy.get_param('pxrf_data_topic')
+            self._scan_service = rospy.get_param('scan_service')
+            self._odometry_topic = rospy.get_param('odometry_topic')
         else:
-            self.node_name = 'pxrf_handler'
-            self.pxrf_response_topic = "pxrf_response" #self._variable style
-            self.pxrf_data_topic = "pxrf_data"
-            self.scan_service = 'scan_start'
-            self.odometry_topic = 'odometry'
+            self._node_name = 'pxrf_handler'
+            self._pxrf_response_topic = "pxrf_response" #self._variable style
+            self._pxrf_data_topic = "pxrf_data"
+            self._scan_service = 'scan_start'
+            self._odometry_topic = 'odometry'
 
     def odometry(self, data):
         self.location[0] = data.pose.pose.position.y
