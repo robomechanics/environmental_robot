@@ -1,0 +1,7 @@
+#!/bin/bash
+source ~/catkin_ws/devel/setup.bash
+source /etc/roverrobotics/env.sh
+export ROS_HOME=$(echo /home/$USER)/.ros
+roslaunch rr_openrover_driver starterkit_bringup.launch &
+PID=$!
+wait "$PID"

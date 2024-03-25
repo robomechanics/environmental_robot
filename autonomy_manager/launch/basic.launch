@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="useJoy" default="false"/>
+    <arg name="useLidar" default="false"/>
+    <arg name="useMicrostrain" default="true"/>
+    <arg name="useManager" default="true"/>
+
+    <!-- load rosparams for services and topics -->
+	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
+
+    <!-- Teleop Node -->
+    <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py" />
+ 
+    <!-- Arm LIPO Battery Info Publisher -->
+    <!-- <node name="lipo_jrk_interface" pkg="arm_control" type="lipo_jrk_interface.py" /> -->
+
+   
+</launch>

@@ -1,0 +1,7 @@
+#creates fixed name for rover serial communication
+#rover zero v2
+KERNEL=="ttyUSB[0-9]", ATTRS{idVendor}=="0403", ATTRS{serial}=="Rover Zero 2", MODE:="0777", SYMLINK+="rover-zero-v2", RUN+="/bin/setserial /dev/%k low_latency" 
+KERNEL=="ttyACM[0-9]", ATTRS{idVendor}=="0483", MODE:="0777", SYMLINK+="rover-zero-v2", RUN+="/bin/setserial /dev/%k low_latency" 
+# rover pro
+KERNEL=="ttyUSB[0-9]", ATTRS{idVendor}=="0403", ATTRS{serial}=="Rover Pro", MODE:="0777", SYMLINK+="rover-pro", RUN+="/bin/setserial /dev/%k low_latency"
+KERNEL=="ttyUSB[0-9]", ATTRS{idVendor}=="10c4", ATTRS{serial}=="Rover Pro", MODE:="0777", SYMLINK+="rover-pro", RUN+="/bin/setserial /dev/%k low_latency"
