@@ -9,6 +9,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from datetime import date
 import csv
+import time
 
 def chemistryParser(chemistry):
     s = chemistry.strip()
@@ -43,16 +44,33 @@ class pxrf_handler(object):
     def __init__(self,dataDir,elementOfInterest):
         self.dataDir = dataDir
         self.elementOfInterest = elementOfInterest
-        rospy.init_node('pxrf_handler', anonymous=True)
+        self.load_ros_params()
+        rospy.init_node(self._node_name, anonymous=True)
         self.pxrfCommand = rospy.Publisher('pxrf_cmd', String, queue_size=1)
-        rospy.Subscriber('pxrf_response', String, self.responseListener)
-        rospy.Subscriber("pxrf_data", PxrfMsg, self.dataListener)
-        rospy.Service('scan_start',Complete, self.scan_start)
-        rospy.Subscriber('gps_avg', Odometry, self.gps)
+        rospy.Subscriber(self._pxrf_response_topic, String, self.responseListener)
+        rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.dataListener)
+        rospy.Service(self._scan_service,Complete, self.scan_start)
+        rospy.Subscriber(self._odometry_topic, Odometry, self.odometry)
         self.scanning = False
         self.location = [0, 0]
         rospy.spin()
-    def gps(self, data):
+
+    def load_ros_params(self):
+        usingYAML = False
+        if (usingYAML == True):
+            self._node_name = rospy.get_param('node_name')
+            self._pxrf_response_topic = rospy.get_param('pxrf_response_topic')
+            self._pxrf_data_topic = rospy.get_param('pxrf_data_topic')
+            self._scan_service = rospy.get_param('scan_service')
+            self._odometry_topic = rospy.get_param('odometry_topic')
+        else:
+            self._node_name = 'pxrf_handler'
+            self._pxrf_response_topic = "pxrf_response" #self._variable style
+            self._pxrf_data_topic = "pxrf_data"
+            self._scan_service = 'scan_start'
+            self._odometry_topic = 'odometry'
+
+    def odometry(self, data):
         self.location[0] = data.pose.pose.position.y
         self.location[1] = data.pose.pose.position.x
 
@@ -64,12 +82,22 @@ class pxrf_handler(object):
             self.pxrfCommand.publish("stop")
             self.scanning = False
         return True
+    def fileCheck(self):
+        if not os.path.exists(self.dataDir):
+            os.mkdir(self.dataDir)
+        if not os.path.exists(os.path.join(self.dataDir,str(date.today())+'.csv')):
+            a = 0 #placeholder for making a csv
+        return None
     def dataListener(self,data):
         if self.scanning and self.testStopped:
             self.scanning = False
+            #get ros and system time
+            self.systemTime = time.localtime()
+            self.rosTime = rospy.Time.now()
             #record and process received response
             element, concentration, error = chemistryParser(data.chemistry)
-            header = [data.dailyId, data.testId, data.testDateTime,self.location]
+            header = [data.dailyId, data.testId, data.testDateTime, self.location, self.systemTime, self.rosTime]
+            self.fileCheck()
             with open(os.path.join(self.dataDir,str(date.today())+'.csv'), 'a+') as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
