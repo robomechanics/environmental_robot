@@ -51,3 +51,6 @@ The following aliases use incremental search to list the packages, topics and no
 6. [PXRF Vanta Specs](https://www.olympus-ims.com/en/xrf-analyzers/handheld/vanta/#!cms[focus]=cmsContent14332)
 7. [Remote SSH Code Server](https://code.visualstudio.com/docs/remote/ssh)
 8. [Hebi Python API](http://docs.hebi.us/tools.html#python-api)
+9. [Measuring Antenna Offsets](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Antenna.htm#How)
+10. [Calibrating Magnetometer](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Magnetometer%20Calibration.htm)
+11. [GQ7 Module Specs](https://www.microstrain.com/sites/default/files/8400-0139%20REV%20B.pdf)
