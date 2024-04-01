@@ -37,7 +37,7 @@ class RobotController():
 
         self.num_joints = self.group.size
         self.group_fbk = hebi.GroupFeedback(self.num_joints)
-        gainsCmd.mstop_strategy = 2
+        #gainsCmd.mstop_strategy = 2
         
         # Register feedback callback 
         # self.group.feedback_frequency = 100.0
@@ -71,7 +71,7 @@ class RobotController():
         self.group_fbk = self.group.get_next_feedback(reuse_fbk = self.group_fbk)
         effort_fbk = self.group_fbk.effort
         # set mstop strategy
-        rospy.loginfo('Effort: {0}'.format(effort_fbk))
+        # rospy.loginfo('Effort: {0}'.format(effort_fbk))
       
         return effort_fbk
 
