@@ -19,7 +19,7 @@ class AutonomyTeleop(object):
 
         rospy.Service(self._deploy_sensor_auto_service_name, SetBool,
                       self.deploy_sensor_auto)
-        self.lowerPXRF = rospy.ServiceProxy(self._deploy_sensor_service_name,
+        self.lowerPXRF = rospy.ServiceProxy(self._lower_arm_service_name,
                                             SetBool)
 
         rospy.Service(self._deploy_tool_auto_service_name, SetBool,
@@ -63,8 +63,8 @@ class AutonomyTeleop(object):
     def load_ros_params(self):
         self._deploy_sensor_auto_service_name = rospy.get_param(
             "deploy_sensor_auto_service_name")
-        self._deploy_sensor_service_name = rospy.get_param(
-            "deploy_sensor_service_name")
+        self._lower_arm_service_name = rospy.get_param(
+            "lower_arm_service_name")
         self._deploy_tool_auto_service_name = rospy.get_param(
             "deploy_tool_auto_service_name")
         self._deploy_tool_service_name = rospy.get_param(

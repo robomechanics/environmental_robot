@@ -6,7 +6,7 @@ import numpy as np
 from time import sleep
 import hebi
 import rospkg
-from std_srvs.srv import Trigger, TriggerResponse
+from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from os.path import join as os_path_join
 
 
@@ -87,13 +87,18 @@ class EndEffectorTrajectory:
     def __init__(self, robot_controller):
         self.robot_controller = robot_controller
 
-        self.arm_return_service = rospy.Service("return", Trigger,
-                                                self.execute_return_trajectory)
+        self.load_ros_params()
 
-        self.arm_touchdown_service = rospy.Service(
-            "touchdown", Trigger, self.execute_touchdown_trajectory)
+        self._lower_arm_service = rospy.Service(self._lower_arm_service_name,
+                                                Trigger,
+                                                self.lower_arm_callback)
 
         self.num_joints = len(robot_controller.get_joint_angles())
+
+    def load_ros_params(self):
+        # Load service names into params
+        self._lower_arm_service_name = rospy.get_param(
+            "lower_arm_service_name")
 
     def get_touchdown_waypoints(self):
         # rows = 4  # num of joint angles
@@ -137,13 +142,12 @@ class EndEffectorTrajectory:
             [4.7661829, 2.58495361, -1.95124054, -0.92874146],
             [4.83683014, 1.60074646, -2.15341663, -0.23106194],
             [4.89430189, 0.72055084, -2.27849388, -0.22733116],
-            [4.79459, 0.39897567, -2.67670345, -0.23143387]
+            [4.79459, 0.39897567, -2.67670345, -0.23143387],
         ])
 
         return positions
 
     def get_hebi_trajectory(self, waypoints, total_duration=15):
-
         # positions = self.positions.T
         # positions = self.positions
         # print('Transpose shape:', self.positions.T.shape)
@@ -256,20 +260,22 @@ class EndEffectorTrajectory:
             t = t + period
             sleep(period)
 
-    def execute_return_trajectory(self, req):
-        waypoints = self.get_return_waypoints()
-        self.get_hebi_trajectory(waypoints)
-        self.execute_trajectory()
-        return TriggerResponse(
-            success=True, message="Return Trajectory executed successfully")
-
-    def execute_touchdown_trajectory(self, req):
-        waypoints = self.get_touchdown_waypoints()
-        self.get_hebi_trajectory(waypoints)
-        self.execute_trajectory_with_efforts()
-        # self.execute_trajectory()
-        return TriggerResponse(
-            success=True, message="Touchdown Trajectory executed successfully")
+    def lower_arm_callback(self, req):
+        if (req.data):
+            waypoints = self.get_touchdown_waypoints()
+            self.get_hebi_trajectory(waypoints)
+            self.execute_trajectory_with_efforts()
+            # self.execute_trajectory()
+            return SetBoolResponse(
+                success=True,
+                message="Touchdown Trajectory executed successfully")
+        else:
+            waypoints = self.get_return_waypoints()
+            self.get_hebi_trajectory(waypoints)
+            self.execute_trajectory()
+            return TriggerResponse(
+                success=True,
+                message="Return Trajectory executed successfully")
 
 
 if __name__ == "__main__":
