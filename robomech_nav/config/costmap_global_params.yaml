@@ -1,7 +1,7 @@
-global_frame: my_odom
+global_frame: odom
 rolling_window: false
 track_unknown_space: true
 
 plugins:
-  - {name: static,                  type: "costmap_2d::StaticLayer"}
+  - {name: obstacles_laser,           type: "costmap_2d::ObstacleLayer"}
   - {name: inflation,               type: "costmap_2d::InflationLayer"}
