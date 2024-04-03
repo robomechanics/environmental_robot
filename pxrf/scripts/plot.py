@@ -23,12 +23,12 @@ def generate_plot():
 	with open(pxrf_path + '/scripts/chemistry.csv','r') as csvfile:
 		data = list(csv.reader(csvfile, delimiter = ','))
 		for row in range(len(data)):
-		    if(len(data[row])>2):
-			    if (re.search("^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])", data[row][2])):
-				    header.append(data[row][2] + " testID:" + data[row][1])
-				    element.append(data[row+1])
-				    concentration.append(data[row+2])
-				    error.append(data[row+3])
+			if(len(data[row])>2):
+				if (re.search("^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])", data[row][2])):
+					header.append(data[row][2] + " testID:" + data[row][1])
+					element.append(data[row+1])
+					concentration.append(data[row+2])
+					error.append(data[row+3])
 		csvfile.close()
 
 	total_num = len(header)

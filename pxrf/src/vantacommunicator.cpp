@@ -9,9 +9,19 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(petWatchdog()));
     timer->start(1000);
-    chemistry_pub = n.advertise<pxrf::PxrfMsg>("pxrf_data", 1000);
-    response_pub = n.advertise<std_msgs::String>("pxrf_response", 1000);
-    ctrl_sub = n.subscribe("pxrf_cmd", 1000, &VantaCommunicator::callback, this);
+
+    std::string pxrf_cmd_topic, pxrf_data_topic, pxrf_response_topic;
+    if (!nh.getParam("pxrf_cmd_topic", pxrf_cmd_topic)
+        && !nh.getParam("pxrf_data_topic", pxrf_data_topic)
+        && !nh.getParam("pxrf_response_topic", pxrf_response_topic)
+    {
+        ROS_ERROR("Could not find topic names");
+        exit(0);
+    }
+
+    ctrl_sub = n.subscribe(pxrf_cmd_topic, 1000, &VantaCommunicator::callback, this);
+    chemistry_pub = n.advertise<pxrf::PxrfMsg>(pxrf_data_topic, 1000);
+    response_pub = n.advertise<std_msgs::String>(pxrf_response_topic, 1000);
 }
 
 VantaCommunicator::~VantaCommunicator()

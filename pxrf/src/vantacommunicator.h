@@ -7,6 +7,8 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "pxrf/PxrfMsg.h"
+#include <ros/console.h>
+
 
 /* A simple class that allows the application to open up a connection with a Vanta using the OTG interface.
  * When a healthy connection is established it allows the application to send various commands to the Vanta
