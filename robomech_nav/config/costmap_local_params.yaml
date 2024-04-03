@@ -1,4 +1,4 @@
-global_frame: utm_odom2
+global_frame: my_odom
 rolling_window: true
 cost_scaling_factor: 20.0
 mark_threshold: 5

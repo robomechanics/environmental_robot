@@ -1,24 +1,16 @@
 #!/usr/bin/env python3
 import rospy
 import numpy as np
-import pyproj
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-#import statistics
 
-from pyproj import CRS
-from pyproj import Transformer
-from pyproj import Proj
-from pyproj.database import query_utm_crs_info
-from pyproj.aoi import AreaOfInterest
-
-import tf
-import tf2_ros, tf2_geometry_msgs
-import geometry_msgs.msg
-from sensor_msgs.msg import NavSatFix
-from nav_msgs.msg import Odometry
-from autonomy_manager.srv import NavigateGPS
-from autonomy_manager.srv import Complete
+# import tf
+# import tf2_ros, tf2_geometry_msgs
+# import geometry_msgs.msg
+# from sensor_msgs.msg import NavSatFix
+# from nav_msgs.msg import Odometry
+# from autonomy_manager.srv import NavigateGPS
+# from autonomy_manager.srv import Complete
 
 # ------------------------------------
 
@@ -30,22 +22,16 @@ class NavigationInterface(object):
 		self.goalFlag = False
 		self.goalFinished = False
 		self.firstTime = True
-		self.gpsEPSG = 'EPSG:4326'
-		self.utmEPSG = 'placeholder_EPSG'
-
-		# Subscribers
-		self.xy_initial = rospy.Subscriber("/utm_start", Odometry, self.xy_start_listener)
-		self.xy_now = rospy.Subscriber("/utm_odom", Odometry, self.xy_listener)
 
 		# Services
-		self.next_goal_nav = rospy.Service('next_goal_nav', NavigateGPS, self.setGoal)
-		self.cancel_goal_nav = rospy.Service('cancel_goal', NavigateGPS, self.cancelGoal)
+		self.next_goal_nav = rospy.Service('next_goal_nav', OdomGoal, self.setGoal)
+		self.cancel_goal_nav = rospy.Service('cancel_goal', OdomGoal, self.cancelGoal)
 		
 		# Service proxies
 		self.goal_reach = rospy.ServiceProxy('goal_reach', Complete)
 
 		# Action client things		
-		self.client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
+		self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
 		self.client.wait_for_server()
 		
 		rate = rospy.Rate(10)
@@ -57,37 +43,20 @@ class NavigationInterface(object):
 
 	def setGoal(self, data):      
 		self.goalFlag = True
-		self.latGoal = data.goal_lat
-		self.lonGoal = data.goal_lon
-		self.get_utm_goal()
+		self.x_Goal = data.odomX
+		self.y_Goal = data.odomY
 		return True
 		
 	def cancelGoal(self, data):
 		self.client.cancel_all_goals()
 		return True
 	
-	def xy_start_listener(self,data):
-		self.x_UTM_initial = data.pose.pose.position.x
-		self.y_UTM_initial = data.pose.pose.position.y
-
-	def xy_listener(self,data):
-		self.x_UTM = data.pose.pose.position.x
-		self.y_UTM = data.pose.pose.position.y
-
-	def get_utm_goal(self):
-		wgs84 = pyproj.CRS(self.gpsEPSG)
-		utm17n = pyproj.CRS(self.utmEPSG) 
-		transformer = pyproj.Transformer.from_crs(wgs84, utm17n)
-		coordinates = transformer.transform(self.latGoal, self.lonGoal)
-		self.x_UTM_GOAL = coordinates[0]
-		self.y_UTM_GOAL = coordinates[1]
-		
 	def make_goal(self):
 		self.goal = MoveBaseGoal()
-		self.goal.target_pose.header.frame_id = "utm_odom2"
+		self.goal.target_pose.header.frame_id = "my_odom"
 		self.goal.target_pose.header.stamp = rospy.Time.now()
-		self.goal.target_pose.pose.position.x = self.x_UTM_GOAL-self.x_UTM_initial
-		self.goal.target_pose.pose.position.y = self.y_UTM_GOAL-self.y_UTM_initial
+		self.goal.target_pose.pose.position.x = self.x_Goal
+		self.goal.target_pose.pose.position.y = self.y_Goal
 		self.goal.target_pose.pose.orientation.x = 0
 		self.goal.target_pose.pose.orientation.y = 0
 		self.goal.target_pose.pose.orientation.z = 0
