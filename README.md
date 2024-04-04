@@ -16,6 +16,25 @@ It is connected to usb1, a USB ethernet module. It might use DHCP.
 ROBOT IP, Netmask, Gateway: 192.168.7.10, 24, 192.168.7.1
 PXRF IP : 192.168.7.2
 ```
+
+# RTK GPS
+COM -> FRONT_ANTENNA        (+0.1442, +0.1207, 0)
+  x = 203.2 - 25 - 34 => 144.2   mm
+  y = 132.715 - 12    => 120.715 mm
+
+COM -> BACK_ANTENNA         (-0.1270, -0.1300, 0)
+  x =         => 127 mm
+  y = 96 + 34 => 130 mm
+
+COM -> IMU                  (-0.0162, -0.0953, +0.0074)
+  x = 22.2 - 6    => 16.2  mm
+  y = 114 - 18.72 => 95.28 mm
+  z =             => 7.37  mm
+
+
+IMU -> FRONT_ANTENNA        (+0.1604, +0.2160, -0.0074)
+IMU -> BACK_ANTENNA         (-0.1108, -0.0347, -0.0074)
+
 # Manager 
 
 ## State Machine

@@ -32,8 +32,8 @@ diagnostics : False
 # nmea_frame_id         : "nmea"
 
 imu_frame_id          : "rtk"
-gnss1_frame_id        : "robot/gnss_antenna_1"
-gnss2_frame_id        : "robot/gnss_antenna_2"
+gnss1_frame_id        : "gnss_antenna_1"
+gnss2_frame_id        : "gnss_antenna_2"
 filter_frame_id       : "world"
 filter_child_frame_id : "rtk"
 nmea_frame_id         : "nmea"
@@ -91,7 +91,7 @@ raw_file_enable : False
 raw_file_include_support_data : False
 
 # The directory to store the raw data file (no trailing '/')
-raw_file_directory : "/home/your_name"
+raw_file_directory : "/home/patrick"
 
 
 # ****************************************************************** 
@@ -123,7 +123,8 @@ gnss1_data_rate : 2
 #     For all other models - in the IMU frame wrt IMU origin (meters)
 #     Note: Make this as accurate as possible for good performance
 #gnss1_antenna_offset : [-0.072058,-0.015697,0.040934] #[0,0,0] #[-0.072058, -0.015697, 0.032934]
-gnss1_antenna_offset: [-0.082058,-0.015697,0.077034]
+# gnss1_antenna_offset: [-0.082058,-0.015697,0.077034]
+gnss1_antenna_offset: [0.1604, 0.2160, -0.0074]
 
 # GNSS2 settings are only applicable for multi-GNSS systems (e.g. GQ7) 
 publish_gnss2   : True
@@ -132,7 +133,8 @@ gnss2_data_rate : 2
 # Antenna #2 lever arm offset vector (In the vehicle frame wrt IMU origin (meters) )
 #Note: Make this as accurate as possible for good performance 
 #gnss2_antenna_offset : [-0.429058,-0.015697,0.040934] #[-0.5,0,0] #[-0.429058, -0.015697, 0.032934]
-gnss2_antenna_offset: [-0.426369,-0.015697,0.077034]
+# gnss2_antenna_offset: [-0.426369,-0.015697,0.077034]
+gnss2_antenna_offset: [-0.1108, -0.0347, -0.0074]
 
 # (GQ7 Only) Enable RTK dongle interface
 # Note: Enabling this will cause the node to publish on one of two topics depending
@@ -162,7 +164,8 @@ filter_data_rate : 500
 #            Quaternion order is [i, j, k, w]
 filter_sensor2vehicle_frame_selector : 1
 
-filter_sensor2vehicle_frame_transformation_euler      : [0,0,3.14159] #[0.0, 3.14159265359, 0.0]
+# filter_sensor2vehicle_frame_transformation_euler      : [0,0,3.14159] #[0.0, 3.14159265359, 0.0]
+filter_sensor2vehicle_frame_transformation_euler      : [0,0,0.0] #[0.0, 3.14159265359, 0.0]
 filter_sensor2vehicle_frame_transformation_matrix     : [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 filter_sensor2vehicle_frame_transformation_quaternion : [0.0, 0.0, 0.0, 1.0]
 
