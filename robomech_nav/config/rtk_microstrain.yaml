@@ -38,6 +38,38 @@ filter_frame_id       : "world"
 filter_child_frame_id : "rtk"
 nmea_frame_id         : "nmea"
 
+frame_id          : 'gq7_link'
+odometer_frame_id : "gq7_odometer_link"
+map_frame_id      : "map"           # Frame ID of the local tangent plane.
+earth_frame_id    : "earth"         # Frame ID of the global frame
+
+tf_mode: 2
+filter_relative_position_config : True
+filter_relative_position_source : 2
+
+filter_lever_arm_offset: [0.0, 0.0, 0.0]
+
+gnss1_llh_position_data_rate   : 2  # Rate of gnss_1/llh_position topic
+gnss1_velocity_data_rate       : 2
+gnss1_velocity_ecef_data_rate  : 2  # Rate of gnss_1/velocity_ecef topic
+                                    # Note: gnss1_odometry_earth_data_rate depends on the contents of this message.
+                                    #       If it is set to a higher value, this message will be published at that rate.
+gnss1_odometry_earth_data_rate : 2  # Rate of gnss_1/odometry_earth topic
+gnss1_time_data_rate           : 2  # Rate of gnss_1/time topic
+
+
+gnss2_llh_position_data_rate   : 2  # Rate of gnss_2/llh_position topic
+gnss2_velocity_data_rate       : 2  # Rate of gnss_2/velocity topic
+gnss2_velocity_ecef_data_rate  : 2  # Rate of gnss_2/velocity_ecef topic
+                                    # Note: gnss2_odometry_earth_data_rate depends on the contents of this message.
+                                    #       If it is set to a higher value, this message will be published at that rate.
+gnss2_odometry_earth_data_rate : 2  # Rate of gnss_2/odometry_earth topic
+gnss2_time_data_rate           : 2  # Rate of gnss_2/time topic
+
+
+# Disable the transform from the mount to frame id transform as it will be handled in the launch file
+publish_mount_to_frame_id_transform : False
+
 # Waits for a configurable amount of time until the device exists
 # If poll_max_tries is set to -1 we will poll forever until the device exists
 poll_port      : False
@@ -139,7 +171,7 @@ gnss2_antenna_offset: [-0.1108, -0.0347, -0.0074]
 # (GQ7 Only) Enable RTK dongle interface
 # Note: Enabling this will cause the node to publish on one of two topics depending
 #   on the version of the RTK dongle connected to the GQ7
-rtk_dongle_enable : True
+rtk_dongle_enable : False #previous:True
 
 # (GQ7 Only) Allow the user to send RTCM messages to this node, and stream those messages to the GQ7
 subscribe_rtcm : False #True
@@ -153,8 +185,8 @@ publish_nmea   : False
 # Kalman Filter Settings (only applicable for devices with a Kalman Filter) 
 # ****************************************************************** 
 
-publish_filter   : True
-filter_data_rate : 500
+# publish_filter   : True #not available in new config
+# filter_data_rate : 500 #not available in new config
 
 # Sensor2vehicle frame transformation selector
 #     0 = None, 1 = Euler Angles, 2 - matrix, 3 - quaternion
@@ -165,7 +197,7 @@ filter_data_rate : 500
 filter_sensor2vehicle_frame_selector : 1
 
 # filter_sensor2vehicle_frame_transformation_euler      : [0,0,3.14159] #[0.0, 3.14159265359, 0.0]
-filter_sensor2vehicle_frame_transformation_euler      : [0,0,0.0] #[0.0, 3.14159265359, 0.0]
+filter_sensor2vehicle_frame_transformation_euler      : [0,0,0.0,0.0] #[0.0, 3.14159265359, 0.0]
 filter_sensor2vehicle_frame_transformation_matrix     : [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 filter_sensor2vehicle_frame_transformation_quaternion : [0.0, 0.0, 0.0, 1.0]
 
@@ -294,8 +326,8 @@ gpio_config    : False
 #   1 - WGS84 Earth-fixed, earth centered (ECEF) position, velocity, attitude
 #   2 - WGS84 Latitude, Longitude, height above ellipsoid position, NED velocity and attitude
 filter_init_condition_src              : 0
-filter_auto_heading_alignment_selector : 1
-filter_init_reference_frame            : 2
+filter_auto_heading_alignment_selector : 0 # previous: 1
+filter_init_reference_frame            : 1
 filter_init_position : [0.0, 0.0, 0.0]
 filter_init_velocity : [0.0, 0.0, 0.0]
 filter_init_attitude : [0.0, 0.0, 0.0]
