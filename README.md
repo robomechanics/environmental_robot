@@ -11,6 +11,11 @@ sudo systemctl start roverrobotics.service
 #   joystick -> cmd_vel
 #   tf for base_link->gq7_link
 roslaunch autonomy_manager basic.launch
+
+# GPS
+# Params file Info: https://github.com/LORD-MicroStrain/microstrain_inertial_driver_common/blob/6d62789b0492e28a0e4b86be8b4dc0e562d08a5e/config/params.yml
+roslaunch microstrain_inertial_localization gq7_odom.launch
+
 ```
 ## Start Joystick publisher (on remote)
 ```bash
