@@ -1,3 +1,23 @@
+# Robot Run
+## Start ROS services (on patrick)
+```bash
+# roscore
+sudo systemctl start roscore.service 
+
+# rover robotics
+sudo systemctl start roverrobotics.service
+
+# Basic Services for robot:
+#   joystick -> cmd_vel
+#   tf for base_link->gq7_link
+roslaunch autonomy_manager basic.launch
+```
+## Start Joystick publisher (on remote)
+```bash
+# joystick publisher
+rosrun joy joy_node
+```
+
 ## System Info
 Intel NUC 13th Gen: 12.0V – 19 V
 
