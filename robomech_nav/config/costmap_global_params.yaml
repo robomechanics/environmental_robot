@@ -1,4 +1,4 @@
-global_frame: odom
+global_frame: utm_odom
 rolling_window: false
 track_unknown_space: true
 

@@ -11,9 +11,9 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
     timer->start(1000);
 
     std::string pxrf_cmd_topic, pxrf_data_topic, pxrf_response_topic;
-    if (!nh.getParam("pxrf_cmd_topic", pxrf_cmd_topic)
-        && !nh.getParam("pxrf_data_topic", pxrf_data_topic)
-        && !nh.getParam("pxrf_response_topic", pxrf_response_topic)
+    if (!n.getParam("pxrf_cmd_topic", pxrf_cmd_topic)
+        && !n.getParam("pxrf_data_topic", pxrf_data_topic)
+        && !n.getParam("pxrf_response_topic", pxrf_response_topic))
     {
         ROS_ERROR("Could not find topic names");
         exit(0);
