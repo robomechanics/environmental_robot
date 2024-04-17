@@ -11,11 +11,11 @@ import geometry_msgs.msg
 from nav_msgs.msg import Odometry
 
 class UTMToOdom():
-    def __init__(self, parent_frame_id="base_link", child_frame_id="utm_odom2"):
+    def __init__(self, parent_frame_id="base_link", child_frame_id="utm_odom"):
         self.first_time = True
         
         self.crs_GPS = 'EPSG:4326'
-        self.crs_UTM = 'placeholder_EPSG'
+        self.crs_UTM = 'EPSG:2272'
         self.transformer = Transformer.from_crs(self.crs_GPS, self.crs_UTM)
 
         self.pose_odom_initial = geometry_msgs.msg.Pose()
@@ -36,8 +36,8 @@ class UTMToOdom():
         self.t.child_frame_id = child_frame_id
 
 		# Publishers and Subscribers
-        self.utm_odom_pub = rospy.Publisher("utm_odom2", Odometry, queue_size=1)
-        self.utm_odom_initial_pub = rospy.Publisher("utm_odom2_initial", Odometry, queue_size=1)
+        self.utm_odom_pub = rospy.Publisher("utm_odom", Odometry, queue_size=1)
+        self.utm_odom_initial_pub = rospy.Publisher("utm_odom_initial", Odometry, queue_size=1)
         self.gps_sub = rospy.Subscriber("/nav/odom", Odometry, self.utm_broadcaster)
 
     def utm_broadcaster(self, data):
@@ -70,7 +70,7 @@ class UTMToOdom():
 
             # Formatting the Odom message
             self.odom_initial.header.stamp = data.header.stamp
-            self.odom_initial.header.frame_id = "utm_odom2"
+            self.odom_initial.header.frame_id = "utm_odom"
             self.odom_initial.child_frame_id = "base_link"
             self.odom_initial.pose = self.pose_odom_covariance_initial
 
