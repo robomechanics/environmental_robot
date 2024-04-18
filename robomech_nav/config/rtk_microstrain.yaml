@@ -156,7 +156,7 @@ gnss1_data_rate : 2
 #     Note: Make this as accurate as possible for good performance
 #gnss1_antenna_offset : [-0.072058,-0.015697,0.040934] #[0,0,0] #[-0.072058, -0.015697, 0.032934]
 # gnss1_antenna_offset: [-0.082058,-0.015697,0.077034]
-gnss1_antenna_offset: [0.1604, 0.2160, -0.0074]
+gnss1_antenna_offset: [0.1604, -0.2160, -0.0074]
 
 # GNSS2 settings are only applicable for multi-GNSS systems (e.g. GQ7) 
 publish_gnss2   : True
@@ -166,7 +166,7 @@ gnss2_data_rate : 2
 #Note: Make this as accurate as possible for good performance 
 #gnss2_antenna_offset : [-0.429058,-0.015697,0.040934] #[-0.5,0,0] #[-0.429058, -0.015697, 0.032934]
 # gnss2_antenna_offset: [-0.426369,-0.015697,0.077034]
-gnss2_antenna_offset: [-0.1108, -0.0347, -0.0074]
+gnss2_antenna_offset: [-0.1108, 0.0347, -0.0074]
 
 # (GQ7 Only) Enable RTK dongle interface
 # Note: Enabling this will cause the node to publish on one of two topics depending
@@ -326,7 +326,7 @@ gpio_config    : False
 #   1 - WGS84 Earth-fixed, earth centered (ECEF) position, velocity, attitude
 #   2 - WGS84 Latitude, Longitude, height above ellipsoid position, NED velocity and attitude
 filter_init_condition_src              : 0
-filter_auto_heading_alignment_selector : 0 # previous: 1
+filter_auto_heading_alignment_selector : 1 # previous: 1
 filter_init_reference_frame            : 1
 filter_init_position : [0.0, 0.0, 0.0]
 filter_init_velocity : [0.0, 0.0, 0.0]
@@ -361,7 +361,7 @@ filter_enable_vertical_gyro_constraint : True
 
 # (GQ7 only) GNSS Antenna Calibration Control
 #Note: When enabled, the filter will enable lever arm error tracking, up to the maximum offset specified in meters.
-filter_enable_gnss_antenna_cal     : True
+filter_enable_gnss_antenna_cal     : False #previous: True
 filter_gnss_antenna_cal_max_offset : 0.1
 
 # (GQ7 only) PPS Source
