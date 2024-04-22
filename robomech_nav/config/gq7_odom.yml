@@ -1,0 +1,112 @@
+# This can be set by passing an arg to the launch file
+port     : $(arg port)
+baudrate : $(arg baudrate)
+
+# Disable the transform from the mount to frame id transform as it should be handled from a URDF file and robot_description
+publish_mount_to_frame_id_transform : False
+
+# This will cause the node to convert any NED measurements to ENU
+# This will also cause the node to convert any vehicle frame measurements to the ROS definition of a vehicle frame
+use_enu_frame : True
+
+# Configure some frame IDs
+frame_id          : $(arg frame_id)            # Frame ID of all of the filter messages. Represents the location of the GQ& in the tf tree
+map_frame_id      : $(arg map_frame_id)        # Frame ID of the local tangent plane.
+earth_frame_id    : "earth"                    # Frame ID of the global frame
+gnss1_frame_id    : $(arg gnss1_frame_id)      # Frame ID of GNSS antenna 1. This represents GNSS antenna 1 of the GQ7 in the tf tree
+gnss2_frame_id    : $(arg gnss2_frame_id)      # Frame ID of GNSS antenna 2. This represents GNSS antenna 2 of the GQ7 in the tf tree
+target_frame_id   : $(arg odom_frame_id)       # Frame ID that we will publish a transform to.
+
+# We will use relative transform mode, meaning that we will publish the following transforms from this node
+#   earth_frame_id -> map_frame_id
+#   map_frame_id -> target_frame_id
+# This helps ROS standard tools consume and display position information produced by the device.
+# This also allows something like robot_localization to sit alongside this node.
+tf_mode: 2
+
+# Enable the RTK dongle interface for communication with the 3DM-RTK.
+# Note: Even if you do not have a 3DM-RTK connected to the aux port, this boolean can remain true
+rtk_dongle_enable : True
+
+# If this is enabled, this will connect to the aux port of the GQ7 and listen for RTCM from ROS
+ntrip_interface_enable : $(arg ntrip)
+aux_port               : $(arg aux_port)
+aux_baudrate           : $(arg aux_baudrate)
+
+# (GQ7 only) Relative Position Configuration
+#     Reference frame =
+#         1 - Relative ECEF position
+#         2 - Relative LLH position
+#
+#     Source =
+#         0 - Position will be reported relative to the base station. filter_relative_position_ref will be ignored
+#         1 - Position will be reported relative to filter_relative_position_ref
+#         2 - Position will be reported relative to the first position reported by the device after it enters full nav. filter_relative_position_ref will be ignored
+#         3 - We will wait for a transform to be made available between earth_frame_id and map_frame_id and use that as the relative position reference. filter_relative_position_ref will be ignored
+#
+#     Reference position - Units provided by reference frame (ECEF - meters, LLH - deg, deg, meters)
+# Note: The source selected here will determine the transform published between earth_frame_id and map_frame_id when running in relative transform mode
+filter_relative_position_config : True
+filter_relative_position_frame  : $(arg filter_relative_position_frame)
+filter_relative_position_source : $(arg filter_relative_position_source)
+filter_relative_position_ref    : $(arg filter_relative_position_ref)
+
+# Antenna #1 lever arm offset source
+#     0 - Disabled:  We will not configure the antenna offset, or publish it as a transform
+#     1 - Manual:    We will use the provided vector to configure the device, and publish it as the transform between frame_id and gnss1_frame_id
+#     2 - Transform: We will lookup the transform between frame_id and gnss1_frame_id and use it to configure the device. We will ignore gns1_antenna_offset
+# Antenna #1 lever arm offset vector
+#     For GQ7 - in the vehicle frame wrt IMU origin (meters)
+#     For all other models - in the IMU frame wrt IMU origin (meters)
+# Note: Make this as accurate as possible for good performance
+gnss1_antenna_offset_source : $(arg gnss1_antenna_offset_source)
+gnss1_antenna_offset        : $(arg gnss1_antenna_offset)
+
+# Antenna #2 lever arm offset source
+#     0 - Disabled:  We will not configure the antenna offset, or publish it as a transform
+#     1 - Manual:    We will use the provided vector to configure the device, and publish it as the transform between frame_id and gnss2_frame_id
+#     2 - Transform: We will lookup the transform between frame_id and gnss2_frame_id and use it to configure the device. We will ignore gns2_antenna_offset
+# Antenna #2 lever arm offset vector
+#     For GQ7 - in the vehicle frame wrt IMU origin (meters)
+#     For all other models - in the IMU frame wrt IMU origin (meters)
+# Note: Make this as accurate as possible for good performance
+gnss2_antenna_offset_source : $(arg gnss2_antenna_offset_source)
+gnss2_antenna_offset        : $(arg gnss2_antenna_offset)
+
+# (GQ7 only) Filter Initialization control
+#     Auto-Heading alignment selector (note this is a bitfield, you can use more than 1 source) =
+#         Bit 0 - Dual-antenna GNSS
+#         Bit 1 - GNSS kinematic (requires motion, e.g. a GNSS velocity)
+#         Bit 2 - Magnetometer
+#         Bit 3 - External Heading (first valid external heading will be used to initialize the filter)
+filter_auto_heading_alignment_selector : $(arg filter_auto_heading_alignment_selector)
+
+# Static IMU message covariance values (the device does not generate these) 
+imu_orientation_cov   : [0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1]
+imu_linear_cov        : [0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1]
+imu_angular_cov       : [0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1]
+imu_mag_cov           : [0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1]
+imu_pressure_variance : 0.01
+
+# This will contain the raw IMU data, NOT the filtered IMU data. This is useful for tools like robot_localization
+imu_data_rate : 100
+
+# For this use case, we will not publish any raw GNSS information
+gnss1_llh_position_data_rate   : 10
+gnss1_velocity_data_rate       : 0
+gnss1_odometry_earth_data_rate : 10
+gnss2_llh_position_data_rate   : 10
+gnss2_velocity_data_rate       : 0
+gnss2_odometry_earth_data_rate : 10
+
+# We will only publish the map odometry message from the filter in this example.
+# Also publish the human readable message which can be echoed from the command line
+filter_human_readable_status_data_rate : 2
+filter_odometry_earth_data_rate        : 2
+filter_odometry_map_data_rate          : 30
+
+# CUSTOM
+mip_gnss1_fix_info_data_rate           : 5  # Rate of mip/gnss_1/fix_info topic
+mip_gnss2_fix_info_data_rate           : 5  # Rate of mip/gnss_1/fix_info topic
+filter_dual_antenna_heading_data_rate  : 5  # Rate of ekf/dual_antenna_heading topic
+filter_llh_position_data_rate          : 30 # Rate of ekf/llh_position topic

@@ -1,0 +1,83 @@
+<launch>
+  <!-- These arguments will be consumed by the yml files -->
+  <arg name="port"         default="/dev/serial/by-id/usb-Lord_Microstrain_Lord_Inertial_Sensor_0000_6284.145875-if00" doc="Serial port that the GQ7 is connected on" />
+  <arg name="baudrate"     default="115200"                doc="Baudrate of the serial port that the GQ7 is connected on" />
+  <arg name="aux_port"     default="/dev/serial/by-id/usb-Lord_Microstrain_Lord_Inertial_Sensor_2-00_6284.145875-if00"  doc="Serial port that the GQ7 aux port is connected on. Only used if ntrip is true" />
+  <arg name="aux_baudrate" default="115200"                doc="Baudrate of the serial port that the GQ7 aux port is connected on. Only used if ntrip is true" />
+
+  <arg name="frame_id"       default="gq7_link"            doc="The frame ID that will represent the GQ7 in the tf tree" />
+  <arg name="map_frame_id"   default="map"                 doc="The frame ID of the local tangent plane" />
+  <arg name="odom_frame_id"  default="odom"                doc="The frame ID that you want to globally localize." />
+  <arg name="gnss1_frame_id" default="gnss_1_antenna_link" doc="The frame ID that will represent GNSS antenna 1 in the tf tree" />
+  <arg name="gnss2_frame_id" default="gnss_2_antenna_link" doc="The frame ID that will represent GNSS antenna 2 in the tf tree" />
+
+  <arg name="filter_relative_position_frame"  default="2"                doc="Relative position frame selector" />
+  <arg name="filter_relative_position_source" default="2"                doc="Relataive position source selector" />
+  <arg name="filter_relative_position_ref"    default="[0.0, 0.0, 0.01]" doc="Reference position. Units dictated by filter_relative_position_frame" />
+
+  <arg name="gnss1_antenna_offset_source" default="1"                doc="GNSS1 antenna offset source selector" />
+  <arg name="gnss1_antenna_offset"        default="[0.1604, -0.2160, -0.0074]"  doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
+  <arg name="gnss2_antenna_offset_source" default="1"                doc="GNSS1 antenna offset source selector" />
+  <arg name="gnss2_antenna_offset"        default="[-0.1108, 0.0347, -0.0074]" doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
+
+  <arg name="filter_auto_heading_alignment_selector" default="1" doc="Filter initialization auto-heading alignment selector" />
+
+  <arg name="ntrip"            default="false"                doc="Whether or not to enable the NTRIP interface on the microstrain driver and run an NTRIP client" />
+  <arg name="ntrip_host"       default="20.185.11.35"         doc="The host name or IP of the NTRIP caster you want to connect to" />
+  <arg name="ntrip_port"       default="2101"                 doc="The port of the NTRIP caster you want to connect to" />
+  <arg name="ntrip_mountpoint" default="VRS_RTCM3"            doc="The mountpoint on the NTRIP caster you want to connec to" />
+  <arg name="ntrip_username"   default="user"                 doc="Username to use to authenticate with the NTRIP caster" />
+  <arg name="ntrip_password"   default="pass"                 doc="Password to use to authenticate with the NTRIP caster" />
+  <arg name="ntrip_ssl"        default="false"                doc="Whether or not to connect using SSL to the NTRIP caster" />
+
+  <arg name="robot_localization"          default="true"             doc="Whether we should run our own ekf_localization node" />
+  <arg name="robot_localization_name"     default="ekf_localization" doc="Name of either our node or already running robot_localization node" />
+  <arg name="robot_localization_imu_name" default="imu0"             doc="Sensor name for the IMU data in robot_localization" />
+
+  <arg name="mock_robot" default="false" doc="Whether we should run a simple description containing a mock robot for testing purposes" />
+
+  <arg name="params_file" default=" " doc="Path to file that contains additional parameters not exposed here" />
+
+  <!-- Manually configure the node instead of the launch file so we can use the passed arguments -->
+  <node name="gq7_driver" pkg="microstrain_inertial_driver" type="microstrain_inertial_driver_node" output="screen" ns="/gq7">
+    <!-- Set the parameters through our custom params file -->
+    <rosparam file="$(find robomech_nav)/config/gq7_odom.yml" command="load" subst_value="true" />
+
+    <!-- If you want to override any settings specified in the params.yml file, make a new yaml file, and set the value via the params_file arg -->
+    <rosparam file="$(arg params_file)" command="load" unless="$(eval arg('params_file') == ' ')" subst_value="true" />
+  </node>
+
+  <!-- Configure some settings for EKF localization whether or not it is being run -->
+  <rosparam subst_value="true">
+    $(arg robot_localization_name):
+      $(arg robot_localization_imu_name): /gq7/imu/data
+      $(arg robot_localization_imu_name)_config: [false, false, false,  # X, Y, Z disabled since no position data in IMU
+                                                  false, false, false,  # roll, pitch, yaw disabled since raw IMU data does not have very good attitude estimates
+                                                  false, false, false,  # X, Y, Z velocity disabled since no linear velocity in IMU
+                                                  true, true, true,     # roll, pitch, yaw rates (angular rates) enabled
+                                                  true, true, true]     # X, Y, Z acceleration (linear acceleration) enabled
+      $(arg robot_localization_imu_name)_differential: false
+      $(arg robot_localization_imu_name)_remove_gravitational_acceleration: true
+  </rosparam>
+
+  <!-- If we were asked, start our own robot_localization node -->
+  <group if="$(arg robot_localization)">
+    <node name="$(arg robot_localization_name)" pkg="robot_localization" type="ekf_localization_node" output="screen" ns="/">
+      <!-- Set the parameters through our custom params file -->
+      <rosparam file="$(find microstrain_inertial_localization)/config/common/ekf_localization.yml" command="load" subst_value="true" />
+    </node>
+  </group>
+
+  <!-- If we were asked, launch a mock robot that will publish the transforms between our sensor, base_link, and the GNSS1/2 antennas -->
+  <group if="$(arg mock_robot)">
+    <include file="$(find microstrain_inertial_localization)/launch/include/mock_robot_description.launch" pass_all_args="true" />
+  </group>
+
+  <!-- If ntrip was requested, launch that as well -->
+  <group if="$(arg ntrip)">
+    <node name="gq7_ntrip_client" pkg="ntrip_client" type="ntrip_ros.py" output="screen" ns="/gq7">
+      <!-- Set the parameters through our custom params file -->
+      <rosparam file="$(find microstrain_inertial_localization)/config/common/ntrip_client.yml" command="load" subst_value="true" />
+    </node>
+  </group>
+</launch>
