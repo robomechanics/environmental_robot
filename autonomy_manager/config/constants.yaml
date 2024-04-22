@@ -18,15 +18,11 @@ pxrf_cmd_topic: 'pxrf_cmd'
 pxrf_response_topic: 'pxrf_response'
 pxrf_data_topic: 'pxrf_data'
 
-
 start_scan_service_name: 'scan_start'
 pxrf_complete_service_name: 'pxrf_complete'
 
-
 odometry_topic: 'odometry'
 cancel_goal_topic: 'cancel_goal'
-
-
 
 # GUI (gps_user_input.py)
 goal_pub_topic: '/gps_navigation/goal'
@@ -58,6 +54,8 @@ lower_arm_service_name: 'arm/lower'
 tf_base_link_frame: 'base_link'
 tf_utm_odom_frame: 'utm_odom'
 tf_utm_odom_topic: 'utm_odom'
-gq7_ekf_odom_map_topic: gq7/ekf/odometry_map
-gq7_ekf_llh_topic: gq7/ekf/llh_position
-gq7_ekf_status_topic: gq7/ekf/status
+gq7_ekf_odom_map_topic: '/gq7/ekf/odometry_map'
+gq7_ekf_llh_topic: '/gq7/ekf/llh_position'
+gq7_ekf_status_topic: '/gq7/ekf/status'
+crs_GPS: 'EPSG:4326'
+crs_UTM: 'EPSG:3364'
