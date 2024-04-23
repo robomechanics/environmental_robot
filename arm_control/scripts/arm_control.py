@@ -90,7 +90,7 @@ class EndEffectorTrajectory:
         self.load_ros_params()
 
         self._lower_arm_service = rospy.Service(self._lower_arm_service_name,
-                                                Trigger,
+                                                SetBool,
                                                 self.lower_arm_callback)
 
         self.num_joints = len(robot_controller.get_joint_angles())
@@ -101,53 +101,52 @@ class EndEffectorTrajectory:
             "lower_arm_service_name")
 
     def get_touchdown_waypoints(self):
-        # rows = 4  # num of joint angles
-        # cols = 6  # num of target waypoints
-        # pos = np.zeros((rows, cols))
-        # initial_joint_angles = self.robot_controller.get_joint_angles().tolist()
-        # pos[:, 0] = initial_joint_angles
-        # pos[:, 1] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
-        # pos[:, 2] = [4.89430189, 0.72055084, -2.27849388, -0.22733116]
-        # pos[:, 3] = [4.83683014, 1.60074646, -2.15341663, -0.23106194]
-        # pos[:, 4] = [4.7667532, 2.01732284, -1.83409595, -0.86559677]
-        # pos[:, 5] = [4.70845413, 2.87031967, -1.8154192, 0.09913826]
+        rows = 4  # num of joint angles
+        cols = 6  # num of target waypoints
+        pos = np.zeros((rows, cols))
+        initial_joint_angles = self.robot_controller.get_joint_angles().tolist()
+        pos[:, 0] = initial_joint_angles
+        pos[:, 1] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
+        pos[:, 2] = [4.89430189, 0.72055084, -2.27849388, -0.22733116]
+        pos[:, 3] = [4.83683014, 1.60074646, -2.15341663, -0.13106194]
+        pos[:, 4] = [4.7667532, 2.01732284, -1.83409595, -0.66559677]
+        pos[:, 5] = [4.70845413, 2.87031967, -1.8154192, 0.439913826]
 
-        initial_joint_angles = self.robot_controller.get_joint_angles().tolist(
-        )
-        positions = np.array([
-            initial_joint_angles,
-            [4.79459, 0.39897567, -2.67670345, -0.23143387],
-            [4.89430189, 0.72055084, -2.27849388, -0.22733116],
-            [4.83683014, 1.60074646, -2.15341663, -0.23106194],
-            [4.7667532, 2.01732284, -1.83409595, -0.86559677],
-            [4.70845413, 2.87031967, -1.8154192, 0.09913826],
-        ])
+        # initial_joint_angles = self.robot_controller.get_joint_angles().tolist(
+        # )
+        # positions = np.array([
+        #     initial_joint_angles,
+        #     [4.79459, 0.39897567, -2.67670345, -0.23143387],
+        #     [4.89430189, 0.72055084, -2.27849388, -0.22733116],
+        #     [4.83683014, 1.60074646, -2.15341663, -0.23106194],
+        #     [4.7667532, 2.01732284, -1.83409595, -0.86559677],
+        #     [4.70845413, 2.87031967, -1.8154192, 0.09913826],
+        # ])
 
-        return positions
+        return pos
 
     def get_return_waypoints(self):
-        # rows = 4  # num of joint angles
-        # cols = 5  # num of target waypoints
-        # pos = np.zeros((rows, cols))
-        # initial_angles = self.robot_controller.get_joint_angles()
-        # pos[:, 0] = initial_angles
-        # pos[:, 1] = [4.7661829, 2.58495361, -1.95124054, -0.92874146]
-        # pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, -0.23106194]
-        # pos[:, 3] = [4.89430189, 0.72055084, -2.27849388, -0.22733116]
-        # pos[:, 4] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
-        # return pos
+        rows = 4  # num of joint angles
+        cols = 5  # num of target waypoints
+        pos = np.zeros((rows, cols))
+        initial_angles = self.robot_controller.get_joint_angles()
+        pos[:, 0] = initial_angles
+        pos[:, 1] = [4.7661829, 2.58495361, -1.95124054, -0.492874146]
+        pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, -0.623106194]
+        pos[:, 3] = [4.89430189, 0.72055084, -2.27849388, -0.12733116]
+        pos[:, 4] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
+        return pos
 
-        positions = np.array([
-            self.robot_controller.get_joint_angles().tolist(),
-            [4.7661829, 2.58495361, -1.95124054, -0.92874146],
-            [4.83683014, 1.60074646, -2.15341663, -0.23106194],
-            [4.89430189, 0.72055084, -2.27849388, -0.22733116],
-            [4.79459, 0.39897567, -2.67670345, -0.23143387],
-        ])
+        #positions = np.array([
+        #    self.robot_controller.get_joint_angles().tolist(),
+        #    [4.7661829, 2.58495361, -1.95124054, -0.92874146],
+        #    [4.83683014, 1.60074646, -2.15341663, -0.23106194],
+        #    [4.89430189, 0.72055084, -2.27849388, -0.22733116],
+        #    [4.79459, 0.39897567, -2.67670345, -0.23143387],
+        #])
+        #return positions
 
-        return positions
-
-    def get_hebi_trajectory(self, waypoints, total_duration=15):
+    def get_hebi_trajectory(self, waypoints, total_duration=10):
         # positions = self.positions.T
         # positions = self.positions
         # print('Transpose shape:', self.positions.T.shape)
@@ -164,13 +163,14 @@ class EndEffectorTrajectory:
         self.vel[:, -1] = self.acc[:, -1] = 0.0
 
         # set time
-        self.times = np.linspace(0, waypoints, waypoints.shape[1])
+        self.times = np.linspace(0, total_duration, waypoints.shape[1])
+        # print(self.times)
 
         # Create the trajectory
         self.trajectory = hebi.trajectory.create_trajectory(
             self.times, np.copy(waypoints), self.vel, self.acc)
 
-    def execute_trajectory_with_efforts(self, motor_id=1, max_effort=2):
+    def execute_trajectory_with_efforts(self, motor_id=1, max_effort=8):
         hz = float(20)
         rate = rospy.Rate(hz)
 
@@ -204,7 +204,10 @@ class EndEffectorTrajectory:
                 print("effort:\n", effort[i], "step: ", i)
                 print(delta_effort)
 
-            if delta_effort > max_effort:
+            effort_check = delta_effort > max_effort
+            #print("effort_check:", effort_check)
+
+            if effort_check:
                 print("Torque out of bounds at t = ", t)
                 self.robot_controller.group.command_lifetime = 0
                 self.pos_cmd, self.vel_cmd, self.acc_cmd = self.trajectory.get_state(
