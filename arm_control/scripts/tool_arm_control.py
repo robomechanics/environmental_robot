@@ -31,6 +31,10 @@ class Tool_Arm_Controller:
             "tool_down", Trigger, self.tool_down
         )
 
+        self.tool_behavior_service = rospy.Service(
+            "tool_behavior", Trigger, self.tool_behavior
+        )
+
     def tool_up(self, req):
         rows = 1 # num of actuators
         cols = 2 # num of target waypoints
@@ -118,6 +122,51 @@ class Tool_Arm_Controller:
 
 
         return TriggerResponse(success=True, message="Tool arm went down!")
+    
+    def tool_behavior(self, req):
+        rows = 1 # num of actuators
+        cols = 3 # num of target waypoints
+        pos = np.zeros((rows,cols))
+        
+        pos[:,0] = [self.thetaUp]
+        pos[:,1] = [self.thetaDown]
+        pos[:,2] = [self.thetaUp]
+
+        vel = np.full(pos.shape, np.nan)
+        acc = np.full(pos.shape, np.nan)
+
+        # Set first and last waypoint values to 0.0
+        vel[:, 0] = acc[:, 0] = 0.0
+        vel[:, -1] = acc[:, -1] = 0.0
+
+        # Create the trajectory
+        self.trajectory = hebi.trajectory.create_trajectory(
+            self.times, np.copy(pos), vel, acc
+        )
+
+        cmd = hebi.GroupCommand(self.numActuators)
+
+        t = 0.0
+        duration = self.trajectory.duration
+
+        pos_cmd = np.array(self.numActuators, dtype=np.float64)
+        vel_cmd = np.array(self.numActuators, dtype=np.float64)
+
+        while t < duration:
+            self.pos_cmd, self.vel_cmd, self.acc_cmd = self.trajectory.get_state(t)
+            
+            cmd.position = self.pos_cmd
+            cmd.velocity = self.vel_cmd
+
+            self.hebiGroup.command_lifetime = 0
+            
+            self.hebiGroup.send_command(cmd)
+
+            t = t + self.dt
+            sleep(self.dt)
+
+
+        return TriggerResponse(success=True, message="Tool service successfully!")
 
 
 if __name__ == "__main__":
