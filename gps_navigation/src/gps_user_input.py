@@ -6,14 +6,15 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 import pandas as pd
 import csv
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import NavSatFix
-from microstrain_inertial_msgs.msg import FilterHeading
-from autonomy_manager.msg import ManagerStatus
+# from microstrain_inertial_msgs.msg import FilterHeading
+# from autonomy_manager.msg import ManagerStatus
 from tile import TileMap
 import actionlib
 from pxrf.msg import TakeMeasurementAction, TakeMeasurementGoal, TakeMeasurementResult
@@ -23,7 +24,13 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
+autonomy_manager_path = rospack.get_path('autonomy_manager')
+print(autonomy_manager_path)
+sys.path.insert(0, os.path.abspath(os.path.join(autonomy_manager_path, "scripts")))
 from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep, Waypoints
+from tf.transformations import euler_from_quaternion
+import tf
+
 #testing
 lat_set = 0
 lon_set = 0
@@ -155,42 +162,29 @@ class GpsNavigationGui:
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
         self.goal_pub = rospy.Publisher(self._goal_pub_topic, PoseStamped, queue_size=5)
 
-        self.location_sub = rospy.Subscriber(self._location_sub_topic, Odometry, self.on_gps_update)
-        #self.heading_sub = rospy.Subscriber('/nav/heading', FilterHeading, self.on_heading_update)
-        self.gps_sub = rospy.Subscriber(self._gps_sub_topic, FilterHeading, self.robot_update) # plotRobotPosition
-        self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.state_update)
+        self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.on_gps_update)
+        self.gps_sub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robot_update) # plotRobotPosition
+        # self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.state_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
         #rospy.spin()
 
     def load_ros_params(self):
-        loadFromParamFile = False
-        if loadFromParamFile:
-            # Load topic names into params
-            self._goal_pub_topic = '/gps_navigation/goal'
-            self._location_sub_topic = '/gps_avg'
-            self._gps_sub_topic = '/heading_true'
-            self._status_sub_topic = '/autonomy_manager/status'
-            # Load service names into params
-            self._parking_brake_service = '/parking_brake'
-            self._next_point_service = 'next_goal'
-            self._grid_points_service = 'grid_points'
-            self._calibrate_start_service = '/start'
-            # Load action client topic names
-            self._pxrf_client_topic = '/take_measurement'
-        else:
-            # Load topic names into params
-            self._goal_pub_topic = rospy.get_param('goal_pub_topic')
-            self._location_sub_topic = rospy.get_param('location_sub_topic')
-            self._gps_sub_topic = rospy.get_param('gps_sub_topic')
-            self._status_sub_topic = rospy.get_param('status_topic')
-            # Load service names into params
-            self._parking_brake_service = rospy.get_param('parking_break_service_name')
-            self._next_point_service = rospy.get_param('next_goal_service_name')
-            self._grid_points_service = rospy.get_param('grid_points_service_name')
-            self._calibrate_start_service = rospy.get_param('calibrate_start_service_name')
-            # Load action client topic names
-            self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
+        # Load topic names into params
+        self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
+        self._gps_sub_topic = rospy.get_param('gq7_ekf_llh_topic')
+        
+        self._goal_pub_topic = rospy.get_param('goal_pub_topic')
+        self._status_sub_topic = rospy.get_param('status_topic')
+        
+        # Load service names into params
+        self._parking_brake_service = rospy.get_param('parking_break_service_name')
+        self._next_point_service = rospy.get_param('next_goal_service_name')
+        self._grid_points_service = rospy.get_param('grid_points_service_name')
+        self._calibrate_start_service = rospy.get_param('calibrate_start_service_name')
+        
+        # Load action client topic names
+        self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
 
 
     def add_marker_at(self, lat: float, lon: float, label=None, size=20):
@@ -241,10 +235,10 @@ class GpsNavigationGui:
         CalibrateBtn.setStyleSheet("background-color : red")
         CalibrateBtn.clicked.connect(self.calibrate)
         self.stopStatus = True
-        self.parking_brake(self.stopStatus)
+        # self.parking_brake(self.stopStatus)
         self.parkBtn = QtWidgets.QPushButton('PARK ON')
         self.parkBtn.setStyleSheet("background-color : red")
-        self.parkBtn.clicked.connect(self.toggle_brake)
+        # self.parkBtn.clicked.connect(self.toggle_brake)
         self.pxrfStatus = False
         self.pxrfBtn = QtWidgets.QPushButton('Sample')
         self.pxrfBtn.clicked.connect(self.toggle_pxrf_collection)
@@ -301,8 +295,8 @@ class GpsNavigationGui:
         # self.widget.addWidget(self.parkBtn,       row=4, col=6, colspan=2)
         self.widget.addWidget(CalibrateBtn,        row=4, col=6, colspan=2)
 
-    def robot_update(self, data:ManagerStatus):
-        self.statusPxrf.setText(data.status)
+    # def robot_update(self, data:ManagerStatus):
+    #     self.statusPxrf.setText(data.status)
 
     def on_pxrf_measurement_complete(self, status, result: TakeMeasurementResult):
         print(f'pxrf cb result: {result.result.data}')
@@ -319,15 +313,6 @@ class GpsNavigationGui:
 
         if result.result.data == "201":
             generate_plot()
-
-    #This function sets the heading of the robot
-    def on_heading_update(self, data: FilterHeading):
-        if(data.heading_rad == 0 and data.heading_deg == 0):
-            return
-        print('heading update')
-        self.heading = data.heading_rad 
-
-        #self.prev_heading = self. heading
 
     def calibrate(self):
         try: 
@@ -545,16 +530,24 @@ class GpsNavigationGui:
        
 
     # This function is called by subscriber of gps sensor
-    def robot_update(self,data: FilterHeading):
-        #print('Incoming Odom')
+    def robot_update(self, data: Odometry):
         if self.latitude == None or self.longitude == None:
             return
+        
         lat = self.latitude
         lon = self.longitude
 
         #calculate heading based on gps coordinates 
         pixX, pixY = self.satMap.coord2Pixel(lat, lon)
-        robotHeading = data.heading_rad
+        
+        self.quaternion = tf.transformations.random_quaternion()
+        self.quaternion[0] = data.pose.pose.orientation.x
+        self.quaternion[1] = data.pose.pose.orientation.y
+        self.quaternion[2] = data.pose.pose.orientation.z
+        self.quaternion[3] = data.pose.pose.orientation.w
+        
+        eulerVals = euler_from_quaternion(self.quaternion, "sxyz")
+        robotHeading = eulerVals[2]
 
         if not self.robotArrow is None:
             self.robotArrow.setStyle(angle = 180 - robotHeading*180.0/np.pi)
@@ -568,13 +561,10 @@ class GpsNavigationGui:
         self.prev_heading = robotHeading
     
     # This function updates the value of longitude and latitude information
-    def on_gps_update(self, data: Odometry):
-        if(data.pose.pose.position.x != 0.0 and data.pose.pose.position.y != 0.0):
-            self.longitude = data.pose.pose.position.x
-            self.latitude = data.pose.pose.position.y
-            self.statusGPS.setText("lon: " + str(round(self.longitude,4)) + " " +"lat: " + str(round(self.latitude, 4)) )
-        else:
-            self.statusGPS.setText("GPS connecting")
+    def on_gps_update(self, data: NavSatFix):
+        self.longitude = data.latitude
+        self.latitude = data.longitude
+        self.statusGPS.setText("lat: " + str(round(self.latitude,4)) + " | " +"lon: " + str(round(self.longitude, 4)) + " | status: " + data.status)
 
     # This function updates the goal and displays it on the map
     def on_next_goal_update(self, req: NavigateGPS):
