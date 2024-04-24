@@ -6,7 +6,7 @@ import random
 from autonomy_manager.srv import NavigateGPS 
 sys.path.append('../') 
 from adaptiveROS import adaptiveROS
-from boundaryConversion import conversion
+from boundaryConversion import Conversion
 
 #[40.44208352622619, -79.94610353523909, 1]
 #[40.44236251851889, -79.94599539848328, 1]
@@ -25,7 +25,7 @@ boundary = [[40.44208352622619, -79.94610353523909], [40.44236251851889, -79.945
 conv = Conversion()
 conv.get_zone(40.44208352622619, -79.94610353523909)
 
-boundary_utm_offset = conv.boundaryConversion(boundary)
+boundary_utm_offset = conv.boundary_conversion(boundary)
 for each in conv.new_boundary:
     print(each)
 print('--------1---------')

@@ -26,7 +26,7 @@ for each in boundary_point:
     print('-----------------')
 
 print('----Map dimension----')
-width, height = conv.boundaryConversion(boundary_point)
+width, height = conv.boundary_conversion(boundary_point)
 print(width)
 print(height)
 

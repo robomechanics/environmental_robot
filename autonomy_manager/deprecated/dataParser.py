@@ -1,7 +1,7 @@
 import csv
 import os
 from adaptiveROS import adaptiveROS
-from boundaryConversion import conversion
+from boundaryConversion import Conversion
 import re
 from copy import copy
 from itertools import product
@@ -77,7 +77,7 @@ with open(file_path, 'r') as csv_file:
 boundary = [[39.189249, -84.763784], [39.189280, -84.763434], [39.189549,-84.763486], [39.189513, -84.763819]]
 conv = Conversion()
 conv.get_zone(39.189249, -84.763784)
-boundary_utm_offset = conv.boundaryConversion(boundary)
+boundary_utm_offset = conv.boundary_conversion(boundary)
 print(conv.width, conv.height)
 adaptive = adaptiveROS(conv.width, conv.height, [0,0], len(final))
 adaptive.updateBoundary(boundary_utm_offset)

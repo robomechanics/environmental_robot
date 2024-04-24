@@ -49,7 +49,7 @@ class Conversion:
         
         return d
 
-    def boundaryConversion(self, boundaryPoints):
+    def boundary_conversion(self, boundaryPoints):
         x_coord = []
         y_coord = []
         x_coord_utm = []
@@ -82,7 +82,7 @@ class Conversion:
     
     def build_obs_map(self):
         if self.new_boundary == []:
-            print("Please run boundaryConversion first")
+            print("Please run boundary_conversion first")
             return
         
         map = np.full((self.width,self.height), 0)
@@ -100,7 +100,7 @@ class Conversion:
         utm17n = pyproj.CRS(self.get_zone(posx, posy)) 
         self.utm = utm17n
         transformer = pyproj.Transformer.from_crs(wgs84, utm17n)
-        print(self.utm,' 3')
+        # print(self.utm,' 3')
         return transformer.transform(posx, posy)
 
     #get the utm zone
@@ -127,7 +127,7 @@ class Conversion:
     
     def gps2map(self, posx, posy):
         if self.origin_utm == (0,0):
-            print("Please run boundaryConversion first")
+            print("Please run boundary_conversion first")
             return
 
         x, y = self.get_utm(posx, posy)
@@ -137,7 +137,7 @@ class Conversion:
 
     def map2gps(self, x, y): # distance in meters
         if self.origin_utm == (0,0):
-            print("Please run boundaryConversion first")
+            print("Please run boundary_conversion first")
             return
         
         posx = self.origin_utm[0] + x

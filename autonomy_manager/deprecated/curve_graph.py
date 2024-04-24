@@ -1,7 +1,7 @@
 import csv
 import os
 from adaptiveROS import adaptiveROS
-from boundaryConversion import conversion
+from boundaryConversion import Conversion
 import re
 import math
 from copy import copy

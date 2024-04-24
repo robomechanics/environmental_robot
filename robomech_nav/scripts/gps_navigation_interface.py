@@ -10,9 +10,11 @@ from sensor_msgs.msg import NavSatFix
 from microstrain_inertial_msgs.msg import HumanReadableStatus
 import message_filters
 from pyproj import Transformer
+from autonomy_manager.srv import NavigateGPS
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+import actionlib
 
-
-class UTMToOdom:
+class GPSNavigationInterface:
     def __init__(self):
         self.first_LatLon = True
         self.is_full_nav_achieved = False
@@ -22,17 +24,13 @@ class UTMToOdom:
 
         self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
 
-        self.pose_odom_covariance_initial = geometry_msgs.msg.PoseWithCovariance()
-        self.pose_odom = geometry_msgs.msg.Pose()
-        self.pose_odom_covariance = geometry_msgs.msg.PoseWithCovariance()
-
         self.quaternion = tf.transformations.random_quaternion()
-
         self.odom = Odometry()
+        self.odom.header.frame_id = self._tf_utm_odom_frame
+        self.odom.child_frame_id = self._tf_base_link_frame
 
         # Creating a transform and its broadcaster
         self.br = tf2_ros.TransformBroadcaster()
-
         self.t = geometry_msgs.msg.TransformStamped()
         self.t.header.frame_id = self._tf_base_link_frame
         self.t.child_frame_id = self._tf_utm_odom_frame
@@ -42,8 +40,8 @@ class UTMToOdom:
             self._tf_utm_odom_topic, Odometry, queue_size=1
         )
 
-        self.status_sub = rospy.Subscriber(
-            self._gq7_ekf_status_topic, HumanReadableStatus, self.status_callback
+        self.gps_status_sub = rospy.Subscriber(
+            self._gq7_ekf_status_topic, HumanReadableStatus, self.gps_status_callback
         )
 
         self.ekf_odom_map_sub = message_filters.Subscriber(
@@ -57,6 +55,14 @@ class UTMToOdom:
             [self.ekf_odom_map_sub, self.ekf_llh_sub], 1, True, True
         )
         self.ts.registerCallback(self.time_sync_callback)
+        
+        
+        # Services
+        self._next_goal_nav_service = rospy.Service(self._next_goal_nav_service_name, NavigateGPS, self.publish_robot_goal)
+
+        # Action Services
+        self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
+        self.mb_client.wait_for_server()
 
         # self.atenna1_sub = rospy.Subscriber("/gq7/gnss_1/llh_position", NavSatFix, self.antenna1_update)
         # self.atenna2_sub = rospy.Subscriber("/gq7/gnss_2/llh_position", NavSatFix, self.antenna2_update)
@@ -69,10 +75,12 @@ class UTMToOdom:
         self._gq7_ekf_odom_map_topic = rospy.get_param("gq7_ekf_odom_map_topic")
         self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
+        self._next_goal_nav_service_name = rospy.get_param("next_goal_nav_service_name")
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
+        self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
 
-    def status_callback(self, data):
+    def gps_status_callback(self, data):
         # todo: check data.status_flags.heading_warning?
         if (
             (self.is_full_nav_achieved == False)
@@ -105,30 +113,18 @@ class UTMToOdom:
         self.send_back_TF(data)
 
     def get_origin(self, data):
-        # Grab initial latlon values
-        self.lat_GPS_start = data.latitude
-        self.lon_GPS_start = data.longitude
-
         # Convert from lat-lon to UTM using py proj
-        self.XY_UTM_start = self.transformer.transform(
-            self.lat_GPS_start, self.lon_GPS_start
+        self.x_UTM_start, self.y_UTM_start = self.transformer.transform(
+             data.latitude, data.longitude
         )
-        self.x_UTM_start = self.XY_UTM_start[0]
-        self.y_UTM_start = self.XY_UTM_start[1]
 
         self.first_LatLon = False
 
-        self.status_sub.unregister()
+        self.gps_status_sub.unregister()
 
     def handle_GPS_MSG(self, data):
-        # Grab latlon values
-        self.lat_GPS = data.latitude
-        self.lon_GPS = data.longitude
-
         # Convert to UTM/XY values
-        self.XY_UTM = self.transformer.transform(self.lat_GPS, self.lon_GPS)
-        self.x_UTM = self.XY_UTM[0]
-        self.y_UTM = self.XY_UTM[1]
+        self.x_UTM, self.y_UTM  = self.transformer.transform(data.latitude, data.longitude)
 
         # Grabbing a heading angle
         eulerVals = euler_from_quaternion(self.quaternion, "sxyz")
@@ -136,25 +132,46 @@ class UTMToOdom:
 
     def create_UTM_Odom(self, data):
         # Creating a pose message for location in Odom
-        self.pose_odom.position.x = self.x_UTM - self.x_UTM_start
-        self.pose_odom.position.y = self.y_UTM - self.y_UTM_start
-        self.pose_odom.position.z = 0.0
-        self.pose_odom.orientation.x = self.quaternion[0]
-        self.pose_odom.orientation.y = self.quaternion[1]
-        self.pose_odom.orientation.z = self.quaternion[2]
-        self.pose_odom.orientation.w = self.quaternion[3]
-        self.pose_odom_covariance.pose = self.pose_odom
+        self.odom.pose.pose.position.x = self.x_UTM - self.x_UTM_start
+        self.odom.pose.pose.position.y = self.y_UTM - self.y_UTM_start
+        self.odom.pose.pose.position.z = 0.0
+        self.odom.pose.pose.orientation.x = self.quaternion[0]
+        self.odom.pose.pose.orientation.y = self.quaternion[1]
+        self.odom.pose.pose.orientation.z = self.quaternion[2]
+        self.odom.pose.pose.orientation.w = self.quaternion[3]
 
-        # Formatting the Odom message
+        # Publish Odom message
         self.odom.header.stamp = data.header.stamp
-        self.odom.header.frame_id = "utm_odom"
-        self.odom.child_frame_id = "base_link"
-        self.odom.pose = self.pose_odom_covariance
+        self.utm_odom_pub.publish(self.odom)
+        
+    def publish_robot_goal(self, data):
+        self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(data.goal_lat, data.goal_lon)
+        
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = self._tf_utm_odom_frame
+        goal.target_pose.header.stamp = rospy.Time.now()
+        
+        goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
+        goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
+        goal.target_pose.pose.position.z = 0.0
+        goal.target_pose.pose.orientation.x = self.quaternion[0]
+        goal.target_pose.pose.orientation.y = self.quaternion[1]
+        goal.target_pose.pose.orientation.z = self.quaternion[2]
+        goal.target_pose.pose.orientation.w = self.quaternion[3]
+
+        self.mb_client.send_goal(goal)
+        print(" | Goal Sent to movebase...")
+        wait = self.mb_client.wait_for_result()
+        if not wait:
+            rospy.logerr("Action server not available!")
+            rospy.signal_shutdown("Action server not available!")
+        else:
+            return self.mb_client.get_result()
+
+        print(" | Goal Reached")
+        
 
     def find_inverses(self, data):
-        # Publishing the Odom message
-        self.utm_odom_pub.publish(self.odom)
-
         # Inverse transformation matrix
         self.g = np.array(
             [
@@ -234,6 +251,6 @@ class UTMToOdom:
 if __name__ == "__main__":
     rospy.init_node("utm_to_odom_node", anonymous=True)
 
-    utm_to_odom = UTMToOdom()
+    gps_nav_interface = GPSNavigationInterface()
 
     rospy.spin()

@@ -11,13 +11,10 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
     timer->start(1000);
 
     std::string pxrf_cmd_topic, pxrf_data_topic, pxrf_response_topic;
-    if (!n.getParam("pxrf_cmd_topic", pxrf_cmd_topic)
-        && !n.getParam("pxrf_data_topic", pxrf_data_topic)
-        && !n.getParam("pxrf_response_topic", pxrf_response_topic))
-    {
-        ROS_ERROR("Could not find topic names");
-        exit(0);
-    }
+    n.getParam("pxrf_cmd_topic", pxrf_cmd_topic);
+    n.getParam("pxrf_data_topic", pxrf_data_topic);
+    n.getParam("pxrf_response_topic", pxrf_response_topic);
+    
 
     ctrl_sub = n.subscribe(pxrf_cmd_topic, 1000, &VantaCommunicator::callback, this);
     chemistry_pub = n.advertise<pxrf::PxrfMsg>(pxrf_data_topic, 1000);
@@ -83,7 +80,7 @@ void VantaCommunicator::messageResponse(std::string response)
         break;
 
     case MessageFactory::Notification:
-        std::cout << id << std::endl;
+        // std::cout << id << std::endl;
         switch(id) {
             case MessageFactory::SystemStatus: {
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
