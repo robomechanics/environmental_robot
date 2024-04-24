@@ -62,3 +62,6 @@ crs_UTM: 'EPSG:3364'
 
 # Action Lib
 move_base_action_server_name: 'move_base'
+
+# Network
+vanta_ip: "192.168.7.2"

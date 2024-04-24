@@ -29,6 +29,7 @@ public:
     ros::Publisher chemistry_pub;
     ros::Publisher response_pub;
     ros::Subscriber ctrl_sub;
+    std::string vanta_ip;
 
     // Timer object used to pet the watchdog
     QTimer *timer;

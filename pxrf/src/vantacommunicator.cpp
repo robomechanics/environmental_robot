@@ -14,8 +14,8 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
     n.getParam("pxrf_cmd_topic", pxrf_cmd_topic);
     n.getParam("pxrf_data_topic", pxrf_data_topic);
     n.getParam("pxrf_response_topic", pxrf_response_topic);
+    n.getParam("vanta_ip", vanta_ip);
     
-
     ctrl_sub = n.subscribe(pxrf_cmd_topic, 1000, &VantaCommunicator::callback, this);
     chemistry_pub = n.advertise<pxrf::PxrfMsg>(pxrf_data_topic, 1000);
     response_pub = n.advertise<std_msgs::String>(pxrf_response_topic, 1000);
@@ -48,16 +48,14 @@ void VantaCommunicator::callback(const std_msgs::String::ConstPtr& msg)
     {
         // isRunning = true;
         std::string startTestMessage = m_vantaMessageFactory.CreateStartTestMessage();
-        std::cout << "Sending a Start Test Message " << std::endl << startTestMessage << std::endl;
-        std::cout << "Now starting a test... " << std::endl;
+        ROS_INFO("Sending a Start Test Message");
         m_vantaConnection.sendToVanta(startTestMessage);
     }
     else if (msg->data == "stop" && isRunning) 
     {
         // isRunning = false;
         std::string stopTestMessage = m_vantaMessageFactory.CreateStopTestMessage();
-        std::cout << "Sending a Stop Test Message " << std::endl << stopTestMessage << std::endl;
-        std::cout << "Stopping test... " << std::endl;
+        ROS_INFO("Sending a Stop Test Message");
         m_vantaConnection.sendToVanta(stopTestMessage);
     }
 }
@@ -71,7 +69,7 @@ void VantaCommunicator::messageResponse(std::string response)
     
     switch(messageId) {
     case MessageFactory::Login: {
-        std::cout << "Got a Login response back from Vanta. " << response << std::endl;
+        ROS_INFO("Got a Login response back from Vanta");
         sleep(2);//sleeps for 2 second
         break;
     }
@@ -84,9 +82,16 @@ void VantaCommunicator::messageResponse(std::string response)
         switch(id) {
             case MessageFactory::SystemStatus: {
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
-                std::cout << "System status message " << systemStatus << std::endl;
+                if (systemStatus == "Ready")
+                {
+                    ROS_INFO_THROTTLE(30, "Ready");
+                }
+                else{
+                    ROS_INFO("Status Msg :  %s", systemStatus.c_str());
+                }
+                
                 if (info.length() > 0)
-                    std::cout << "System status info " << info << std::endl;
+                    ROS_INFO("Status Info: %s", info.c_str());;
                 break;
             }
             case MessageFactory::ResultReceived: {
@@ -96,7 +101,7 @@ void VantaCommunicator::messageResponse(std::string response)
                 std::string testDateTime;
                 m_vantaMessageFactory.parseForChemistry(params, &chemistry);
                 m_vantaMessageFactory.parseForTimestamp(params, &dailyId, &testId, &testDateTime);
-                std::cout <<chemistry << std::endl;
+                ROS_INFO("Chemistry:  \n %s ---\n", chemistry.c_str());
                 VantaCommunicator::publishChemistry(chemistry, dailyId, testId, testDateTime);
                 break;
             }
@@ -130,17 +135,18 @@ void VantaCommunicator::status(std::string status)
 {
     if (status.compare(std::string("ok"))==0) {
 
-        std::cout << "Established a websocket connection with the Vanta." << std::endl;
+        ROS_INFO("Established a websocket connection with the Vanta");
+
         std::string loginMessage = m_vantaMessageFactory.CreateLoginMessage("Administrator","0000");
 
-        std::cout << "Creating a Login message " << std::endl << loginMessage << std::endl;
-        std::cout << "Logging in to a Vanta as Administrator... " << std::endl;
+        // std::cout << "Creating a Login message " << std::endl << loginMessage << std::endl;
+        ROS_INFO("Logging in to a Vanta as Administrator...");
+
         sleep(3); //sleeps for 1 second
         m_vantaConnection.sendToVanta(loginMessage);
 
     } else {
-
-        std::cout << "Websocket error " << status << std::endl;
+        ROS_WARN("Might be a Websocket error");
     }
 }
 
@@ -152,9 +158,10 @@ void VantaCommunicator::start(QCoreApplication *app)
     m_vantaConnection.setVcInstance(this);
 
     /* Now connect to the device using the OTG interface. */
-    std::string deviceIpAddr("192.168.7.2");//"192.168.7.10"); // change from 2 to 10
+    std::string deviceIpAddr(vanta_ip);
 
-    std::cout << "Connecting to Vanta over the OTG interface " << deviceIpAddr << std::endl;
+    ROS_INFO("Connecting to Vanta over the OTG interface: %s", deviceIpAddr.c_str());
+
     m_vantaConnection.connectToVanta(deviceIpAddr);
 
     /* Execute the Qt application event loop. */
