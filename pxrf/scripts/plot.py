@@ -56,7 +56,10 @@ def generate_plot():
 	#sort based on concentration
 	patches, labels, _ = zip(*sorted(zip(patches, labels, np.array(concentration[last])), key = lambda x: x[2],reverse = True))
 	plt.title(header[last])
-	fig.canvas.set_window_title(header[last])
+	try:
+		fig.canvas.set_window_title(header[last])
+	except:
+		fig.canvas.setWindowTitle(header[last])	
 	plt.legend(patches, labels, loc = 'best', bbox_to_anchor = (-0.1, 1.), fontsize = 10)
 	plt.tight_layout()
 	plt.show()

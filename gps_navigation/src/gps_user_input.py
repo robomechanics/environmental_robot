@@ -24,9 +24,6 @@ pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
 from gps_user_location import read_location
-autonomy_manager_path = rospack.get_path('autonomy_manager')
-print(autonomy_manager_path)
-sys.path.insert(0, os.path.abspath(os.path.join(autonomy_manager_path, "scripts")))
 from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep, Waypoints
 from tf.transformations import euler_from_quaternion
 import tf
@@ -179,9 +176,11 @@ class GpsNavigationGui:
         
         # Load service names into params
         self._parking_brake_service = rospy.get_param('parking_break_service_name')
-        self._next_point_service = rospy.get_param('next_goal_service_name')
+        self._next_point_service = rospy.get_param('next_goal_to_GUI_service_name')
         self._grid_points_service = rospy.get_param('grid_points_service_name')
         self._calibrate_start_service = rospy.get_param('calibrate_start_service_name')
+        self._set_search_boundary_name = rospy.get_param('set_search_boundary_name')
+        
         
         # Load action client topic names
         self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
@@ -390,16 +389,16 @@ class GpsNavigationGui:
     def sendBoundary(self, boundary):
         #rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
         try:
-            sendBoundary = rospy.ServiceProxy('/autonomy_manager/deploy_autonomy', DeployAutonomy)
+            sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, DeployAutonomy)
             if len(boundary) > 0:
                 boundary.pop()
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
-            res = sendBoundary(lat,lon)
-            print("boundary set")
+            res = sendBoundaryClient(lat,lon)
+            print("Boundary Sent")
         except rospy.ServiceException as e:
             print(e)
-            print("boundary sent unsuccessfully")
+            print("Boundary sent unsuccessfully")
 
     def sendWaypoints(self, waypoints):
         #rospy.wait_for_service('/waypoints')
@@ -641,4 +640,7 @@ if __name__ == '__main__':
     mw.setCentralWidget(gps_node.widget)
     mw.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        QtWidgets.QApplication.instance().exec_()
+        try:
+            QtWidgets.QApplication.instance().exec_()
+        except:
+            QtWidgets.QApplication.instance().exec()
