@@ -9,18 +9,20 @@
 	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
 
     <!-- Teleop Node -->
-    <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py" />
+    <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py"/>
+
+    <!-- Arm Raise and Lower Control -->
+    <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
  
     <!-- Arm LIPO Battery Info Publisher -->
     <!-- <node name="lipo_jrk_interface" pkg="arm_control" type="lipo_jrk_interface.py" /> -->
 
     <node 
-		pkg="tf"
+		pkg="tf2_ros"
 		type="static_transform_publisher"
 		name="base_link_gq7_link_static_transform_test"
-		output="screen"
 		args="
-		0 0 0 0 0 0 base_link gq7_link 1000
+		0 0 0 0 0 0 1 base_link gq7_link
 		" />
    
 </launch>

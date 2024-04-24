@@ -283,7 +283,10 @@ class EndEffectorTrajectory:
 
 if __name__ == "__main__":
     # Initialize the ROS node
-    rospy.init_node("robot_control_node")
+    rospy.init_node("arm_control_node")
+    
+    rospy.loginfo("Started Arm Control Node...")
+    
 
     # ROS Publisher for joint commands
     # joint_command_publisher = rospy.Publisher('/robot/joint_commands', JointState, queue_size=10)
@@ -301,4 +304,4 @@ if __name__ == "__main__":
 
     rospy.spin()
 
-    rospy.loginfo("Script completed. Shutting down the ROS node.")
+    rospy.loginfo("Shutting down the ROS node.")
