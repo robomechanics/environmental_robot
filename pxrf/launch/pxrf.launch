@@ -1,8 +1,8 @@
 <launch>
   <!-- PXRF Vanta Communicator -->
-  <node name="pxrf" pkg="pxrf" type="main"/>
+  <node name="pxrf" pkg="pxrf" type="main" output="screen"/>
 
   <!-- PXRF Handler that exposes wrapper services that communicate with PXRF Vanta Communicator -->
-  <node name="pxrf_handler" pkg="pxrf" type="pxrf_handler.py"/>
+  <node name="pxrf_handler" pkg="pxrf" type="pxrf_handler.py" output="screen"/>
 
 </launch>

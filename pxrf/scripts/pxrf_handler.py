@@ -58,6 +58,9 @@ class PXRFHandler(object):
         rospy.Subscriber(self._odometry_topic, Odometry, self.odometry_callback)
         self.scanning = False
         self.location = [0, 0]
+        
+        rospy.loginfo("Started PXRF Handler...")
+        
         rospy.spin()
 
     def load_ros_params(self):
@@ -128,7 +131,7 @@ class PXRFHandler(object):
             )
 
     def response_listener(self, data):
-        print("test complete")
+        rospy.loginfo("Test complete")
         self.test_stopped = (data.data == "201")
 
 
