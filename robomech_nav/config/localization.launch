@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Start GQ7 Odom Launch -->
+	<include file = "$(find robomech_nav)/launch/gq7_odom.launch"/>
+ 
+    <!-- Start GPS Interface -->
+    <node name="gps_navigation_interface" pkg="robomech_nav" type="gps_navigation_interface.py" output="screen" />
+
+</launch>
