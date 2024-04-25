@@ -181,7 +181,6 @@ class GpsNavigationGui:
         self._calibrate_start_service = rospy.get_param('calibrate_start_service_name')
         self._set_search_boundary_name = rospy.get_param('set_search_boundary_name')
         
-        
         # Load action client topic names
         self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
 
