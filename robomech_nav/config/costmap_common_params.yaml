@@ -18,7 +18,7 @@ cost_scaling_factor: 20.0
 #layer definitions
 static:
     enabled: false
-    map_topic: map
+    map_topic: utm_odom
     subscribe_to_updates: true
 
 obstacles_laser:
