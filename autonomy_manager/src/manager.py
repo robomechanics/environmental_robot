@@ -151,6 +151,7 @@ class Manager(object):
 
     def run_once(self):
         self.run_loop_flag = False
+        rospy.loginfo("Running Manager Loop...")
         
         if self.status == RECEIVED_SEARCH_AREA:
             # print(" | Recevied search area")
@@ -184,6 +185,9 @@ class Manager(object):
                 self.run_search_algo()
             elif self.waypoint_sampling:
                 self.run_waypoint_algo()
+                
+        rospy.loginfo("----------------")
+        
     
     def run(self):
         rate = rospy.Rate(10)

@@ -22,7 +22,7 @@
 		type="static_transform_publisher"
 		name="base_link_gq7_link_static_transform_test"
 		args="
-		0 0 0 0 0 0 1 base_link gq7_link
+		-0.09528 0.0162 0 0 0 0 1 base_link gq7_link
 		" />
    
 </launch>

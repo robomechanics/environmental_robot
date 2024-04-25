@@ -10,7 +10,7 @@ grid_points_service_name: 'grid_points'
 next_goal_to_GUI_service_name: 'next_goal_to_GUI'
 lower_arm_service_name: 'lower_arm'
 manager_run_loop_service_name: 'manager_run_loop'
-manager_run_type: 0 # 0 - continuous loop, 1 - run loop when called through service manager_run_loop_service_name
+manager_run_type: 1 # 0 - continuous loop, 1 - run loop when called through service manager_run_loop_service_name
 
 start_utm_x_param: 'start_utm_x'
 start_utm_y_param: 'start_utm_y'
