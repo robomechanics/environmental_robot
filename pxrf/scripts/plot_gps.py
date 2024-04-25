@@ -90,6 +90,8 @@ mw.setCentralWidget(widget)
 mw.show()
 
 if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-    QtGui.QApplication.instance().exec_()
-
+    try:
+        QtGui.QApplication.instance().exec_()
+    except:
+        QtGui.QApplication.instance().exec()
 

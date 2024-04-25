@@ -55,7 +55,7 @@ class TileMap:
                 verticalTile = tile if verticalTile is None else np.concatenate((verticalTile, tile), axis=0)
             completeTile = verticalTile if completeTile is None else np.concatenate((completeTile, verticalTile), axis=1)
 
-        print('\r')
+        print('----------')
         self.map_array = completeTile
         self.x = x_start
         self.y = y_start

@@ -64,4 +64,5 @@ def generate_plot():
 	plt.tight_layout()
 	plt.show()
 
-generate_plot()
+if __name__ == "__main__":
+	generate_plot()
