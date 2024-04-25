@@ -2,17 +2,18 @@
 status_topic: '/autonomy_manager/status'
 sensor_prep_status_topic: '/sensor_prep_status'
 joy_topic: '/joy'
-gps_topic: '/gps_avg'
 sensor_prep_service_name: '/run_sensor_prep'
 set_search_boundary_name: '/autonomy_manager/deploy_autonomy'
-goal_reach_service_name: 'goal_reach'
 clear_service_name: 'clear'
 waypoints_service_name: 'waypoints'
 grid_points_service_name: 'grid_points'
 next_goal_to_GUI_service_name: 'next_goal_to_GUI'
-next_goal_nav_service_name: 'next_goal_nav'
 lower_arm_service_name: 'lower_arm'
-raise_arm_service_name: 'raise_arm'
+manager_run_loop_service_name: 'manager_run_loop'
+manager_run_type: 0 # 0 - continuous loop, 1 - run loop when called through service manager_run_loop_service_name
+
+start_utm_x_param: 'start_utm_x'
+start_utm_y_param: 'start_utm_y'
 
 pxrf_cmd_topic: 'pxrf_cmd'
 pxrf_response_topic: 'pxrf_response'
