@@ -22,6 +22,7 @@ from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from actionlib_msgs.msg import GoalStatus
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
+from pyproj import Transformer
 
 INIT = "Initialization"
 RECEIVED_SEARCH_AREA = "Received search area"
@@ -83,6 +84,9 @@ class Manager(object):
         self.value = -1
         self.gps = None
         self.run_loop_flag = False
+        
+        self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
+        
         
         
         self._set_search_boundary_service = rospy.Service(
@@ -206,11 +210,14 @@ class Manager(object):
         self._joy_topic = rospy.get_param("joy_topic")
         self._gps_topic = rospy.get_param("gps_topic")
         self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
+        self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
+        self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
+        self._crs_GPS = rospy.get_param("crs_GPS")
+        self._crs_UTM = rospy.get_param("crs_UTM")
 
         # Load service names into params
         self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
         self._set_search_boundary_name = rospy.get_param("set_search_boundary_name")
-        self._nav_goal_status_service_name = rospy.get_param("nav_goal_status_service_name")
         self._clear_service_name = rospy.get_param("clear_service_name")
         self._pxrf_complete_service_name = rospy.get_param("pxrf_complete_service_name")
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
