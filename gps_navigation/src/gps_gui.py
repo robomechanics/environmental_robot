@@ -12,9 +12,9 @@ from geometry_msgs.msg import PoseStamped
 import pandas as pd
 import csv
 from std_srvs.srv import SetBool
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, NavSatStatus
 # from microstrain_inertial_msgs.msg import FilterHeading
-# from autonomy_manager.msg import ManagerStatus
+from autonomy_manager.msg import ManagerStatus
 from tile import TileMap
 import actionlib
 from pxrf.msg import TakeMeasurementAction, TakeMeasurementGoal, TakeMeasurementResult
@@ -27,6 +27,7 @@ from gps_user_location import read_location
 from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, RunSensorPrep, Waypoints
 from tf.transformations import euler_from_quaternion
 import tf
+import argparse
 
 #testing
 lat_set = 0
@@ -161,7 +162,7 @@ class GpsNavigationGui:
 
         self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.on_gps_update)
         self.gps_sub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robot_update) # plotRobotPosition
-        # self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.state_update)
+        self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.manager_status_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
         #rospy.spin()
@@ -173,13 +174,16 @@ class GpsNavigationGui:
         
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
-        
+                
         # Load service names into params
         self._parking_brake_service = rospy.get_param('parking_break_service_name')
         self._next_point_service = rospy.get_param('next_goal_to_GUI_service_name')
         self._grid_points_service = rospy.get_param('grid_points_service_name')
         self._calibrate_start_service = rospy.get_param('calibrate_start_service_name')
         self._set_search_boundary_name = rospy.get_param('set_search_boundary_name')
+        self._lower_arm_service_name = rospy.get_param('lower_arm_service_name')
+        self._start_scan_service_name = rospy.get_param('start_scan_service_name')
+        self._clear_service_topic = rospy.get_param('clear_service_name')
         
         # Load action client topic names
         self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
@@ -209,43 +213,58 @@ class GpsNavigationGui:
         clearHistoryBtn = QtWidgets.QPushButton('Clear History')
         clearHistoryBtn.setStyleSheet("background-color : yellow")
         clearHistoryBtn.clicked.connect(clearHistory)
+        
         clearPathBtn = QtWidgets.QPushButton('Clear Path')
         clearPathBtn.setStyleSheet("background-color : yellow")
         clearPathBtn.clicked.connect(self.clearPath)
+        
         self.editPathBtn = QtWidgets.QPushButton('Edit Path')
         self.editPathBtn.setStyleSheet("background-color : yellow")
+        
         self.editPathMode = False
+        
         self.editPathBtn.clicked.connect(self.toggleEditPathMode)
+        
         # loadPathFileBtn = QtWidgets.QPushButton('Load Path')
         # loadPathFileBtn.setStyleSheet("background-color : yellow")
         # loadPathFileBtn.clicked.connect(self.loadPathFile)
         # savePathBtn = QtWidgets.QPushButton('Save Path')
         # savePathBtn.setStyleSheet("background-color : yellow")
         # savePathBtn.clicked.connect(self.savePath)
+        
         self.startPauseBtn = QtWidgets.QPushButton('Start')
         self.startPauseBtn.setStyleSheet("background-color : yellow")
-        self.is_navigating = False
         self.startPauseBtn.clicked.connect(self.startPause)
+        
+        self.is_navigating = False
+        
         # prevGoalBtn = QtWidgets.QPushButton('Prev Goal')
         # prevGoalBtn.setStyleSheet("background-color : yellow")
         # prevGoalBtn.clicked.connect(prevGoal)
+        
         CalibrateBtn = QtWidgets.QPushButton('Calibrate & Set')
         CalibrateBtn.setStyleSheet("background-color : red")
         CalibrateBtn.clicked.connect(self.calibrate)
+        
         self.stopStatus = True
         # self.parking_brake(self.stopStatus)
+        
         self.parkBtn = QtWidgets.QPushButton('PARK ON')
         self.parkBtn.setStyleSheet("background-color : red")
         # self.parkBtn.clicked.connect(self.toggle_brake)
+        
         self.pxrfStatus = False
         self.pxrfBtn = QtWidgets.QPushButton('Sample')
         self.pxrfBtn.clicked.connect(self.toggle_pxrf_collection)
+        
         self.statusGPS = QtWidgets.QLineEdit()
         self.statusGPS.setText('GPS Connecting')
         self.statusGPS.setReadOnly(True)
+        
         self.statusNav = QtWidgets.QLineEdit()
         self.statusNav.setText('Manual Mode')
         self.statusNav.setReadOnly(True)
+        
         self.statusPxrf = QtWidgets.QLineEdit()
         self.statusPxrf.setText('Waiting for the manager')
         self.statusPxrf.setReadOnly(True)
@@ -255,18 +274,20 @@ class GpsNavigationGui:
         self.addBoundaryBtn.setStyleSheet("background-color : orange")
         self.editBoundaryMode = False
         self.addBoundaryBtn.clicked.connect(self.toggleEditBoundaryMode)
+        
         clearBoundaryBtn = QtWidgets.QPushButton('Clear Boundary')
         clearBoundaryBtn.setStyleSheet("background-color : orange")
         clearBoundaryBtn.clicked.connect(self.clearBoundary)
+        
         self.adaptive = False
         self.adaptiveBtn = QtWidgets.QPushButton('Start Adaptive')
         self.adaptiveBtn.setStyleSheet("background-color : orange")
         self.adaptiveBtn.clicked.connect(self.toggleAdaptive)
+        
         self.grid = False
         self.gridBtn = QtWidgets.QPushButton('Start Grid')
         self.gridBtn.setStyleSheet("background-color : orange")
         self.gridBtn.clicked.connect(self.toggleGrid)
-    
 
         self.textbox = QtWidgets.QLineEdit("9")
 
@@ -293,8 +314,8 @@ class GpsNavigationGui:
         # self.widget.addWidget(self.parkBtn,       row=4, col=6, colspan=2)
         self.widget.addWidget(CalibrateBtn,        row=4, col=6, colspan=2)
 
-    # def robot_update(self, data:ManagerStatus):
-    #     self.statusPxrf.setText(data.status)
+    def manager_status_update(self, data:ManagerStatus):
+        self.statusPxrf.setText(data.status)
 
     def on_pxrf_measurement_complete(self, status, result: TakeMeasurementResult):
         print(f'pxrf cb result: {result.result.data}')
@@ -372,7 +393,7 @@ class GpsNavigationGui:
         self.pathPlot.setData(x=[], y=[])
         self.updateGoalMarker()
         self.is_navigating = False
-        self.startPauseBtn.setText('start')
+        self.startPauseBtn.setText('Start')
 
     #This function clears the current boundary
     def clearBoundary(self):
@@ -562,7 +583,7 @@ class GpsNavigationGui:
     def on_gps_update(self, data: NavSatFix):
         self.longitude = data.latitude
         self.latitude = data.longitude
-        self.statusGPS.setText("lat: " + str(round(self.latitude,4)) + " | " +"lon: " + str(round(self.longitude, 4)) + " | status: " + data.status)
+        self.statusGPS.setText("GPS: " + str(round(self.latitude,4)) + " | " + str(round(self.longitude, 4)) + " | " + str(data.status.status))
 
     # This function updates the goal and displays it on the map
     def on_next_goal_update(self, req: NavigateGPS):
@@ -598,26 +619,48 @@ class GpsNavigationGui:
     def clear_map(self):
         #rospy.wait_for_service('clear')
         try:
-            clear = rospy.ServiceProxy('clear', Complete)
-            res = clear(True)
+            clear_service_client = rospy.ServiceProxy(self._clear_service_topic, Complete)
+            res = clear_service_client(True)
         except rospy.ServiceException as e:
             print("failed")
 
     def toggle_pxrf_collection(self):
-        self.pxrfStatus = not self.pxrfStatus
-        if self.pxrfStatus:
-            self.statusPxrf.setText("Collecting")
-            self.pxrfRunning = True
-            self.pxrfBtn.setText("STOP pxrf")
-            self.pubCTRL.publish("start")
-        else:
-            self.statusPxrf.setText("Ready to collect")
-            self.pxrfRunning = False
-            self.pxrfBtn.setText("Sample")
-            self.pubCTRL.publish("stop")
+        try:
+            lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            lower_arm_service(True)
+            
+            rospy.sleep(1)
+            
+            start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, SetBool)
+            start_scan_service(True)
+            
+            rospy.sleep(1)
+            
+            lower_arm_service(False)
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+        
+        # self.pxrfStatus = not self.pxrfStatus
+        # if self.pxrfStatus:
+        #     self.statusPxrf.setText("Collecting")
+        #     self.pxrfRunning = True
+        #     self.pxrfBtn.setText("STOP pxrf")
+        #     self.pubCTRL.publish("start")
+        # else:
+        #     self.statusPxrf.setText("Ready to collect")
+        #     self.pxrfRunning = False
+        #     self.pxrfBtn.setText("Sample")
+        #     self.pubCTRL.publish("stop")
 
 if __name__ == '__main__':
-    rospy.init_node('gps_user_input',anonymous=True)
+    parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
+    parser.add_argument("-o", "--option", type=int, default=3, 
+                        help='1: Change Map. 2: New Map. 3: Continue.')
+
+    args = parser.parse_args()
+
+    rospy.init_node('gps_gui',anonymous=True)
+    
     try:
        lat = float(rospy.get_param('~lat'))
        lon = float(rospy.get_param('~lon'))
@@ -626,7 +669,7 @@ if __name__ == '__main__':
        width = int(rospy.get_param('~width'))
     except:
         #user can input the location manually
-        location_input = read_location()
+        location_input = read_location(map_option=args.option)
         lat, lon = [float(n) for n in location_input[1:3]]
         zoom = int(location_input[3])
         width, height = [int(n) for n in location_input[4:6]]
@@ -634,7 +677,6 @@ if __name__ == '__main__':
     # main window
     app = QtWidgets.QApplication([])
     mw = QtWidgets.QMainWindow()
-    print(f'{lat}, {lon}, {width}, {height}')
     gps_node = GpsNavigationGui(lat, lon, zoom, width, height)
     mw.setCentralWidget(gps_node.widget)
     mw.show()
