@@ -25,7 +25,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
 -->
 <launch>
   <!-- node name="NavigationInterfaceNode" pkg="robomech_nav" type="navigation_interface.py" output="screen"/ -->
-  <arg name="no_static_map" default="true"/>
+  <arg name="no_static_map" default="false"/>
   
   <arg name="base_global_planner" default="navfn/NavfnROS"/>
   <arg name="base_local_planner" default="dwa_local_planner/DWAPlannerROS"/>
@@ -45,16 +45,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
     <rosparam file="$(find robomech_nav)/config/costmap_local_params.yaml" command="load" ns="local_costmap"/>
 
     <!-- local costmap size -->
-    <param name="local_costmap/width" value="6.0"/>
-    <param name="local_costmap/height" value="6.0"/>
+    <param name="local_costmap/width" value="15.0"/>
+    <param name="local_costmap/height" value="15.0"/>
 
     <!-- global costmap parameters -->
     <rosparam file="$(find robomech_nav)/config/costmap_global_params.yaml" command="load" ns="global_costmap"/>
   
     <!-- global_costmap size -->
-    <param name="global_costmap/width" value="100.0" if="$(arg no_static_map)"/>
-    <param name="global_costmap/height" value="100.0" if="$(arg no_static_map)"/>
-    <param name="global_costmap/origin_x" value="-50.0" if="$(arg no_static_map)"/>
-    <param name="global_costmap/origin_y" value="-50.0" if="$(arg no_static_map)"/>
+    <param name="global_costmap/width" value="200.0"/>
+    <param name="global_costmap/height" value="200.0"/>
+    <param name="global_costmap/origin_x" value="-50.0"/>
+    <param name="global_costmap/origin_y" value="-50.0"/>
   </node> 
 </launch>
