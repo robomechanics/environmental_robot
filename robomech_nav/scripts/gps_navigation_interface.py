@@ -11,8 +11,6 @@ from microstrain_inertial_msgs.msg import HumanReadableStatus
 import message_filters
 from pyproj import Transformer
 from autonomy_manager.srv import NavigateGPS
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-import actionlib
 
 class GPSNavigationInterface:
     def __init__(self):
@@ -56,14 +54,6 @@ class GPSNavigationInterface:
         )
         self.ts.registerCallback(self.time_sync_callback)
         
-        
-        # Services
-        self._next_goal_nav_service = rospy.Service(self._next_goal_nav_service_name, NavigateGPS, self.publish_robot_goal)
-
-        # Action Services
-        self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
-        self.mb_client.wait_for_server()
-
         # self.atenna1_sub = rospy.Subscriber("/gq7/gnss_1/llh_position", NavSatFix, self.antenna1_update)
         # self.atenna2_sub = rospy.Subscriber("/gq7/gnss_2/llh_position", NavSatFix, self.antenna2_update)
 
@@ -75,10 +65,13 @@ class GPSNavigationInterface:
         self._gq7_ekf_odom_map_topic = rospy.get_param("gq7_ekf_odom_map_topic")
         self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
-        self._next_goal_nav_service_name = rospy.get_param("next_goal_nav_service_name")
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
+        
+        self._start_utm_x_param = rospy.get_param("start_utm_x_param")
+        self._start_utm_y_param = rospy.get_param("start_utm_y_param")
+        
 
     def gps_status_callback(self, data):
         # todo: check data.status_flags.heading_warning?
@@ -119,6 +112,9 @@ class GPSNavigationInterface:
         )
 
         self.first_LatLon = False
+        
+        rospy.set_param(self._start_utm_x_param, self.x_UTM_start)
+        rospy.set_param(self._start_utm_y_param, self.y_UTM_start)
 
         self.gps_status_sub.unregister()
 
@@ -143,33 +139,6 @@ class GPSNavigationInterface:
         # Publish Odom message
         self.odom.header.stamp = data.header.stamp
         self.utm_odom_pub.publish(self.odom)
-        
-    def publish_robot_goal(self, data):
-        self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(data.goal_lat, data.goal_lon)
-        
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = self._tf_utm_odom_frame
-        goal.target_pose.header.stamp = rospy.Time.now()
-        
-        goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
-        goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
-        goal.target_pose.pose.position.z = 0.0
-        goal.target_pose.pose.orientation.x = self.quaternion[0]
-        goal.target_pose.pose.orientation.y = self.quaternion[1]
-        goal.target_pose.pose.orientation.z = self.quaternion[2]
-        goal.target_pose.pose.orientation.w = self.quaternion[3]
-
-        self.mb_client.send_goal(goal)
-        print(" | Goal Sent to movebase...")
-        wait = self.mb_client.wait_for_result()
-        if not wait:
-            rospy.logerr("Action server not available!")
-            rospy.signal_shutdown("Action server not available!")
-        else:
-            return self.mb_client.get_result()
-
-        print(" | Goal Reached")
-        
 
     def find_inverses(self, data):
         # Inverse transformation matrix
@@ -252,5 +221,5 @@ if __name__ == "__main__":
     rospy.init_node("utm_to_odom_node", anonymous=True)
 
     gps_nav_interface = GPSNavigationInterface()
-
+    rospy.loginfo("Started GPS Navigation Interface Node...")
     rospy.spin()

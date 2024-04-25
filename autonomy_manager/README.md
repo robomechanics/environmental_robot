@@ -1,24 +1,5 @@
 # Manager 
 
-## State Machine
-```mermaid
-flowchart TD;
-    INIT --> WAITING_FOR_GPS_INIT;
-    WAITING_FOR_GPS_INIT --> READY;
-    READY --> RECEIVED_SEARCH_AREA;
-    RECEIVED_SEARCH_AREA --> |adaptive| RUNNING_SEARCH_ALGO --> RECEIVED_NEXT_SCAN_LOC --> NAVIGATION_TO_SCAN_LOC;
-    RECEIVED_SEARCH_AREA --> |grid| RUNNING_GRID_ALGO --> RECEIVED_NEXT_SCAN_LOC --> NAVIGATION_TO_SCAN_LOC;
-    NAVIGATION_TO_SCAN_LOC --> ARRIVED_AT_SCAN_LOC;
-    RECEIVED_SEARCH_AREA --> |waypoint| RUNNING_WAYPOINT_ALGO --> RECEIVED_NEXT_SCAN_LOC --> NAVIGATION_TO_SCAN_LOC;
-    ARRIVED_AT_SCAN_LOC --> RAKING;
-    ARRIVED_AT_SCAN_LOC --> SCANNING;
-    RAKING --> FINISHED_RAKING --> SCANNING;
-    SCANNING --> FINISHED_SCAN;
-    
-```
-
-
-
 ## Code Logic
 - DeployAutonomy is a list of (lat, lan) and returns success if path was successfully followed
 
