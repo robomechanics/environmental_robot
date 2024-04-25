@@ -29,6 +29,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
   
   <arg name="base_global_planner" default="navfn/NavfnROS"/>
   <arg name="base_local_planner" default="dwa_local_planner/DWAPlannerROS"/>
+ 
+  <arg name="cmd_vel_topic" default="cmd_vel_nav" />
+
   <!-- arg name="base_local_planner" default="base_local_planner/TrajectoryPlannerROS"/ -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
     <param name="base_global_planner" value="$(arg base_global_planner)"/>
@@ -56,5 +59,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
     <param name="global_costmap/height" value="200.0"/>
     <param name="global_costmap/origin_x" value="-50.0"/>
     <param name="global_costmap/origin_y" value="-50.0"/>
+  
+    <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
+  
   </node> 
 </launch>
