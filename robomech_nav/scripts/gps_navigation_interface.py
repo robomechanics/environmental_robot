@@ -35,7 +35,7 @@ class GPSNavigationInterface:
 
         # Publishers and Subscribers
         self.utm_odom_pub = rospy.Publisher(
-            self._tf_utm_odom_topic, Odometry, queue_size=1
+            self._gps_odom_topic, Odometry, queue_size=1
         )
 
         self.gps_status_sub = rospy.Subscriber(
@@ -61,7 +61,7 @@ class GPSNavigationInterface:
         # Load topic names into params
         self._tf_base_link_frame = rospy.get_param("tf_base_link_frame")
         self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
-        self._tf_utm_odom_topic = rospy.get_param("tf_utm_odom_topic")
+        self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._gq7_ekf_odom_map_topic = rospy.get_param("gq7_ekf_odom_map_topic")
         self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")

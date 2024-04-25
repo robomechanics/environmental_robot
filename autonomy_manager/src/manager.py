@@ -57,11 +57,18 @@ class Manager(object):
         )
         self.update_status(INIT)
         
-        #########################change it back to /gps_avg#########################################################
+        self.is_full_nav_achieved = False
+        
         rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
         self.sensorPrep = rospy.ServiceProxy(
             self._sensor_prep_service_name, RunSensorPrep
         )
+
+        # Check if Full Nav achieved
+        self.utm_odom_sub = rospy.Subscriber(
+            self._gps_odom_topic, Odometry, self.gps_odom_callback
+        )
+
         # intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
         self.gridROS = None
@@ -109,12 +116,14 @@ class Manager(object):
         print(" | Waiting for move_base server")
         self.mb_client.wait_for_server()
         
-        # wait until the gps calibration is finished
-        # while self.lon is None or self.lat is None:
-        #     self.update_status(WAITING_FOR_GPS_INIT)
-        #     print(self.status)
-        #     rospy.sleep(1)
-
+        # wait until GPS Full Nav is achieved
+        while self.is_full_nav_achieved:
+            self.update_status(WAITING_FOR_GPS_INIT)
+            rospy.loginfo(3,"Waiting for GPS Initiliazation...")
+            rospy.sleep(1)
+        
+        self.utm_odom_sub.unregister()
+        
         self.update_status(READY)
 
         # get ros param
@@ -153,6 +162,9 @@ class Manager(object):
                     self.update_status(FINISHED_SCAN)
             self.last_skip_button_status = data.buttons[1] > 0
 
+    def gps_odom_callback(self, data: Odometry):
+        self.is_full_nav_achieved = True
+        
     def run_once(self):
         self.run_loop_flag = False
         rospy.loginfo("Running Manager Loop...")
@@ -214,7 +226,8 @@ class Manager(object):
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
-
+        self._gps_odom_topic = rospy.get_param("gps_odom_topic")
+        
         # Load service names into params
         self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
         self._set_search_boundary_name = rospy.get_param("set_search_boundary_name")

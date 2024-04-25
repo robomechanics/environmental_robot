@@ -31,8 +31,6 @@ gps_sub_topic: '/heading_true'
 parking_break_service_name: '/parking_brake'
 calibrate_start_service_name: '/start'
 pxrf_client_topic_name: '/take_measurement'
-#todo: location_sub_topic = gps_topic
-location_sub_topic: '/gps_avg'
 
 # Autonomy Teleop (autonomy_teleop.py)
 deploy_sensor_auto_service_name: '/deploy_sensor_auto'
@@ -66,3 +64,7 @@ move_base_action_server_name: 'move_base'
 
 # Network
 vanta_ip: "192.168.7.2"
+
+# Robot
+estop_enable_topic: /soft_estop/enable
+estop_reset_topic: /soft_estop/reset

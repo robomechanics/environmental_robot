@@ -9,7 +9,7 @@
 	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
 
     <!-- Teleop Node -->
-    <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py"/>
+    <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py" output="screen" />
 
     <!-- Arm Raise and Lower Control -->
     <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
