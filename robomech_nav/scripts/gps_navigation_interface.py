@@ -67,7 +67,6 @@ class GPSNavigationInterface:
         self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
-        self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
         
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
