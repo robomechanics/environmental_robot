@@ -28,6 +28,10 @@ class TileMap:
     def load_tiles(self, coord, dim, zoom: int):
         lon: float = coord[0]
         lat: float = coord[1]
+        
+        self.lon = coord[0]
+        self.lat = coord[1]
+        
         width: int = dim[0]
         height: int = dim[1] 
         print(f'Window at Lon: {lon}, Lat: {lat}, W: {width}, H: {height}')

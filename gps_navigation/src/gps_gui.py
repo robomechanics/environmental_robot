@@ -6,6 +6,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from std_msgs.msg import String
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
@@ -89,6 +90,7 @@ class GpsNavigationGui:
 
         #pxrf control
         self.pxrfRunning = False
+        self.num_measurements = 0
 
         #speed display
         self.highSpeed = True
@@ -165,12 +167,17 @@ class GpsNavigationGui:
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.manager_status_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
         
+        self.pxrf_sub = rospy.Subscriber(self._pxrf_response_topic, String, self.pxrf_response_callback)
+        
+        
         #rospy.spin()
 
     def load_ros_params(self):
         # Load topic names into params
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
         self._gps_sub_topic = rospy.get_param('gq7_ekf_llh_topic')
+        self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
+        
         
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
@@ -319,7 +326,6 @@ class GpsNavigationGui:
 
     def on_pxrf_measurement_complete(self, status, result: TakeMeasurementResult):
         print(f'pxrf cb result: {result.result.data}')
-        self.pxrfRunning = False
         self.pxrfBtn.setText('Sample')
         self.statusPxrf.setText("Ready to collect")
         self.pxrfStatus = False
@@ -332,6 +338,23 @@ class GpsNavigationGui:
 
         if result.result.data == "201":
             generate_plot()
+    
+    def pxrf_response_callback(self, result:String):
+        if self.pxrfRunning and result.data == "201":
+            self.pxrfRunning = False
+            self.pxrfBtn.setText('Sample')
+            self.statusPxrf.setText("Ready to collect")
+
+            self.num_measurements += 1
+            
+            self.add_marker_at(self.prev_lat, self.prev_lon, f'Sample#{self.num_measurements}')
+            try:
+                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+                lower_arm_service(False)
+            
+                rospy.sleep(1.0)
+            except rospy.ServiceException as e:
+                print("Service call failed: %s"%e)
 
     def calibrate(self):
         try: 
@@ -559,6 +582,13 @@ class GpsNavigationGui:
         #calculate heading based on gps coordinates 
         pixX, pixY = self.satMap.coord2Pixel(lat, lon)
         
+        # rospy.loginfo_throttle(10, "Robot Lat/Lon    : %s %s", self.latitude, self.longitude)
+        # rospy.loginfo_throttle(10, "Tile Map Lat/Lon : %s %s", self.satMap.lat, self.satMap.lon)
+        # rospy.loginfo_throttle(10, "Tile Map X/Y     : %s %s", self.satMap.x, self.satMap.y)
+        rospy.loginfo_once("Robot Pixel Pos  : %s %s", pixX, pixY)
+        
+        
+        
         self.quaternion = tf.transformations.random_quaternion()
         self.quaternion[0] = data.pose.pose.orientation.x
         self.quaternion[1] = data.pose.pose.orientation.y
@@ -581,9 +611,10 @@ class GpsNavigationGui:
     
     # This function updates the value of longitude and latitude information
     def on_gps_update(self, data: NavSatFix):
-        self.longitude = data.latitude
-        self.latitude = data.longitude
-        self.statusGPS.setText("GPS: " + str(round(self.latitude,4)) + " | " + str(round(self.longitude, 4)) + " | " + str(data.status.status))
+        self.latitude = data.latitude
+        self.longitude = data.longitude
+        
+        self.statusGPS.setText("GPS: " + str(round(self.latitude,4)) + " | " + str(round(self.longitude, 4)))
 
     # This function updates the goal and displays it on the map
     def on_next_goal_update(self, req: NavigateGPS):
@@ -629,14 +660,15 @@ class GpsNavigationGui:
             lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
             lower_arm_service(True)
             
-            rospy.sleep(1)
+            rospy.sleep(1.5)
             
-            start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, SetBool)
+            start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
             start_scan_service(True)
             
-            rospy.sleep(1)
+            print("Started Scan")
+            self.pxrfRunning = True
+            self.statusPxrf.setText("Collecting")
             
-            lower_arm_service(False)
         except rospy.ServiceException as e:
             print("Service call failed: %s"%e)
         
