@@ -161,8 +161,10 @@ class GpsNavigationGui:
         # ros sub pub
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
         self.goal_pub = rospy.Publisher(self._goal_pub_topic, PoseStamped, queue_size=5)
-
-        self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.on_gps_update)
+        
+        self.location_sub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.on_gps_update) # Use GPS moving avg llh position
+        # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.on_gps_update) # Use GPS llh position
+        
         self.gps_sub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robot_update) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.manager_status_update)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
@@ -177,8 +179,7 @@ class GpsNavigationGui:
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
         self._gps_sub_topic = rospy.get_param('gq7_ekf_llh_topic')
         self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
-        
-        
+        self._gps_moving_avg_topic = rospy.get_param("gps_moving_avg_topic")
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
                 
