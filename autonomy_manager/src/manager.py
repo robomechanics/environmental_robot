@@ -78,10 +78,6 @@ class Manager(object):
         self.grid_sampling = False
         self.adaptive_sampling = False
         self.waypoint_sampling = False
-        
-        rospy.set_param("grid", False)
-        rospy.set_param("adaptive", True)
-        rospy.set_param("waypoint", False)
 
         #######################change it to None#################################
         self.lat = None
@@ -119,15 +115,16 @@ class Manager(object):
         # wait until GPS Full Nav is achieved
         while self.is_full_nav_achieved:
             self.update_status(WAITING_FOR_GPS_INIT)
-            rospy.loginfo(3,"Waiting for GPS Initiliazation...")
+            rospy.loginfo_throttle(3,"Waiting for GPS Initiliazation...")
             rospy.sleep(1)
-        
+            
+        rospy.loginfo("GPS Full Navigation Achieved!") 
         self.utm_odom_sub.unregister()
         
         self.update_status(READY)
 
         # get ros param
-        print(" | Waiting to start (Choose a sampling algorithm)")
+        rospy.loginfo(" | Waiting to start (Choose a sampling algorithm)")
         while (
             self.grid_sampling == False
             and self.adaptive_sampling == False
@@ -138,7 +135,8 @@ class Manager(object):
             self.waypoint_sampling = rospy.get_param("waypoint", False)
             self.number_points = rospy.get_param("number_points", 9)
 
-        print(" | Algorithm Set")
+        rospy.loginfo(" | Algorithm Set")
+        rospy.loginfo("----------- READY -----------")
         
         
     def _unused(self):
@@ -167,7 +165,7 @@ class Manager(object):
         
     def run_once(self):
         self.run_loop_flag = False
-        rospy.loginfo("Running Manager Loop...")
+        rospy.loginfo("----------- Manager Loop START-----------")
         
         if self.status == RECEIVED_SEARCH_AREA:
             # print(" | Recevied search area")
@@ -202,8 +200,7 @@ class Manager(object):
             elif self.waypoint_sampling:
                 self.run_waypoint_algo()
                 
-        rospy.loginfo("----------------")
-        
+        rospy.loginfo("----------- Manager Loop END -----------")
     
     def run(self):
         rate = rospy.Rate(10)
@@ -264,7 +261,7 @@ class Manager(object):
         if data.status == True:
             self.pxrf_complete = True
             self.value = data.mean
-            print("PXRF value is :" + str(self.value))
+            print("PXRF value:" + str(self.value))
         else:
             self.pxrf_complete = False
         return True
