@@ -12,7 +12,7 @@
     <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py" output="screen" />
 
     <!-- Arm Raise and Lower Control -->
-    <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
+    <!-- <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/> -->
  
     <!-- Arm LIPO Battery Info Publisher -->
     <!-- <node name="lipo_jrk_interface" pkg="arm_control" type="lipo_jrk_interface.py" /> -->

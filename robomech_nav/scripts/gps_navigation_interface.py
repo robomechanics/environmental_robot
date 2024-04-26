@@ -72,7 +72,7 @@ class GPSNavigationInterface:
         self._gq7_ekf_odom_map_topic = rospy.get_param("gq7_ekf_odom_map_topic")
         self._gps_moving_avg_topic = rospy.get_param("gps_moving_avg_topic")
         self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
-        self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
+        self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._gps_avg_time = rospy.get_param("gps_moving_avg_time")
@@ -146,13 +146,13 @@ class GPSNavigationInterface:
         self.gps_avg_last_publish_time = rospy.Time.now()
         
     def publish_gps_moving_avg(self, data: NavSatFix):
-        if ( (rospy.Time.now() - self.gps_avg_last_publish_time).secs > self.gps_avg_time):
-            self._gps_avg.latitude = self._gps_avg_history_sum.latitude / self._gps_avg_history_count
-            self._gps_avg.longitude = self._gps_avg_history_sum.longitude / self._gps_avg_history_count
-            
-            self.reset_gps_moving_avg()
-            
-            self.gps_avg_pub.publish(self._gps_avg)
+        if ( ( (rospy.Time.now() - self.gps_avg_last_publish_time).secs > self._gps_avg_time) and (self._gps_avg_history_count > 0) ):
+                self._gps_avg.latitude = self._gps_avg_history_sum.latitude / self._gps_avg_history_count
+                self._gps_avg.longitude = self._gps_avg_history_sum.longitude / self._gps_avg_history_count
+                
+                self.reset_gps_moving_avg()
+                
+                self.gps_avg_pub.publish(self._gps_avg)
         else:
             self._gps_avg_history_count += 1
             self._gps_avg_history_sum.latitude += data.latitude
