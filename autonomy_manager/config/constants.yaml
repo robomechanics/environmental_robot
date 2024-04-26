@@ -31,6 +31,8 @@ gps_sub_topic: '/heading_true'
 parking_break_service_name: '/parking_brake'
 calibrate_start_service_name: '/start'
 pxrf_client_topic_name: '/take_measurement'
+gps_moving_avg_topic: '/gps_moving_avg'
+gps_moving_avg_time: 1
 
 # Autonomy Teleop (autonomy_teleop.py)
 deploy_sensor_auto_service_name: '/deploy_sensor_auto'
@@ -52,7 +54,7 @@ lower_arm_service_name: 'arm/lower'
 #GPS
 tf_base_link_frame: 'base_link'
 tf_utm_odom_frame: 'utm_odom'
-tf_utm_odom_topic: 'utm_odom'
+gps_odom_topic: 'utm_odom'
 gq7_ekf_odom_map_topic: '/gq7/ekf/odometry_map'
 gq7_ekf_llh_topic: '/gq7/ekf/llh_position'
 gq7_ekf_status_topic: '/gq7/ekf/status'

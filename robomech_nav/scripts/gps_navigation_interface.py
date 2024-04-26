@@ -14,11 +14,14 @@ from autonomy_manager.srv import NavigateGPS
 
 class GPSNavigationInterface:
     def __init__(self):
+        self.load_ros_params()
+        
         self.first_LatLon = True
         self.is_full_nav_achieved = False
+        self._gps_avg_history_sum = NavSatFix()
+        self._gps_avg = NavSatFix()
+        self.reset_gps_moving_avg()
         # self.first_time_Orientation = True
-
-        self.load_ros_params()
 
         self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
 
@@ -37,7 +40,11 @@ class GPSNavigationInterface:
         self.utm_odom_pub = rospy.Publisher(
             self._gps_odom_topic, Odometry, queue_size=1
         )
-
+        
+        self.gps_avg_pub = rospy.Publisher(
+            self._gps_moving_avg_topic, NavSatFix, queue_size=1
+        )
+        
         self.gps_status_sub = rospy.Subscriber(
             self._gq7_ekf_status_topic, HumanReadableStatus, self.gps_status_callback
         )
@@ -63,10 +70,14 @@ class GPSNavigationInterface:
         self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._gq7_ekf_odom_map_topic = rospy.get_param("gq7_ekf_odom_map_topic")
-        self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
+        self._gps_moving_avg_topic = rospy.get_param("gps_moving_avg_topic")
+        self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
         self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
+        self._gps_avg_time = rospy.get_param("gps_moving_avg_time")
+        
+        self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
         
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
@@ -87,6 +98,7 @@ class GPSNavigationInterface:
         if self.is_full_nav_achieved:
             self.update_orientation(odom_map_data)
             self.utm_broadcaster(llh_data)
+            self.publish_gps_moving_avg(llh_data)
 
     def update_orientation(self, data):
         # Grabbing the quaternion orientation
@@ -124,7 +136,28 @@ class GPSNavigationInterface:
         # Grabbing a heading angle
         eulerVals = euler_from_quaternion(self.quaternion, "sxyz")
         self.theta_heading = eulerVals[2]
-
+        
+    def reset_gps_moving_avg(self):
+        self._gps_avg_history_sum.latitude = 0
+        self._gps_avg_history_sum.longitude = 0
+        self._gps_avg_history_sum.altitude = 0
+        
+        self._gps_avg_history_count = 0
+        self.gps_avg_last_publish_time = rospy.Time.now()
+        
+    def publish_gps_moving_avg(self, data: NavSatFix):
+        if ( (rospy.Time.now() - self.gps_avg_last_publish_time).secs > self.gps_avg_time):
+            self._gps_avg.latitude = self._gps_avg_history_sum.latitude / self._gps_avg_history_count
+            self._gps_avg.longitude = self._gps_avg_history_sum.longitude / self._gps_avg_history_count
+            
+            self.reset_gps_moving_avg()
+            
+            self.gps_avg_pub.publish(self._gps_avg)
+        else:
+            self._gps_avg_history_count += 1
+            self._gps_avg_history_sum.latitude += data.latitude
+            self._gps_avg_history_sum.longitude += data.longitude
+            
     def create_UTM_Odom(self, data):
         # Creating a pose message for location in Odom
         self.odom.pose.pose.position.x = self.x_UTM - self.x_UTM_start
