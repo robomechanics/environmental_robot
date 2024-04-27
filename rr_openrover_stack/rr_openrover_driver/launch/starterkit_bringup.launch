@@ -2,6 +2,7 @@
     <arg name="openrover_node_name" default="rr_openrover_driver" />
     <arg name="config_locks"  default="$(find rr_openrover_driver)/config/twist_mux_locks.yaml"/>
     <arg name="config_topics" default="$(find rr_openrover_driver)/config/twist_mux_topics.yaml"/>
+    <arg name="xbox_controller" default="false" />
 
     <!-- OpenRover Driver -->
     <node pkg="rr_openrover_driver" type="openrover_driver_node" name="$(arg openrover_node_name)" respawn="false" output="screen">
@@ -29,22 +30,6 @@
         <remap from="/raw_slow_rate_data" to="/$(arg openrover_node_name)/raw_slow_rate_data"/>
     </node>
 
-    <!-- Xbox 360 Controller Button Mapping -->
-    <node pkg="rr_control_input_manager" type="xbox_mapper.py" name="rr_xbox_mapper_node" output="screen" >
-        <remap from="joy" to="/joystick" />
-        <remap from="/joystick/a_button" to="/soft_estop/enable" />
-        <remap from="/joystick/b_button" to="/soft_estop/reset" />
-        <remap from="/joystick/y_button" to="/joy_priority" />
-        <remap from="/joystick/x_button" to="/pause_navigation"/>
-        <param name="max_vel_fwd" value="0.4" />
-        <param name="max_vel_turn" value="7.0" />
-        <param name="adjustable_throttle" value="True" />
-        <param name="drive_increment" value="20" />
-        <param name="flipper_increment" value="20" />
-        <param name="x_button_toggle" value="true"/>
-        <param name="y_button_toggle" value="true"/>
-    </node>
-
     <!--  Twist Mux  -->
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
         <remap from="cmd_vel_out" to="/cmd_vel/managed"/>
@@ -60,10 +45,28 @@
         <rosparam file="$(find rr_control_input_manager)/config/input_topics.yaml" command="load"/>
     </node>
 
-    <!-- Xbox controller driver -->
-    <!--node pkg="joy" type="joy_node" name="joy_node" output="screen" respawn="true" >
-        <param name="autorepeat_rate" value="10" />
-        <param name="dev" value="/dev/input/jsX" />
-        <remap from="/joy" to="/joystick" />
-    </node-->
+    <group if="$(arg xbox_controller)">
+        <!-- Xbox 360 Controller Button Mapping -->
+        <node pkg="rr_control_input_manager" type="xbox_mapper.py" name="rr_xbox_mapper_node" output="screen" >
+            <remap from="joy" to="/joystick" />
+            <remap from="/joystick/a_button" to="/soft_estop/enable" />
+            <remap from="/joystick/b_button" to="/soft_estop/reset" />
+            <remap from="/joystick/y_button" to="/joy_priority" />
+            <remap from="/joystick/x_button" to="/pause_navigation"/>
+            <param name="max_vel_fwd" value="0.4" />
+            <param name="max_vel_turn" value="7.0" />
+            <param name="adjustable_throttle" value="True" />
+            <param name="drive_increment" value="20" />
+            <param name="flipper_increment" value="20" />
+            <param name="x_button_toggle" value="true"/>
+            <param name="y_button_toggle" value="true"/>
+        </node>
+
+         <!-- Xbox controller driver -->
+        <node pkg="joy" type="joy_node" name="joy_node" output="screen" respawn="true" >
+            <param name="autorepeat_rate" value="10" />
+            <param name="dev" value="/dev/input/jsX" />
+            <remap from="/joy" to="/joystick" />
+        </node>
+    </group>
 </launch>

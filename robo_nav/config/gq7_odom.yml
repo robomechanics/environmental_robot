@@ -91,22 +91,20 @@ imu_pressure_variance : 0.01
 # This will contain the raw IMU data, NOT the filtered IMU data. This is useful for tools like robot_localization
 imu_data_rate : 100
 
-# For this use case, we will not publish any raw GNSS information
-gnss1_llh_position_data_rate   : 10
+gnss1_llh_position_data_rate   : 1 
 gnss1_velocity_data_rate       : 0
-gnss1_odometry_earth_data_rate : 10
-gnss2_llh_position_data_rate   : 10
+gnss1_odometry_earth_data_rate : 1
+gnss2_llh_position_data_rate   : 1
 gnss2_velocity_data_rate       : 0
-gnss2_odometry_earth_data_rate : 10
+gnss2_odometry_earth_data_rate : 1
 
 # We will only publish the map odometry message from the filter in this example.
 # Also publish the human readable message which can be echoed from the command line
-filter_human_readable_status_data_rate : 2
-filter_odometry_earth_data_rate        : 2
+filter_human_readable_status_data_rate : 1
+filter_odometry_earth_data_rate        : 1
 filter_odometry_map_data_rate          : 30
 
-# CUSTOM
-mip_gnss1_fix_info_data_rate           : 5  # Rate of mip/gnss_1/fix_info topic
-mip_gnss2_fix_info_data_rate           : 5  # Rate of mip/gnss_1/fix_info topic
-filter_dual_antenna_heading_data_rate  : 5  # Rate of ekf/dual_antenna_heading topic
+mip_gnss1_fix_info_data_rate           : 1  # Rate of mip/gnss_1/fix_info topic
+mip_gnss2_fix_info_data_rate           : 1  # Rate of mip/gnss_1/fix_info topic
+filter_dual_antenna_heading_data_rate  : 0  # Rate of ekf/dual_antenna_heading topic
 filter_llh_position_data_rate          : 30 # Rate of ekf/llh_position topic
