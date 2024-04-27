@@ -11,12 +11,7 @@
     <!-- Teleop Node -->
     <node name="teleop_patrick" pkg="robomech_nav" type="teleop_patrick.py" output="screen" />
 
-    <!-- Arm Raise and Lower Control -->
-    <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
- 
-    <!-- Arm LIPO Battery Info Publisher -->
-    <!-- <node name="lipo_jrk_interface" pkg="arm_control" type="lipo_jrk_interface.py" /> -->
-
+    <!-- Static TF: base_link -> gq7_link -->
     <node 
 		pkg="tf2_ros"
 		type="static_transform_publisher"
@@ -24,5 +19,9 @@
 		args="
 		-0.0162 -0.09528 0 0 0 0 1 base_link gq7_link
 		" />
+
+    <!-- Arm Raise and Lower Control -->
+    <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
+ 
    
 </launch>

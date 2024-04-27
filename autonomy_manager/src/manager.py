@@ -109,13 +109,13 @@ class Manager(object):
 
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
-        print(" | Waiting for move_base server")
-        self.mb_client.wait_for_server()
+        # print(" | Waiting for move_base server")
+        # self.mb_client.wait_for_server()
         
         # wait until GPS Full Nav is achieved
-        while self.is_full_nav_achieved:
+        while not self.is_full_nav_achieved:
             self.update_status(WAITING_FOR_GPS_INIT)
-            rospy.loginfo_throttle(3,"Waiting for GPS Initiliazation...")
+            rospy.loginfo_throttle(3,"Waiting for GPS Initialization...")
             rospy.sleep(1)
             
         rospy.loginfo("GPS Full Navigation Achieved!") 
@@ -217,7 +217,6 @@ class Manager(object):
         self._status_topic = rospy.get_param("status_topic")
         # self._sensor_prep_status_topic = rospy.get_param("sensor_prep_status_topic")
         self._joy_topic = rospy.get_param("joy_topic")
-        self._gps_topic = rospy.get_param("gps_topic")
         self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
         self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')

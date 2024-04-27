@@ -30,7 +30,7 @@ class PatrickTeleop:
         )
 
         self.drive_factor = 1.0
-        self.turn_factor = 3.0
+        self.turn_factor = 1.0
 
         self.pub_twist_cmd = False
 
@@ -71,10 +71,10 @@ class PatrickTeleop:
                 self.drive_factor = max(0, self.drive_factor - 0.5)
                 rospy.loginfo("Drive Factor: %s", self.drive_factor)
             elif self.joy_buttons[1]:
-                self.turn_factor = min(6, self.turn_factor + 0.5)
+                self.turn_factor = min(3, self.turn_factor + 0.5)
                 rospy.loginfo("Turn Factor: %s", self.turn_factor)
             elif self.joy_buttons[2]:
-                self.turn_factor = max(4, self.turn_factor - 0.5)
+                self.turn_factor = max(0, self.turn_factor - 0.5)
                 rospy.loginfo("Turn Factor: %s", self.turn_factor)
 
             if self.joy_buttons[5]:
