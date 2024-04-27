@@ -16,7 +16,7 @@ pxrf_path = rospack.get_path('pxrf')
 print(pxrf_path)
 
 def generate_plot():
-#setable parameters
+	#setable parameters
 	threshold = 0.01
 	number_of_elements_display_limit = 10
 

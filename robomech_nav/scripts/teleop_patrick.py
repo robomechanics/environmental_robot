@@ -23,10 +23,10 @@ class PatrickTeleop:
             self._cmd_managed_topic, Twist, queue_size=0
         )
         self.estop_enable_publisher = rospy.Publisher(
-            self._estop_enable_topic, Bool, queue_size=0
+            self._estop_enable_topic, Bool, queue_size=1
         )
         self.estop_reset_publisher = rospy.Publisher(
-            self._estop_reset_topic, Bool, queue_size=0
+            self._estop_reset_topic, Bool, queue_size=1
         )
 
         self.drive_factor = 1.0

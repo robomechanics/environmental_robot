@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 import sys
 import os
-import re
 import csv
+import pyqtgraph as pg
 
 # add pxrf's plot script to lookup path
 import rospkg
@@ -51,3 +51,41 @@ def read_location(map_option=3):
         elif map_option == 3:
             # print("Launching GUI")
             return data[-1]
+
+
+class PlotWithClick(pg.PlotItem):
+    def mouseClickEvent(self, ev):
+        xClick = self.getViewBox().mapSceneToView(ev.scenePos()).x()
+        yClick = self.getViewBox().mapSceneToView(ev.scenePos()).y()
+        for handler in self.click_handlers:
+            handler([xClick, yClick])
+            
+class MeasurementMarker(pg.GraphicsObject):
+    def __init__(self, x, y, parent=None):
+        super().__init__(parent)
+        size = 50
+        self._rect = QtCore.QRectF(x - size // 2, y - size // 2, size, size)
+        self.picture = QtGui.QPicture()
+        self._generate_picture()
+
+    @property
+    def rect(self):
+        return self._rect
+
+    def _generate_picture(self):
+        painter = QtGui.QPainter(self.picture)
+        painter.setPen(pg.mkPen("w"))
+        painter.setBrush(pg.mkBrush("g"))
+        painter.drawRect(self.rect)
+        painter.end()
+
+    def paint(self, painter, option, widget=None):
+        painter.drawPicture(0, 0, self.picture)
+
+    def boundingRect(self):
+        return QtCore.QRectF(self.picture.boundingRect())
+
+
+class PolyLineROINoHover(pg.PolyLineROI):
+    def hoverEvent(self, ev):
+        pass
