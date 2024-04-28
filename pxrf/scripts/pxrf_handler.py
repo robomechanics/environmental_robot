@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 import rospy
 import rosservice
-from pxrf.msg import PxrfMsg
+from pxrf.msg import PxrfMsg, CompletedScanData
 from std_msgs.msg import String
 from autonomy_manager.srv import Complete, ScanData
 import os
-from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from datetime import date
 import csv
 import time
 
 
-def chemistryParser(chemistry):
+def chemistry_parser(chemistry):
     s = chemistry.strip()
     s = s.replace(" ", "")  # remove whitespace
     s = s.replace("\"", "")  # remove random backslashes
@@ -43,21 +42,22 @@ def chemistryParser(chemistry):
 
 
 class PXRFHandler(object):
-    def __init__(self, data_dir, element_of_interest):
-        self.data_dir = data_dir
-        self.element_of_interest = element_of_interest
-
+    def __init__(self):
         rospy.init_node("pxrf_handler", anonymous=True)
         self.load_ros_params()
+        
+        self.data_file = os.path.join(self.data_dir, str(date.today()) + ".csv")
 
-        self.pxrf_command = rospy.Publisher(self._pxrf_cmd_topic, String, queue_size=1)
-        rospy.Subscriber(self._pxrf_response_topic, String, self.response_listener)
-        rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.data_listener)
-
-        rospy.Service(self._start_scan_service_name, Complete, self.scan_start)
-        rospy.Subscriber(self._odometry_topic, Odometry, self.odometry_callback)
+        self.pxrf_command_pub = rospy.Publisher(self._pxrf_cmd_topic, String, queue_size=1)
+        self.scan_completed_pub = rospy.Publisher(self._scan_completed_topic, CompletedScanData, queue_size=1)
+        
+        self._pxrf_response_sub = rospy.Subscriber(self._pxrf_response_topic, String, self.response_listener)
+        self._pxrf_data_sub = rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.data_listener)
+        self._start_scan_sub = rospy.Service(self._start_scan_service_name, Complete, self.scan_start)
+        self._gps_sub = rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
+        
         self.scanning = False
-        self.location = [0, 0]
+        self.gps_location = [0, 0]
         
         rospy.loginfo("Started PXRF Handler...")
         
@@ -67,68 +67,66 @@ class PXRFHandler(object):
         self._pxrf_cmd_topic = rospy.get_param("pxrf_cmd_topic")
         self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
         self._pxrf_data_topic = rospy.get_param("pxrf_data_topic")
+        self._gps_topic = rospy.get_param("gq7_ekf_llh_topic")
+        self._scan_completed_topic = rospy.get_param("scan_completed_topic")
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
-        self._odometry_topic = rospy.get_param("odometry_topic")
-        self._pxrf_complete_service_name = rospy.get_param("pxrf_complete_service_name")
+        
+        self.data_dir = rospy.get_param("data_dir")
+        self.element_of_interest = rospy.get_param("element_of_interest")
 
-    def odometry_callback(self, data):
-        self.location[0] = data.pose.pose.position.y
-        self.location[1] = data.pose.pose.position.x
+    def gps_callback(self, data:NavSatFix):
+        self.gps_location[0] = data.latitude
+        self.gps_location[1] = data.longitude
 
     def scan_start(self, data):
         if data.status:
             self.scanning = True
-            self.pxrf_command.publish("start")
+            self.pxrf_command_pub.publish("start")
         else:
-            self.pxrf_command.publish("stop")
+            self.pxrf_command_pub.publish("stop")
             self.scanning = False
         return True
 
     def file_check(self):
         if not os.path.exists(self.data_dir):
-            os.mkdir(self.data_dir)
-        if not os.path.exists(os.path.join(self.data_dir, str(date.today()) + ".csv")):
-            a = 0  # placeholder for making a csv
-        return None
+            os.makedirs(self.data_dir)
 
-    def data_listener(self, data):
+    def data_listener(self, data: PxrfMsg):
         if self.scanning and self.test_stopped:
             self.scanning = False
             
             # get ros and system time
-            self.systemTime = time.localtime()
-            self.rosTime = rospy.Time.now()
+            self.system_time = time.localtime()
+            self.ros_time = rospy.Time.now()
             
             # record and process received response
-            element, concentration, error = chemistryParser(data.chemistry)
+            element, concentration, error = chemistry_parser(data.chemistry)
             header = [
                 data.dailyId,
                 data.testId,
                 data.testDateTime,
-                self.location,
-                self.systemTime,
-                self.rosTime,
+                self.gps_location,
+                self.system_time,
+                self.ros_time,
             ]
+            
             self.file_check()
-            with open(
-                os.path.join(self.data_dir, str(date.today()) + ".csv"), "a+"
-            ) as f:
+            with open(self.data_file, "a+") as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
                 writer.writerow(element)
                 writer.writerow(concentration)
                 writer.writerow(error)
 
-            # return result to manager
-            if not self._pxrf_complete_service_name in rosservice.get_service_list():
-                return
-            scan_result_proxy = rospy.ServiceProxy(
-                self._pxrf_complete_service_name, ScanData
-            )
+            # Publish results to manager and GUI
             i = element.index(self.element_of_interest)
-            scan_result_proxy(
-                True, self.element_of_interest, concentration[i], error[i]
-            )
+            completed_scan_data_msg = CompletedScanData()
+            completed_scan_data_msg.status = True
+            completed_scan_data_msg.element = self.element_of_interest
+            completed_scan_data_msg.mean = concentration[i]
+            completed_scan_data_msg.error = error[i]
+            completed_scan_data_msg.file_name = self.data_file
+            self.scan_completed_pub.publish(completed_scan_data_msg)
 
     def response_listener(self, data):
         rospy.loginfo("Test complete")
@@ -136,8 +134,4 @@ class PXRFHandler(object):
 
 
 if __name__ == "__main__":
-    data_dir = os.path.expanduser("~/pxrf_results")
-    # if os.path.isdir(data_dir):
-    #     os.mkdir(data_dir)
-    element_of_interest = "Cl"
-    PXRFHandler(data_dir, element_of_interest)
+    PXRFHandler()

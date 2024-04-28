@@ -1,6 +1,5 @@
 bool status
-string name
+string element
 float64 mean
 float64 error
----
-bool success
+string file_name

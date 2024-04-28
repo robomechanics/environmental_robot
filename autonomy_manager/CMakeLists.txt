@@ -60,7 +60,6 @@ add_service_files(
   NavigateGPS.srv
   RunSensorPrep.srv
   Complete.srv
-  ScanData.srv
   Waypoints.srv
 )
 

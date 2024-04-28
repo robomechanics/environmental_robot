@@ -30,6 +30,7 @@ add_action_files(
 add_message_files(
     FILES
     PxrfMsg.msg
+    CompletedScanData.msg
 )
 
 generate_messages(
@@ -63,6 +64,5 @@ target_link_libraries(
 
 catkin_install_python(PROGRAMS
 	scripts/pxrf_gui.py
-	scripts/chemistry_parser.py
 	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
