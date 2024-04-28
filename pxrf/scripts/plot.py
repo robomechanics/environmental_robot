@@ -35,7 +35,7 @@ def generate_plot(file_path, threshold = 0.01, number_of_elements_display_limit 
 	if result_ctr > (len(header) - 1):
 		result_ctr = len(header) - 1
 
-	print("Result Ctr: ", result_ctr)
+	print(f"Displaying PXRF Result: {result_ctr}/{len(header)} from file: {result_ctr}")
  
 	#while (len(element[result_ctr]) >= number_of_elements_display_limit):
 		#threshold = threshold / 2.0

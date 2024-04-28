@@ -26,6 +26,7 @@ from tf.transformations import euler_from_quaternion
 import tf
 import argparse
 from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
+from copy import deepcopy
 
 #testing
 lat_set = 0
@@ -39,35 +40,35 @@ class GpsNavigationGui:
         # Load ROS Params
         self.loadROSParams()
         
-        #set variables
+        # PXRF
+        self.scanData = CompletedScanData()
+        self.scanData.file_name = os.path.expanduser(self._pxrf_test_results_file) # test file if no sample was made yet
+        self.pxrfComplete = True
+        self.pxrfRunning = False
+        self.numMeasurements = 0
+        
+        # Set variables
         self.prev_lat = 0
         self.prev_lon = 0
         self.prev_heading = 0
         self.latitude = None
         self.longitude = None
 
-        #pxrf control
-        self.pxrfRunning = False
-        self.num_measurements = 0
-
-        #speed display
-        self.highSpeed = True
-
-        #get the map
+        # Get the map
         self.satMap = TileMap(coord=(lat, lon), dim=(width, height), zoom=zoom)
 
         # init widget
         pg.setConfigOption('imageAxisOrder', 'row-major')
         self.widget = pg.LayoutWidget()
 
-        # add plot for map
+        # Add plot for map
         satGUI = pg.GraphicsLayoutWidget()
         self.widget.addWidget(satGUI, row=0, col=0, colspan=8)
         satGUI.setBackground('w')
         self.click_plot = PlotWithClick()
         satGUI.addItem(self.click_plot)
 
-        # show satellite image
+        # Show satellite image
         img = pg.ImageItem(self.satMap.map_array)
         img.setBorder({'color': 'b', 'width': 3})
         self.click_plot.addItem(img)
@@ -75,7 +76,7 @@ class GpsNavigationGui:
         self.click_plot.setAspectLocked()
         self.click_plot.invertY()
 
-        # add arrow to show robot
+        # Add arrow to show robot
         self.robotArrow = pg.ArrowItem(headLen=40, tipAngle=30, brush='r')
         self.click_plot.addItem(self.robotArrow)
 
@@ -157,8 +158,8 @@ class GpsNavigationGui:
         # Subscribers
         self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.onGpsUpdate) # Use GPS moving avg llh position
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
-        self._scan_completed_sub = self.rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
         
+        self.scanCompletedSub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.scanCompletedCallback)
         self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
@@ -191,7 +192,7 @@ class GpsNavigationGui:
         self._estop_enable_topic = rospy.get_param("estop_enable_topic")
         self._estop_reset_topic = rospy.get_param("estop_reset_topic")
         
-        self._pxrf_results_file = os.path.expanduser(rospy.get_param('pxrf_results_file'))
+        self._pxrf_test_results_file = rospy.get_param('pxrf_test_results_file')
 
     def setupWidgets(self):
         def clearHistory():
@@ -312,17 +313,15 @@ class GpsNavigationGui:
         self.widget.addWidget(self.gridBtn,            row=4, col=6, colspan=2)
 
     def showPXRFResults(self):
-        generate_plot(self._pxrf_results_file)
+        generate_plot(self.scanData.file_name)
 
-    def pxrf_scan_completed_callback(self, data):
+    def scanCompletedCallback(self, data):
         if data.status == True:
-            self.pxrf_complete = True
-            self.pxrf_mean_value = data.mean
-            self.pxrf_results_file_name = data.file_name
-            print("PXRF Mean Value: " + str(self.pxrf_mean_value))
-            print("PXRF File Name : " + str(self.pxrf_results_file_name))
+            self.pxrfComplete = True
+            self.scanData = deepcopy(data)
+            self.statusDetailed.setText(self.scanData.element + " Value: " + str(self.scanData.mean))
         else:
-            self.pxrf_complete = False
+            self.pxrfComplete = False
         return True
     
     def managerStatusUpdate(self, data:ManagerStatus):
@@ -359,9 +358,9 @@ class GpsNavigationGui:
             self.sampleBtn.setText('Sample')
             self.statusDetailed.setText("Ready to collect")
 
-            self.num_measurements += 1
+            self.numMeasurements += 1
             
-            self.addMarkerAt(self.prev_lat, self.prev_lon, f'Sample#{self.num_measurements}')
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f'Sample#{self.numMeasurements}')
             
             try:
                 lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
