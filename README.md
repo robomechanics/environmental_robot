@@ -264,15 +264,20 @@ The following aliases use incremental search to list the packages, topics and no
 
 
 # Links
-1. [Flipper Rover Pro](https://roverrobotics.com/products/flipper-pro-unmanned-ground-vehicle-ros2-robot)
-2. [RTK GPS](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/RTK/3DM%20RTK%20Integration.htm)
-3. [Clifford Parts for RTK GPS](https://cmu.app.box.com/file/983972334542?s=4fbow8q6s7l7qhiz32eurrs9au0b984r)
-4. [Sparkfun Basetation](https://www.sparkfun.com/products/retired/19029)
-5. [PXRF repo](https://github.com/robomechanics/PXRF)
-6. [PXRF Vanta Specs](https://www.olympus-ims.com/en/xrf-analyzers/handheld/vanta/#!cms[focus]=cmsContent14332)
-7. [Remote SSH Code Server](https://code.visualstudio.com/docs/remote/ssh)
-8. [Hebi Python API](http://docs.hebi.us/tools.html#python-api)
-9. [Measuring Antenna Offsets](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Antenna.htm#How)
-10. [Calibrating Magnetometer](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Magnetometer%20Calibration.htm)
-11. [GQ7 Module Specs](https://www.microstrain.com/sites/default/files/8400-0139%20REV%20B.pdf)
-12. [Polulu RTK Basestation](https://learn.sparkfun.com/tutorials/sparkfun-rtk-facet-l-band-hookup-guide)
+1. Hardware
+   1. [Flipper Rover Pro](https://roverrobotics.com/products/flipper-pro-unmanned-ground-vehicle-ros2-robot)
+   2. [Hebi Python API](http://docs.hebi.us/tools.html#python-api)
+   3. [Clifford Parts for RTK GPS](https://cmu.app.box.com/file/983972334542?s=4fbow8q6s7l7qhiz32eurrs9au0b984r)
+2. Development
+   1. [Remote SSH Code Server](https://code.visualstudio.com/docs/remote/ssh)
+4. PXRF
+    1.  [PXRF repo](https://github.com/robomechanics/PXRF)
+    2.  [PXRF Vanta Specs](https://www.olympus-ims.com/en/xrf-analyzers/handheld/vanta/#!cms[focus]=cmsContent14332)
+5. GQ7 GUI
+   1. [RTK GPS](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/RTK/3DM%20RTK%20Integration.htm)
+   2. [GQ7 Module Specs](https://www.microstrain.com/sites/default/files/8400-0139%20REV%20B.pdf)
+   3. [Sparkfun Base Station](https://www.sparkfun.com/products/retired/19029)
+   4. [Sparkfun Base Station Hookup Guide](https://learn.sparkfun.com/tutorials/sparkfun-rtk-facet-l-band-hookup-guide)
+   5.  [MIP API](https://www.microstrain.com/sites/default/files/3dm-gx5-35_dcp_manual_8500-0068_0.pdf)
+   6.  [Calibrating Magnetometer](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Magnetometer%20Calibration.htm)
+   7.  [Measuring Antenna Offsets](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Antenna.htm#How)
