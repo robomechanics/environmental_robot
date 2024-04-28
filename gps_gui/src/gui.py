@@ -105,29 +105,19 @@ class GpsNavigationGui:
         self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=2))
         self.setHistory()
 
-        # ros services
+        self.setup_ros()
+        
+        self.setup_widgets()
+
+    def setup_ros(self):
+        # Services
         self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
         self.nextPoint = rospy.Service(self._next_point_service, NavigateGPS, self.on_next_goal_update)
         self.grid_points = rospy.Service(self._grid_points_service, Waypoints, self.on_grid_points)
-        #############################################
-        # add buttons
-        self.setup_widgets()
 
-        # ros action clients
-        self.pxrf_client = actionlib.SimpleActionClient(self._pxrf_client_topic, TakeMeasurementAction)
-
-        # ros sub pub
+        # Publishers
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
-        self.goal_pub = rospy.Publisher(self._goal_pub_topic, PoseStamped, queue_size=5)
-        
-        self.location_sub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.on_gps_update) # Use GPS moving avg llh position
-        # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.on_gps_update) # Use GPS llh position
-        
-        self.gps_sub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robot_update) # plotRobotPosition
-        self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.manager_status_update)
-        #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
-        
-        self.pxrf_sub = rospy.Subscriber(self._pxrf_response_topic, String, self.pxrf_response_callback)
+        self.goalPub = rospy.Publisher(self._goal_pub_topic, PoseStamped, queue_size=5)
         
         self.estop_enable_publisher = rospy.Publisher(
             self._estop_enable_topic, Bool, queue_size=1
@@ -135,9 +125,17 @@ class GpsNavigationGui:
         self.estop_reset_publisher = rospy.Publisher(
             self._estop_reset_topic, Bool, queue_size=1
         )
-        
-        #rospy.spin()
 
+        # Subscribers
+        self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.on_gps_update) # Use GPS moving avg llh position
+        # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.on_gps_update) # Use GPS llh position
+        
+        self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robot_update) # plotRobotPosition
+        self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.manager_status_update)
+        #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.on_next_goal_update) # display the next goal on the map
+        
+        self.pxrfSub = rospy.Subscriber(self._pxrf_response_topic, String, self.pxrf_response_callback)
+        
     def load_ros_params(self):
         # Load topic names into params
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
@@ -315,6 +313,7 @@ class GpsNavigationGui:
         except rospy.ServiceException as e:
             print("Service call failed: %s"%e)
 
+    #CHECK
     def on_pxrf_measurement_complete(self, status, result: TakeMeasurementResult):
         print(f'pxrf cb result: {result.result.data}')
         self.pxrfBtn.setText('Sample')
@@ -608,6 +607,7 @@ class GpsNavigationGui:
         
         self.statusGPS.setText("GPS: " + str(round(self.latitude,4)) + " | " + str(round(self.longitude, 4)))
 
+    #CHECK
     # This function updates the goal and displays it on the map
     def on_next_goal_update(self, req: NavigateGPS):
         if self.adaptive:
