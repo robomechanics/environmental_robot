@@ -15,7 +15,7 @@ from sensor_msgs.msg import NavSatFix, NavSatStatus
 from autonomy_manager.msg import ManagerStatus
 from tile import TileMap
 import actionlib
-from pxrf.msg import TakeMeasurementAction, TakeMeasurementGoal, TakeMeasurementResult
+from pxrf.msg import CompletedScanData
 import rospkg
 rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf')
@@ -142,7 +142,7 @@ class GpsNavigationGui:
         self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
         self.nextPoint = rospy.Service(self._next_point_service, NavigateGPS, self.onNextGoalUpdate)
         self.grid_points = rospy.Service(self._grid_points_service, Waypoints, self.onGridPoints)
-
+        
         # Publishers
         #self.navigation_sub = rospy.Subscriber('/gps_navigation/current_goal', PoseStamped, self.readNavigation) # get status of navigation controller
         self.goalPub = rospy.Publisher(self._goal_pub_topic, PoseStamped, queue_size=5)
@@ -157,6 +157,7 @@ class GpsNavigationGui:
         # Subscribers
         self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.onGpsUpdate) # Use GPS moving avg llh position
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
+        self._scan_completed_sub = self.rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
         
         self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
@@ -173,7 +174,7 @@ class GpsNavigationGui:
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
         self._manager_run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
-        self._waypoints_service_name = rospy.get_param("waypoints_service_name")
+        self._scan_completed_topic = rospy.get_param("scan_completed_topic")
         
         # Load service names into params
         self._parking_brake_service = rospy.get_param('parking_break_service_name')
@@ -183,13 +184,16 @@ class GpsNavigationGui:
         self._lower_arm_service_name = rospy.get_param('lower_arm_service_name')
         self._start_scan_service_name = rospy.get_param('start_scan_service_name')
         self._clear_service_name = rospy.get_param('clear_service_name')
+        self._waypoints_service_name = rospy.get_param("waypoints_service_name")
         
         # Load action client topic names
         self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
         self._estop_enable_topic = rospy.get_param("estop_enable_topic")
         self._estop_reset_topic = rospy.get_param("estop_reset_topic")
+        
+        self._pxrf_results_file = os.path.expanduser(rospy.get_param('pxrf_results_file'))
 
-        def setupWidgets(self):
+    def setupWidgets(self):
         def clearHistory():
             self.setHistory(clear = True)
 
@@ -215,43 +219,46 @@ class GpsNavigationGui:
         # savePathBtn.clicked.connect(self.savePath)
         
         self.startPauseBtn = QtWidgets.QPushButton('Start')
-        self.startPauseBtn.setStyleSheet("background-color : yellow")
+        self.startPauseBtn.setStyleSheet("background-color : lightgreen")
         self.startPauseBtn.clicked.connect(self.startPause)
         
         self.is_navigating = False
         
         self.eStop = False
         self.eStopBtn = QtWidgets.QPushButton('E-STOP')
-        self.eStopBtn.setStyleSheet("background-color : orange")
+        self.eStopBtn.setStyleSheet("background-color : red")
         self.eStopBtn.clicked.connect(self.eStopCallback)
         
         self.stopStatus = True
         # self.parking_brake(self.stopStatus)
         
-        self.parkBtn = QtWidgets.QPushButton('PARK ON')
-        self.parkBtn.setStyleSheet("background-color : red")
+        # self.parkBtn = QtWidgets.QPushButton('PARK ON')
+        # self.parkBtn.setStyleSheet("background-color : red")
         # self.parkBtn.clicked.connect(self.toggle_brake)
         
         self.pxrfStatus = False
-        self.pxrfBtn = QtWidgets.QPushButton('Sample')
-        self.pxrfBtn.clicked.connect(self.togglePxrfCollection)
+        self.sampleBtn = QtWidgets.QPushButton('Sample')
+        self.sampleBtn.setStyleSheet("background-color : blue")
+        self.sampleBtn.clicked.connect(self.togglePxrfCollection)
+
         
         self.statusGPS = QtWidgets.QLineEdit()
         self.statusGPS.setText('GPS Connecting')
         self.statusGPS.setReadOnly(True)
         
-        # self.statusNav = QtWidgets.QLineEdit()
-        # self.statusNav.setText('Manual Mode')
-        # self.statusNav.setReadOnly(True)
+        self.showPxrfBtn = QtWidgets.QPushButton('PXRF Results')
+        self.showPxrfBtn.setStyleSheet("background-color : blue")
+        self.showPxrfBtn.clicked.connect(self.showPXRFResults)
+        
         
         self.statusManager = QtWidgets.QLineEdit()
         self.statusManager.setText('Waiting for manager')
         self.statusManager.setReadOnly(True)
         
         # set the boundary on the map 
+        self.editBoundaryMode = False
         self.addBoundaryBtn = QtWidgets.QPushButton('Edit Bound')
         self.addBoundaryBtn.setStyleSheet("background-color : orange")
-        self.editBoundaryMode = False
         self.addBoundaryBtn.clicked.connect(self.toggleEditBoundaryMode)
         
         resetBtn = QtWidgets.QPushButton('Reset')
@@ -270,47 +277,62 @@ class GpsNavigationGui:
         
         self.managerComboBox = QtWidgets.QComboBox()
         self.managerComboBox.addItems(['Step', 'Continuous'])
+        self.managerComboBox.setStyleSheet("background-color : lightgreen")
         self.managerComboBox.currentTextChanged.connect(self.managerComboBoxChanged)
         
-        self.managerStepOnce = QtWidgets.QPushButton('Manager Step')
-        # self.managerStepOnce.setStyleSheet("background-color : yellow")
-        self.managerStepOnce.clicked.connect(self.managerStepOnce)
+        self.managerStepOnceBtn = QtWidgets.QPushButton('Manager Step')
+        self.managerStepOnceBtn.setStyleSheet("background-color : lightgreen")
+        self.managerStepOnceBtn.clicked.connect(self.managerStepOnce)
         
         self.statusDetailed = QtWidgets.QLineEdit("")
         self.statusDetailed.setReadOnly(True)
 
         # add buttons to the layout
-        self.widget.addWidget(self.statusGPS,        row=1, col=0, colspan=2)
-        # self.widget.addWidget(self.statusNav,      row=1, col=2, colspan=2)
-        self.widget.addWidget(self.statusManager,    row=1, col=2, colspan=2)
-        self.widget.addWidget(self.statusDetailed,   row=1, col=4, colspan=2)
+        self.widget.addWidget(self.statusGPS,          row=1, col=0, colspan=2)
+        self.widget.addWidget(self.statusManager,      row=1, col=2, colspan=2)
+        self.widget.addWidget(self.statusDetailed,     row=1, col=4, colspan=2)
         
-        self.widget.addWidget(clearHistoryBtn,       row=2, col=4, colspan=2)
-        self.widget.addWidget(clearPathBtn,          row=2, col=2, colspan=2)
-        self.widget.addWidget(self.editPathBtn,      row=2, col=0, colspan=2)
-        # self.widget.addWidget(loadPathFileBtn,     row=2, col=2, colspan=1)
-        # self.widget.addWidget(savePathBtn,         row=2, col=3, colspan=1)
-        self.widget.addWidget(self.startPauseBtn,    row=2, col=6, colspan=2)
+        self.widget.addWidget(clearHistoryBtn,         row=2, col=4, colspan=2)
+        self.widget.addWidget(clearPathBtn,            row=2, col=2, colspan=2)
+        self.widget.addWidget(self.editPathBtn,        row=2, col=0, colspan=2)
+        # self.widget.addWidget(loadPathFileBtn,       row=2, col=2, colspan=1)
+        # self.widget.addWidget(savePathBtn,           row=2, col=3, colspan=1)
+        self.widget.addWidget(self.startPauseBtn,      row=2, col=6, colspan=2)
         
-        self.widget.addWidget(self.adaptiveBtn,      row=3, col=0, colspan=2)
-        self.widget.addWidget(resetBtn,              row=3, col=2, colspan=2)
-        self.widget.addWidget(self.addBoundaryBtn,   row=3, col=4, colspan=2)
-        self.widget.addWidget(self.managerStepOnce,  row=3, col=6, colspan=1)
-        self.widget.addWidget(self.managerComboBox,  row=3, col=7, colspan=1)
+        self.widget.addWidget(self.adaptiveBtn,        row=3, col=0, colspan=2)
+        self.widget.addWidget(resetBtn,                row=3, col=2, colspan=2)
+        self.widget.addWidget(self.addBoundaryBtn,     row=3, col=4, colspan=2)
+        self.widget.addWidget(self.managerStepOnceBtn, row=3, col=6, colspan=1)
+        self.widget.addWidget(self.managerComboBox,    row=3, col=7, colspan=1)
 
-        # self.widget.addWidget(self.parkBtn,        row=4, col=6, colspan=2)
-        self.widget.addWidget(self.pxrfBtn,          row=4, col=0, colspan=2)
-        self.widget.addWidget(self.eStopBtn,          row=4, col=2, colspan=2)
-        self.widget.addWidget(self.gridBtn,          row=4, col=6, colspan=2)
+        # self.widget.addWidget(self.parkBtn,          row=4, col=6, colspan=2)
+        self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=2)
+        self.widget.addWidget(self.showPxrfBtn,        row=4, col=2, colspan=2)
+        self.widget.addWidget(self.eStopBtn,           row=4, col=4, colspan=2)
+        self.widget.addWidget(self.gridBtn,            row=4, col=6, colspan=2)
 
+    def showPXRFResults(self):
+        generate_plot(self._pxrf_results_file)
+
+    def pxrf_scan_completed_callback(self, data):
+        if data.status == True:
+            self.pxrf_complete = True
+            self.pxrf_mean_value = data.mean
+            self.pxrf_results_file_name = data.file_name
+            print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+            print("PXRF File Name : " + str(self.pxrf_results_file_name))
+        else:
+            self.pxrf_complete = False
+        return True
+    
     def managerStatusUpdate(self, data:ManagerStatus):
         self.statusManager.setText(data.status)
         
     def managerComboBoxChanged(self, selected_item):
         if selected_item == "Step":
-            self.managerStepOnce.setEnabled(True)
+            self.managerStepOnceBtn.setEnabled(True)
         else:
-            self.managerStepOnce.setEnabled(False)
+            self.managerStepOnceBtn.setEnabled(False)
     
     def eStopCallback(self):
         self.eStop = not self.eStop
@@ -321,7 +343,7 @@ class GpsNavigationGui:
             self.eStopBtn.setText('E-STOP ON')
         else:
             self.estop_reset_publisher.publish(True)
-            self.eStopBtn.setStyleSheet("background-color : orange")
+            self.eStopBtn.setStyleSheet("background-color : red")
             self.eStopBtn.setText('E-STOP')
             
     def managerStepOnce(self):
@@ -330,32 +352,17 @@ class GpsNavigationGui:
             managerStepOnce_client()
         except rospy.ServiceException as e:
             print("Service call failed: %s"%e)
-
-    #CHECK
-    def onPxrfMeasurementComplete(self, status, result: TakeMeasurementResult):
-        print(f'pxrf cb result: {result.result.data}')
-        self.pxrfBtn.setText('Sample')
-        self.statusDetailed.setText("Ready to collect")
-        self.pxrfStatus = False
-
-        self.num_measurements += 1
-        with open('measurement_locations.csv', 'a') as f:
-            f.write(f'Sample{self.num_measurements},{self.prev_lat},{self.prev_lon}\n')
-
-        self.addMarkerAt(self.prev_lat, self.prev_lon, f'Sample#{self.num_measurements}')
-
-        if result.result.data == "201":
-            generate_plot()
-    
+     
     def pxrfResponseCallback(self, result:String):
         if self.pxrfRunning and result.data == "201":
             self.pxrfRunning = False
-            self.pxrfBtn.setText('Sample')
+            self.sampleBtn.setText('Sample')
             self.statusDetailed.setText("Ready to collect")
 
             self.num_measurements += 1
             
             self.addMarkerAt(self.prev_lat, self.prev_lon, f'Sample#{self.num_measurements}')
+            
             try:
                 lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
                 lower_arm_service(False)
@@ -661,7 +668,7 @@ class GpsNavigationGui:
                 
                 self.pxrfRunning = True
                 self.statusDetailed.setText("Collecting Sample")
-                self.pxrfBtn.setText("Stop PXRF")
+                self.sampleBtn.setText("Stop PXRF")
             except rospy.ServiceException as e:
                 print("Service call failed: %s"%e)
         else:
@@ -676,7 +683,7 @@ class GpsNavigationGui:
                 
                 self.pxrfRunning = False
                 self.statusDetailed.setText("Ready to collect")
-                self.pxrfBtn.setText("Sample")
+                self.sampleBtn.setText("Sample")
             except rospy.ServiceException as e:
                 print("Service call failed: %s"%e)
 
