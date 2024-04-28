@@ -96,7 +96,7 @@ class Manager(object):
             self._set_search_boundary_name, DeployAutonomy, self.set_search_boundary_callback
         )
         
-        self._clear_service = rospy.Service(self._clear_service_name, Complete, self.clear_callback)
+        self._reset_service = rospy.Service(self._clear_service_name, Complete, self.reset_callback)
         
         self._waypoints_service = rospy.Service(
             self._waypoints_service_name, Waypoints, self.set_waypoints
@@ -411,9 +411,9 @@ class Manager(object):
         
         self.update_status(ARM_LOWERED)
         
-    def clear_callback(self, data):
+    def reset_callback(self, data):
         if data.status == True:
-            print("| Clear Boundary")
+            print("| Reset ")
             self.adaptiveROS = None
             self.gridROS = None
             self.conversion = Conversion()
