@@ -15,13 +15,6 @@ manager_run_type: 1 # 0 - continuous loop, 1 - run loop when called through serv
 start_utm_x_param: 'start_utm_x'
 start_utm_y_param: 'start_utm_y'
 
-pxrf_cmd_topic: 'pxrf_cmd'
-pxrf_response_topic: 'pxrf_response'
-pxrf_data_topic: 'pxrf_data'
-
-start_scan_service_name: 'scan_start'
-pxrf_complete_service_name: 'pxrf_complete'
-
 odometry_topic: 'odometry'
 cancel_goal_topic: 'cancel_goal'
 
@@ -51,7 +44,7 @@ lipo_current_topic: 'arm/lipo_motor_current'
 lipo_battery_info_refresh_interval: 30  # In secs
 lower_arm_service_name: 'arm/lower'
 
-#GPS
+# GPS
 tf_base_link_frame: 'base_link'
 tf_utm_odom_frame: 'utm_odom'
 gps_odom_topic: 'utm_odom'
@@ -70,3 +63,13 @@ vanta_ip: "192.168.7.2"
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
+
+# PXRF
+start_scan_service_name: 'scan_start'
+scan_completed_topic: 'scan_completed'
+pxrf_cmd_topic: 'pxrf_cmd'
+pxrf_response_topic: 'pxrf_response'
+pxrf_data_topic: 'pxrf_data'
+element_of_interest: 'Cl'
+data_dir: "~/data/pxrf_results"
+pxrf_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/chemistry.csv'

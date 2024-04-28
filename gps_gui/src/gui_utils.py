@@ -7,7 +7,7 @@ import pyqtgraph as pg
 # add pxrf's plot script to lookup path
 import rospkg
 rospack = rospkg.RosPack()
-work_dir_path = os.path.join(rospack.get_path('gps_navigation'), 'src')
+work_dir_path = os.path.join(rospack.get_path('gps_gui'), 'src')
 sys.path.insert(0, work_dir_path)
 
 def read_location(map_option=3):

@@ -6,9 +6,9 @@ from autonomy_manager.srv import (
     NavigateGPS,
     RunSensorPrep,
     Complete,
-    ScanData,
     Waypoints,
 )
+from pxrf.msg import CompletedScanData
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
@@ -59,7 +59,9 @@ class Manager(object):
         
         self.is_full_nav_achieved = False
         
-        rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
+        self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
+        self._scan_completed_sub = self.rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
+        
         self.sensorPrep = rospy.ServiceProxy(
             self._sensor_prep_service_name, RunSensorPrep
         )
@@ -84,22 +86,18 @@ class Manager(object):
         self.lon = None
         self.nav_goal_complete = False
         self.pxrf_complete = False
-        self.value = -1
+        self.pxrf_mean_value = -1
         self.gps = None
         self.run_loop_flag = False
         
         self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
-        
-        
         
         self._set_search_boundary_service = rospy.Service(
             self._set_search_boundary_name, DeployAutonomy, self.set_search_boundary_callback
         )
         
         self._clear_service = rospy.Service(self._clear_service_name, Complete, self.clear_callback)
-        self._pxrf_complete_service = rospy.Service(
-            self._pxrf_complete_service_name, ScanData, self.pxrf_complete_callback
-        )
+        
         self._waypoints_service = rospy.Service(
             self._waypoints_service_name, Waypoints, self.set_waypoints
         )
@@ -223,12 +221,12 @@ class Manager(object):
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
+        self._scan_completed_topic = rospy.get_param("scan_completed_topic")
         
         # Load service names into params
         self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
         self._set_search_boundary_name = rospy.get_param("set_search_boundary_name")
         self._clear_service_name = rospy.get_param("clear_service_name")
-        self._pxrf_complete_service_name = rospy.get_param("pxrf_complete_service_name")
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
         self._grid_points_service_name = rospy.get_param("grid_points_service_name")
         self._next_goal_to_GUI_service_name = rospy.get_param("next_goal_to_GUI_service_name")
@@ -256,11 +254,11 @@ class Manager(object):
 
         self.update_status(FINISHED_SCAN)
 
-    def pxrf_complete_callback(self, data):
+    def pxrf_scan_completed_callback(self, data):
         if data.status == True:
             self.pxrf_complete = True
-            self.value = data.mean
-            print("PXRF value:" + str(self.value))
+            self.pxrf_mean_value = data.mean
+            print("PXRF Mean Value: " + str(self.pxrf_mean_value))
         else:
             self.pxrf_complete = False
         return True
@@ -426,7 +424,7 @@ class Manager(object):
     def run_waypoint_algo(self):
         self.update_status(RUNNING_WAYPOINT_ALGO)
         self.pxrf_complete = False
-        self.value = None
+        self.pxrf_mean_value = None
         self.nextScanLoc = self.waypoints.pop(0)
         self.send_location_to_GUI(self.nextScanLoc[0], self.nextScanLoc[1])
         self.gps = [self.nextScanLoc[0], self.nextScanLoc[1]]
@@ -434,12 +432,12 @@ class Manager(object):
 
     def run_search_algo(self):
         self.update_status(RUNNING_SEARCH_ALGO)
-        if self.pxrf_complete == True and self.value != -1:
+        if self.pxrf_complete == True and self.pxrf_mean_value != -1:
             pos = self.conversion.gps2map(self.lat, self.lon)
-            self.adaptiveROS.update(pos[0], pos[1], self.value)
+            self.adaptiveROS.update(pos[0], pos[1], self.pxrf_mean_value)
         # reset
         self.pxrf_complete = False
-        self.value = None
+        self.pxrf_mean_value = None
         
         self.nextScanLoc = self.adaptiveROS.predict()
         self.gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
@@ -450,7 +448,7 @@ class Manager(object):
     def run_grid_algo(self):
         self.update_status(RUNNING_GRID_ALGO)
         self.pxrf_complete = False
-        self.value = None
+        self.pxrf_mean_value = None
         self.nextScanLoc = self.gridROS.next()
         self.gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
         self.send_location_to_GUI(self.gps[0], self.gps[1])
