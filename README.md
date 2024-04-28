@@ -281,3 +281,8 @@ The following aliases use incremental search to list the packages, topics and no
    5.  [MIP API](https://www.microstrain.com/sites/default/files/3dm-gx5-35_dcp_manual_8500-0068_0.pdf)
    6.  [Calibrating Magnetometer](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Magnetometer%20Calibration.htm)
    7.  [Measuring Antenna Offsets](https://s3.amazonaws.com/files.microstrain.com/GQ7+User+Manual/user_manual_content/installation/Antenna.htm#How)
+   8.  Code
+       1.  [GQ7 Params](https://github.com/LORD-MicroStrain/microstrain_inertial_driver_common/blob/6d62789b0492e28a0e4b86be8b4dc0e562d08a5e/config/params.yml#L114)
+       2.  [GQ7 Params Examples](https://github.com/LORD-MicroStrain/microstrain_inertial/tree/ros/microstrain_inertial_examples)
+       3.  [Clifford GQ7 Params](https://github.com/robomechanics/clifford_vesc/blob/main/config/rtk_microstrain.yaml)
+       4.  [RTK Base Station](https://github.com/robomechanics/rtk_base)
