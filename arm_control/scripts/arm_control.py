@@ -35,7 +35,7 @@ class RobotController:
         # Set the gains
         gainsCmd = hebi.GroupCommand(self.group.size)
         path = os_path_join(pkg_path, "config/gains/anakin_gains.xml")
-        # print("Gains path: ", path)
+        # rospy.loginfo("Gains path: ", path)
         # path = "/home/rover/catkin_ws/src/anakin_control/config/gains/anakin_gains.xml"
         gainsCmd.read_gains(path)
         self.group.send_command_with_acknowledgement(gainsCmd)
@@ -200,22 +200,20 @@ class EndEffectorTrajectory:
             # checking change in effort within 0.5s
             delta_effort = effort[i, motor_id] - effort[i - 50, motor_id]
 
-            if i % 50 == 0:
-                print("effort:\n", effort[i], "step: ", i)
-                print(delta_effort)
+            # rospy.logdebug_throttle(0.2, f" | Effort: {effort[i]} | Step: {i} | Delta Effort: {delta_effort}")
 
             effort_check = delta_effort > max_effort
-            #print("effort_check:", effort_check)
+            # rospy.loginfo("effort_check: {effort_check}")
 
             if effort_check:
-                print("Torque out of bounds at t = ", t)
+                rospy.loginfo(" | Torque out of bounds at t = {t}")
                 self.robot_controller.group.command_lifetime = 0
                 self.pos_cmd, self.vel_cmd, self.acc_cmd = self.trajectory.get_state(
                     t)
                 cmd.position = self.pos_cmd
                 cmd.velocity = 0
                 self.robot_controller.group.send_command(cmd)
-                print("Motors stopped")
+                rospy.loginfo(" | Motors stopped")
                 break
 
             i += 1
@@ -242,7 +240,7 @@ class EndEffectorTrajectory:
         t = 0.0
         duration = self.trajectory.duration
 
-        print("Number of joints: ", self.num_joints)
+        rospy.loginfo(f"Number of joints: {self.num_joints}")
 
         while t < duration:
             # self.robot_controller.group.get_next_feedback(reuse_fbk=self.group_fbk)
@@ -252,13 +250,11 @@ class EndEffectorTrajectory:
             cmd.position = self.pos_cmd
             cmd.velocity = self.vel_cmd
 
-            # print('t: ', t)
-
-            # print('commanded: ', cmd.position)
+            # rospy.loginfo('commanded: ', cmd.position)
             self.robot_controller.group.send_command(cmd)
 
             angles = self.robot_controller.get_joint_angles()
-            # print('feedback: ',angles)
+            # rospy.loginfo('feedback: ',angles)
 
             t = t + period
             sleep(period)
