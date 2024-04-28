@@ -27,13 +27,13 @@ import tf
 import argparse
 from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from copy import deepcopy
+import qdarktheme
 
-#testing
-lat_set = 0
-lon_set = 0
-zoom_set = 0
-width_set = 0
-height_set = 0
+qss = """
+QPushButton {
+    font-size: 11pt; 
+    font-weight: 400;  
+}"""
 
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height):
@@ -64,13 +64,13 @@ class GpsNavigationGui:
         # Add plot for map
         satGUI = pg.GraphicsLayoutWidget()
         self.widget.addWidget(satGUI, row=0, col=0, colspan=8)
-        satGUI.setBackground('w')
+        # satGUI.setBackground('black')
         self.click_plot = PlotWithClick()
         satGUI.addItem(self.click_plot)
 
         # Show satellite image
         img = pg.ImageItem(self.satMap.map_array)
-        img.setBorder({'color': 'b', 'width': 3})
+        img.setBorder({'color': 'w', 'width': 3})
         self.click_plot.addItem(img)
         #self.click_plot.showAxes(True)
         self.click_plot.setAspectLocked()
@@ -200,34 +200,34 @@ class GpsNavigationGui:
 
         # add buttons 
         clearHistoryBtn = QtWidgets.QPushButton('Clear History')
-        clearHistoryBtn.setStyleSheet("background-color : yellow")
+        clearHistoryBtn.setStyleSheet("color: orange")
         clearHistoryBtn.clicked.connect(clearHistory)
         
         clearPathBtn = QtWidgets.QPushButton('Clear Path')
-        clearPathBtn.setStyleSheet("background-color : yellow")
+        clearPathBtn.setStyleSheet("color: orange")
         clearPathBtn.clicked.connect(self.clearPath)
         
         self.editPathMode = False
         self.editPathBtn = QtWidgets.QPushButton('Edit Path')
-        self.editPathBtn.setStyleSheet("background-color : yellow")
+        self.editPathBtn.setStyleSheet("color: orange")
         self.editPathBtn.clicked.connect(self.toggleEditPathMode)
         
         # loadPathFileBtn = QtWidgets.QPushButton('Load Path')
-        # loadPathFileBtn.setStyleSheet("background-color : yellow")
+        # loadPathFileBtn.setStyleSheet("color: orange")
         # loadPathFileBtn.clicked.connect(self.loadPathFile)
         # savePathBtn = QtWidgets.QPushButton('Save Path')
-        # savePathBtn.setStyleSheet("background-color : yellow")
+        # savePathBtn.setStyleSheet("color: orange")
         # savePathBtn.clicked.connect(self.savePath)
         
         self.startPauseBtn = QtWidgets.QPushButton('Start')
-        self.startPauseBtn.setStyleSheet("background-color : lightgreen")
+        self.startPauseBtn.setStyleSheet("color: lightgreen")
         self.startPauseBtn.clicked.connect(self.startPause)
         
         self.is_navigating = False
         
         self.eStop = False
         self.eStopBtn = QtWidgets.QPushButton('E-STOP')
-        self.eStopBtn.setStyleSheet("background-color : red")
+        self.eStopBtn.setStyleSheet("color: red")
         self.eStopBtn.clicked.connect(self.eStopCallback)
         
         self.stopStatus = True
@@ -239,50 +239,51 @@ class GpsNavigationGui:
         
         self.pxrfStatus = False
         self.sampleBtn = QtWidgets.QPushButton('Sample')
-        self.sampleBtn.setStyleSheet("background-color : blue")
+        self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
 
         
         self.statusGPS = QtWidgets.QLineEdit()
-        self.statusGPS.setText('GPS Connecting')
+        self.statusGPS.setText('GPS Connecting...')
         self.statusGPS.setReadOnly(True)
         
         self.showPxrfBtn = QtWidgets.QPushButton('PXRF Results')
-        self.showPxrfBtn.setStyleSheet("background-color : blue")
+        self.showPxrfBtn.setStyleSheet("color: lightblue")
         self.showPxrfBtn.clicked.connect(self.showPXRFResults)
         
         
         self.statusManager = QtWidgets.QLineEdit()
-        self.statusManager.setText('Waiting for manager')
+        self.statusManager.setText('Waiting for manager...')
         self.statusManager.setReadOnly(True)
         
         # set the boundary on the map 
         self.editBoundaryMode = False
         self.addBoundaryBtn = QtWidgets.QPushButton('Edit Bound')
-        self.addBoundaryBtn.setStyleSheet("background-color : orange")
+        self.addBoundaryBtn.setStyleSheet("color: yellow")
+
         self.addBoundaryBtn.clicked.connect(self.toggleEditBoundaryMode)
         
-        resetBtn = QtWidgets.QPushButton('Reset')
-        resetBtn.setStyleSheet("background-color : orange")
-        resetBtn.clicked.connect(self.reset)
+        self.resetBtn = QtWidgets.QPushButton('Reset')
+        self.resetBtn.setStyleSheet("color: yellow")
+        self.resetBtn.clicked.connect(self.reset)
         
         self.adaptive = False
         self.adaptiveBtn = QtWidgets.QPushButton('Start Adaptive')
-        self.adaptiveBtn.setStyleSheet("background-color : orange")
+        self.adaptiveBtn.setStyleSheet("color: yellow")
         self.adaptiveBtn.clicked.connect(self.toggleAdaptive)
         
         self.grid = False
         self.gridBtn = QtWidgets.QPushButton('Start Grid')
-        self.gridBtn.setStyleSheet("background-color : orange")
+        self.gridBtn.setStyleSheet("color: yellow")
         self.gridBtn.clicked.connect(self.toggleGrid)
         
         self.managerComboBox = QtWidgets.QComboBox()
         self.managerComboBox.addItems(['Step', 'Continuous'])
-        self.managerComboBox.setStyleSheet("background-color : lightgreen")
+        self.managerComboBox.setStyleSheet("color: lightgreen")
         self.managerComboBox.currentTextChanged.connect(self.managerComboBoxChanged)
         
         self.managerStepOnceBtn = QtWidgets.QPushButton('Manager Step')
-        self.managerStepOnceBtn.setStyleSheet("background-color : lightgreen")
+        self.managerStepOnceBtn.setStyleSheet("color: lightgreen")
         self.managerStepOnceBtn.clicked.connect(self.managerStepOnce)
         
         self.statusDetailed = QtWidgets.QLineEdit("")
@@ -301,7 +302,7 @@ class GpsNavigationGui:
         self.widget.addWidget(self.startPauseBtn,      row=2, col=6, colspan=2)
         
         self.widget.addWidget(self.adaptiveBtn,        row=3, col=0, colspan=2)
-        self.widget.addWidget(resetBtn,                row=3, col=2, colspan=2)
+        self.widget.addWidget(self.resetBtn,           row=3, col=2, colspan=2)
         self.widget.addWidget(self.addBoundaryBtn,     row=3, col=4, colspan=2)
         self.widget.addWidget(self.managerStepOnceBtn, row=3, col=6, colspan=1)
         self.widget.addWidget(self.managerComboBox,    row=3, col=7, colspan=1)
@@ -338,11 +339,11 @@ class GpsNavigationGui:
         
         if self.eStop:
             self.estop_enable_publisher.publish(True)
-            self.eStopBtn.setStyleSheet("background-color : red")
+            self.eStopBtn.setStyleSheet("color: red")
             self.eStopBtn.setText('E-STOP ON')
         else:
             self.estop_reset_publisher.publish(True)
-            self.eStopBtn.setStyleSheet("background-color : red")
+            self.eStopBtn.setStyleSheet("color: red")
             self.eStopBtn.setText('E-STOP')
             
     def managerStepOnce(self):
@@ -401,7 +402,7 @@ class GpsNavigationGui:
         self.updateGoalMarker()
         self.is_navigating = False
         self.startPauseBtn.setText('Start')
-        self.startPauseBtn.setStyleSheet("background-color : yellow")
+        self.startPauseBtn.setStyleSheet("color: orange")
         
     #This function clears the current boundary
     def reset(self):
@@ -702,15 +703,19 @@ if __name__ == '__main__':
        height = int(rospy.get_param('~height'))
        width = int(rospy.get_param('~width'))
     except:
-        #user can input the location manually
+        # Sser can input the location manually
         location_input = read_location(map_option=args.option)
         lat, lon = [float(n) for n in location_input[1:3]]
         zoom = int(location_input[3])
         width, height = [int(n) for n in location_input[4:6]]
 
-    # main window
+    # Main window
     app = QtWidgets.QApplication([])
-    app.setStyle("Fusion")
+    
+    # Set Color Scheme
+    app.setStyleSheet(qdarktheme.load_stylesheet())
+    qdarktheme.setup_theme(custom_colors={"primary": "#D0BCFF"}, additional_qss=qss)
+    
     mw = QtWidgets.QMainWindow()
     gps_node = GpsNavigationGui(lat, lon, zoom, width, height)
     mw.setCentralWidget(gps_node.widget)

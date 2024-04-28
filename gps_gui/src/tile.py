@@ -19,6 +19,7 @@ def num2deg(xtile: float, ytile: float, zoom: int):
     lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
     lat_deg = math.degrees(lat_rad)
     return (lat_deg, lon_deg)
+
 class TileMap:
     TILE_SIZE_PX = 512
 

@@ -17,6 +17,9 @@ rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf')
 print(pxrf_path)
 
+
+plt.style.use('dark_background')
+
 def generate_plot(file_path, threshold = 0.01, number_of_elements_display_limit = 10, result_ctr = -1):
 	with open(file_path,'r') as csvfile:
 		data = list(csv.reader(csvfile, delimiter = ','))

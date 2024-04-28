@@ -60,7 +60,7 @@ class Manager(object):
         self.is_full_nav_achieved = False
         
         self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
-        self._scan_completed_sub = self.rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
+        self._scan_completed_sub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
         
         self.sensorPrep = rospy.ServiceProxy(
             self._sensor_prep_service_name, RunSensorPrep
