@@ -1,12 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="useJoy" default="false"/>
-  <arg name="useLidar" default="false"/>
-  <arg name="useMicrostrain" default="true"/>
-  <arg name="useManager" default="true"/>
-  <arg name="arm" default="true"/>
-  <arg name="camera" default="true"/>
-
   <!-- load rosparams for services and topics -->
   <rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
 
@@ -14,26 +7,6 @@
   <node name="teleop_patrick" pkg="robo_nav" type="teleop_patrick.py" output="screen" />
 
   <!-- Static TF: base_link -> gq7_link -->
-  <node 
-  pkg="tf2_ros"
-  type="static_transform_publisher"
-  name="base_link_gq7_link_static_transform_test"
-  args="
-  -0.0162 -0.09528 0 0 0 0 1 base_link gq7_link
-  " />
-
-  <!-- Arm Raise and Lower Control -->
-  <group if="$(arg arm)">
-    <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
-  </group>
-
-  <group if="$(arg camera)">
-    <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
-      <param name="video_device" value="/dev/video0" />
-      <param name="image_width" value="640" />
-      <param name="image_height" value="480" />
-      <param name="pixel_format" value="yuyv" />
-      <param name="camera_frame_id" value="arm_cam" />
-    </node>
-  </group>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_gq7_link"
+        args="-0.0162 -0.09528 0 0 0 0 1 base_link gq7_link" />
 </launch>

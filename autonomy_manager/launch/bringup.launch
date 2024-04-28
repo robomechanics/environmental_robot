@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="useArm" default="true"/>
+  <arg name="usePXRF" default="true"/>
+  <arg name="useManager" default="true"/>
+  <arg name="useArmCamera" default="true"/>
+
+  <!-- ROS Params, TF and Vel Pub -->
+  <include file = "$(find autonomy_manager)/launch/basic.launch"/>
+
+  <!-- Arm Raise and Lower Control -->
+  <group if="$(arg useArm)">
+    <node name="arm_control" pkg="arm_control" type="arm_control.py" output="screen"/>
+  </group>
+
+  <!-- Arm Raise and Lower Control -->
+  <group if="$(arg usePXRF)">
+    <include file = "$(find pxrf)/launch/pxrf.launch"/>
+  </group>
+
+  <!-- Autonomy Manager -->
+  <group if="$(arg useManager)">
+    <node name="manager" pkg="autonomy_manager" type="manager.py" output="screen"/>
+  </group>
+
+  <!-- Arm Camera -->
+  <group if="$(arg useArmCamera)">
+    <node name="arm_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+      <param name="video_device" value="/dev/video0" />
+      <param name="image_width" value="640" />
+      <param name="image_height" value="480" />
+      <param name="pixel_format" value="yuyv" />
+      <param name="camera_frame_id" value="arm_cam" />
+    </node>
+  </group>
+
+</launch>
