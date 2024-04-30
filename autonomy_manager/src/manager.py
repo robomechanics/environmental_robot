@@ -67,7 +67,7 @@ class Manager(object):
         )
 
         # Check if Full Nav achieved
-        self.utm_odom_sub = rospy.Subscriber(
+        self.odom_sub = rospy.Subscriber(
             self._gps_odom_topic, Odometry, self.gps_odom_callback
         )
 
@@ -117,7 +117,7 @@ class Manager(object):
             rospy.sleep(1)
             
         rospy.loginfo("GPS Full Navigation Achieved!") 
-        self.utm_odom_sub.unregister()
+        self.odom_sub.unregister()
         
         self.update_status(READY)
 
@@ -131,9 +131,15 @@ class Manager(object):
             self.grid_sampling = rospy.get_param("grid", False)
             self.adaptive_sampling = rospy.get_param("adaptive", False)
             self.waypoint_sampling = rospy.get_param("waypoint", False)
-            self.number_points = rospy.get_param("number_points", 9)
-
-        rospy.loginfo(" | Algorithm Set")
+            self.adaptive_sample_count = rospy.get_param("number_points", 16)
+            
+        if self.adaptive_sampling:
+            rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = f{self.adaptive_sample_count}")
+        elif self.adaptive_sampling:
+            rospy.loginfo(f" | Algorithm Set to WAYPOINT")
+        elif self.adaptive_sampling:
+            rospy.loginfo(f" | Algorithm Set to GRID")
+        
         rospy.loginfo("----------- READY -----------")
         
         
@@ -165,8 +171,7 @@ class Manager(object):
         self.run_loop_flag = False
         rospy.loginfo("----------- Manager Loop START-----------")
         
-        if self.status == RECEIVED_SEARCH_AREA:
-            # print(" | Recevied search area")
+        if self.status == RECEIVED_SEARCH_AREA or self.status == ARM_RETURNED:
             if self.adaptive_sampling:
                 self.run_search_algo()
             elif self.grid_sampling:
@@ -175,28 +180,13 @@ class Manager(object):
                 self.run_waypoint_algo()
             print(self.nextScanLoc)
         elif self.status == RECEIVED_NEXT_SCAN_LOC:
-            # print(" | Receiced next scan location")
             self.navigate_to_scan_loc()
         elif self.status == ARRIVED_AT_SCAN_LOC:
-            # print(" |Arrived at scan location")
-            # self.run_sensor_prep()
-            self.update_status(ARM_LOWERING)
-        elif self.status == ARM_LOWERING:
-            # print(" | Arm touchdown")
             self.arm_touchdown()
-        elif self.status == ARM_RETURNING:
-            # print(" | Arm return")
-            self.arm_return()
         elif self.status == ARM_LOWERED or self.status == FINISHED_RAKING:
             self.scan()
         elif self.status == FINISHED_SCAN:
-            # print("algo")
-            if self.grid_sampling:
-                self.run_grid_algo()
-            elif self.adaptive_sampling:
-                self.run_search_algo()
-            elif self.waypoint_sampling:
-                self.run_waypoint_algo()
+            self.arm_return()
                 
         rospy.loginfo("----------- Manager Loop END -----------")
     
@@ -286,11 +276,11 @@ class Manager(object):
             self.conversion.width,
             self.conversion.height,
             [startx, starty],
-            self.number_points,
+            self.adaptive_sample_count,
         )
         self.adaptiveROS.updateBoundary(boundary_utm_offset)
         self.gridROS = gridROS(
-            self.conversion.width, self.conversion.height, [0, 0], self.number_points
+            self.conversion.width, self.conversion.height, [0, 0], self.adaptive_sample_count
         )
         
         # self.gridROS.updateBoundary(boundary_utm_offset)
@@ -379,18 +369,18 @@ class Manager(object):
         goal.target_pose.pose.orientation.w = 1 
 
         self.mb_client.send_goal(goal)
-        print(" | Goal Sent to movebase...")
+        rospy.loginfo(" | Goal Sent to movebase...")
         wait = self.mb_client.wait_for_result()
+        rospy.loginfo(" | Movebase Goal Reached")
+        
+        self.nav_goal_complete = True
+        self.update_status(ARRIVED_AT_SCAN_LOC)
+        
         if not wait:
             rospy.logerr("Action server not available!")
             rospy.signal_shutdown("Action server not available!")
         else:
             return self.mb_client.get_result()
-
-        print(" | Movebase Goal Reached")
-        
-        self.nav_goal_complete = True
-        self.update_status(ARRIVED_AT_SCAN_LOC)
 
     def arm_return(self):
         self.update_status(ARM_RETURNING)
@@ -403,6 +393,7 @@ class Manager(object):
         self.update_status(ARM_RETURNED)
 
     def arm_touchdown(self):
+        self.update_status(ARM_LOWERING)
         try:
             lower_arm = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
             res = lower_arm(True)
@@ -441,7 +432,7 @@ class Manager(object):
         
         self.nextScanLoc = self.adaptiveROS.predict()
         self.gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
-        print(" | Sending Adaptive Algorithm Location: ", self.gps)
+        rospy.loginfo(f" | Sending Adaptive Algorithm Location: {self.gps}")
         self.send_location_to_GUI(self.gps[0], self.gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
