@@ -208,7 +208,7 @@ class GpsNavigationGui:
         clearPathBtn.clicked.connect(self.clearPath)
         
         self.editPathMode = False
-        self.editPathBtn = QtWidgets.QPushButton('Edit Path')
+        self.editPathBtn = QtWidgets.QPushButton('Edit Waypoints')
         self.editPathBtn.setStyleSheet("color: orange")
         self.editPathBtn.clicked.connect(self.toggleEditPathMode)
         
@@ -373,8 +373,8 @@ class GpsNavigationGui:
     # This function adds points to roi (when user is editing path)
     def addROIPoint(self, point):
         if self.editPathMode or self.editBoundaryMode:
-            print('Click: Add Point')
             points = [[handle['pos'].x(),handle['pos'].y()] for handle in self.pathRoi.handles]
+            print(f'Clicked at point: {point}')
             points.append(point)
             self.pathRoi.setPoints(points)
     
@@ -415,7 +415,7 @@ class GpsNavigationGui:
     
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
-        #rospy.wait_for_service('/autonomy_manager/deploy_autonomy')
+        rospy.loginfo(f" Sending Boundary Points: {boundary}")
         try:
             sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, DeployAutonomy)
             if len(boundary) > 0:
@@ -423,9 +423,6 @@ class GpsNavigationGui:
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
             res = sendBoundaryClient(lat,lon)
-            print("------------- Boundary START -------------")
-            print(boundary)
-            print("------------- Boundary END ---------------")
             print("Boundary Sent")
         except rospy.ServiceException as e:
             print(e)
@@ -444,37 +441,40 @@ class GpsNavigationGui:
         
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
-        print("boundarymode")
         if self.editPathMode:
             print("Warning: Please finish editing the path first")
             return
         elif self.editBoundaryMode and self.pathRoi.handles == []:
             print('Warning: No boundary to edit, please draw a boundary first')
             return
+
         self.editBoundaryMode = not self.editBoundaryMode
+        
         if self.editBoundaryMode:
             self.addBoundaryBtn.setText('Confirm')
             self.pathRoi.setPoints([])
+            #FIX: Below code might be unecessary
             for point in self.pathPlotPoints:
                 self.addROIPoint(point)
         else:
+            # When boundary is confirmed
             self.addBoundaryBtn.setText('Edit Bound')
             self.pathPlotPoints = []
             for handle in self.pathRoi.handles:
                 pos = handle['pos']
                 self.pathPlotPoints.append([pos.x(), pos.y()])
+            
 
-            #append the first point to the end to close the boundary
+            # Append the first point to the end to close the boundary
             self.pathPlotPoints.append(self.pathPlotPoints[0])
 
             self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
-            #self.boundaryPath = self.pathPlotPoints
             x, y = zip(*self.pathPlotPoints)
             self.boundaryPlot.setData(x=list(x), y=list(y))
+            
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
             self.sendBoundary(self.boundaryPath)
-            print(self.boundaryPath)
 
     # This function turns on/off editing mode
     def toggleEditPathMode(self):
@@ -493,7 +493,7 @@ class GpsNavigationGui:
             for point in self.pathPlotPoints:
                 self.addROIPoint(point)
         else:
-            self.editPathBtn.setText('Edit Path')
+            self.editPathBtn.setText('Edit Waypoints')
             self.pathPlotPoints = []
             for handle in self.pathRoi.handles:
                 pos = handle['pos']
@@ -653,7 +653,7 @@ class GpsNavigationGui:
             clear_service_client = rospy.ServiceProxy(self._clear_service_name, Complete)
             res = clear_service_client(True)
         except rospy.ServiceException as e:
-            print("failed")
+            print("Reset Failed")
 
     def togglePxrfCollection(self):
         try:
