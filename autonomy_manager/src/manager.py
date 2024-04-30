@@ -134,7 +134,7 @@ class Manager(object):
             self.adaptive_sample_count = rospy.get_param("number_points", 16)
             
         if self.adaptive_sampling:
-            rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = f{self.adaptive_sample_count}")
+            rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = {self.adaptive_sample_count}")
         elif self.adaptive_sampling:
             rospy.loginfo(f" | Algorithm Set to WAYPOINT")
         elif self.adaptive_sampling:
@@ -254,10 +254,11 @@ class Manager(object):
         return True
 
     def set_search_boundary_callback(self, data):
+        rospy.loginfo(f"Boundary Points: {list(zip(data.boundary_lat, data.boundary_lon))}")
+        
         # data.boundary_lat and data.boundary_lon lists, put then in the format of [[lat1,lon1],[lat2,lon2],...]
         for i in range(len(data.boundary_lat)):
             self.searchBoundary.append([data.boundary_lat[i], data.boundary_lon[i]])
-
         
         # Initialize the zone, define boundary in utm coordinates
         self.conversion.get_zone(self.lat, self.lon)
