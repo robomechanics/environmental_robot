@@ -3,13 +3,15 @@ import rospy
 import rosservice
 from pxrf.msg import PxrfMsg, CompletedScanData
 from std_msgs.msg import String
-from autonomy_manager.srv import Complete, ScanData
+from nav_msgs.msg import Odometry
+from autonomy_manager.srv import Complete
 import os
 from sensor_msgs.msg import NavSatFix
 from datetime import date
 import csv
 import time
-
+from tf.transformations import euler_from_quaternion
+import numpy as np
 
 def chemistry_parser(chemistry):
     s = chemistry.strip()
@@ -40,7 +42,6 @@ def chemistry_parser(chemistry):
             error.append(arr[i])
     return element, concentration, error
 
-
 class PXRFHandler(object):
     def __init__(self):
         rospy.init_node("pxrf_handler", anonymous=True)
@@ -55,10 +56,17 @@ class PXRFHandler(object):
         self._pxrf_data_sub = rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.data_listener)
         self._start_scan_sub = rospy.Service(self._start_scan_service_name, Complete, self.scan_start)
         self._gps_sub = rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
+        self.utm_odom_sub = rospy.Subscriber(
+            self._gps_odom_topic, Odometry, self.gps_odom_callback
+        )
         
         self.scanning = False
         self.gps_location = [0, 0]
+        self.gps_odom_location = [0, 0]
+        self.gps_quaternion = np.zeros(4)
+        self.gps_odom_heading = 0
         
+        self.file_check()
         rospy.loginfo("Started PXRF Handler...")
         
         rospy.spin()
@@ -70,9 +78,20 @@ class PXRFHandler(object):
         self._gps_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._scan_completed_topic = rospy.get_param("scan_completed_topic")
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
+        self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         
-        self.data_dir = rospy.get_param("data_dir")
+        self.data_dir = os.path.expanduser(rospy.get_param("data_dir"))
         self.element_of_interest = rospy.get_param("element_of_interest")
+
+    def gps_odom_callback(self, data: Odometry):
+        
+        self.gps_odom_location = [data.pose.pose.position.x, data.pose.pose.position.y]
+        
+        self.gps_quaternion[0] = data.pose.pose.orientation.x
+        self.gps_quaternion[1] = data.pose.pose.orientation.y
+        self.gps_quaternion[2] = data.pose.pose.orientation.z
+        self.gps_quaternion[3] = data.pose.pose.orientation.w
+        self.gps_odom_heading = euler_from_quaternion(self.gps_quaternion, "sxyz")[2]
 
     def gps_callback(self, data:NavSatFix):
         self.gps_location[0] = data.latitude
@@ -89,7 +108,13 @@ class PXRFHandler(object):
 
     def file_check(self):
         if not os.path.exists(self.data_dir):
+            rospy.loginfo(f" |Creating directory {self.data_dir}")
             os.makedirs(self.data_dir)
+        
+        if not os.path.exists(self.data_file):
+            rospy.loginfo(f" |Creating file {self.data_file}")
+            with open(self.data_file, 'w') as fp:
+                pass
 
     def data_listener(self, data: PxrfMsg):
         if self.scanning and self.test_stopped:
@@ -106,6 +131,8 @@ class PXRFHandler(object):
                 data.testId,
                 data.testDateTime,
                 self.gps_location,
+                self.gps_odom_location,
+                self.gps_odom_heading,
                 self.system_time,
                 self.ros_time,
             ]
