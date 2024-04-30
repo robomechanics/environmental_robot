@@ -73,3 +73,6 @@ pxrf_data_topic: 'pxrf_data'
 element_of_interest: 'Cl'
 data_dir: "~/data/pxrf_results"
 pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/chemistry.csv'
+
+# Adaptive
+number_of_points: 16 
