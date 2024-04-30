@@ -38,7 +38,6 @@ class adaptiveROS:
         self.x1x2 = np.array([(a,b) for a in self.x1 for b in self.x2])
 
         self.norm_range = 0
-        self.norm_min = 0
         self.min = 0
         self.max = 0
 
@@ -59,10 +58,9 @@ class adaptiveROS:
         self.sampled.append([x,y])
         self.sampledVal.append(val)
         self.min = np.min(self.sampledVal)
-        self.max = np.max(self.sampledVal)
-        self.norm_range = np.max(self.sampledVal) - np.min(self.sampledVal)
-        self.norm_min = np.min(self.sampledVal)
-        sampledVal_n = list(np.array(self.sampledVal-self.norm_min)/self.norm_range)
+        self.max = max(0.0000000001, np.max(self.sampledVal))
+        self.norm_range = self.max - self.min
+        sampledVal_n = list(np.array(self.sampledVal-self.min)/self.norm_range)
         self.path_len += 1
         #self.beta = self.path_len / self.total_number * self.delta
         self.beta1 = self.delta

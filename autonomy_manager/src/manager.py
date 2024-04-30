@@ -131,9 +131,11 @@ class Manager(object):
             self.grid_sampling = rospy.get_param("grid", False)
             self.adaptive_sampling = rospy.get_param("adaptive", False)
             self.waypoint_sampling = rospy.get_param("waypoint", False)
-            self.number_points = rospy.get_param("number_points", 9)
-
+            self.number_points = rospy.get_param("number_points", 16)
+            self.number_points = 16
+            
         rospy.loginfo(" | Algorithm Set")
+        rospy.loginfo(f" | number_points: {self.number_points}")
         rospy.loginfo("----------- READY -----------")
         
         
@@ -182,14 +184,16 @@ class Manager(object):
             # self.run_sensor_prep()
             self.update_status(ARM_LOWERING)
         elif self.status == ARM_LOWERING:
-            # print(" | Arm touchdown")
+            rospy.loginfo(" | Arm touchdown")
             self.arm_touchdown()
-        elif self.status == ARM_RETURNING:
-            # print(" | Arm return")
-            self.arm_return()
         elif self.status == ARM_LOWERED or self.status == FINISHED_RAKING:
+            rospy.loginfo(" | Scanning")
             self.scan()
         elif self.status == FINISHED_SCAN:
+            rospy.loginfo(" | Finished Scan and Arm Returning")
+            self.arm_return()
+            rospy.loginfo(" | Arm returned")
+        elif self.status == ARM_RETURNED:
             # print("algo")
             if self.grid_sampling:
                 self.run_grid_algo()
@@ -331,6 +335,7 @@ class Manager(object):
         self.update_status(NAVIGATION_TO_SCAN_LOC)
         # self.navigation(self.nextScanLoc[0],self.nextScanLoc[1])
         self.publish_move_base_goal(self.gps[0], self.gps[1])
+        
 
     def run_sensor_prep(self):
         self.sensorPrep(True)
@@ -379,18 +384,19 @@ class Manager(object):
         goal.target_pose.pose.orientation.w = 1 
 
         self.mb_client.send_goal(goal)
-        print(" | Goal Sent to movebase...")
+        rospy.loginfo(" | Goal Sent to movebase...")
         wait = self.mb_client.wait_for_result()
+       
+        print(" | Movebase Goal Reached")
+        
+        self.nav_goal_complete = True
+        self.update_status(ARRIVED_AT_SCAN_LOC)
+        
         if not wait:
             rospy.logerr("Action server not available!")
             rospy.signal_shutdown("Action server not available!")
         else:
             return self.mb_client.get_result()
-
-        print(" | Movebase Goal Reached")
-        
-        self.nav_goal_complete = True
-        self.update_status(ARRIVED_AT_SCAN_LOC)
 
     def arm_return(self):
         self.update_status(ARM_RETURNING)
@@ -441,8 +447,10 @@ class Manager(object):
         
         self.nextScanLoc = self.adaptiveROS.predict()
         self.gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
-        print(" | Sending Adaptive Algorithm Location: ", self.gps)
+        rospy.loginfo(" | Sending Adaptive Algorithm Location: {self.gps}")
         self.send_location_to_GUI(self.gps[0], self.gps[1])
+        rospy.loginfo(" | Sent Adaptive Algorithm Location: {self.gps}")
+        
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
     def run_grid_algo(self):

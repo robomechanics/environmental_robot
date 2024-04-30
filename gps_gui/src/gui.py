@@ -237,7 +237,6 @@ class GpsNavigationGui:
         # self.parkBtn.setStyleSheet("background-color : red")
         # self.parkBtn.clicked.connect(self.toggle_brake)
         
-        self.pxrfStatus = False
         self.sampleBtn = QtWidgets.QPushButton('Sample')
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
@@ -424,6 +423,9 @@ class GpsNavigationGui:
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
             res = sendBoundaryClient(lat,lon)
+            print("------------- Boundary START -------------")
+            print(boundary)
+            print("------------- Boundary END ---------------")
             print("Boundary Sent")
         except rospy.ServiceException as e:
             print(e)
@@ -654,38 +656,20 @@ class GpsNavigationGui:
             print("failed")
 
     def togglePxrfCollection(self):
-        self.pxrfStatus = not self.pxrfStatus
-
-        if self.pxrfStatus:
-            try:
-                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(True)
-                
-                rospy.sleep(1.5)
-                
-                start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
-                start_scan_service(True)
-                
-                self.pxrfRunning = True
-                self.statusDetailed.setText("Collecting Sample")
-                self.sampleBtn.setText("Stop PXRF")
-            except rospy.ServiceException as e:
-                print("Service call failed: %s"%e)
-        else:
-            try:
-                start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
-                start_scan_service(False)
-                
-                rospy.sleep(1.5)
-                
-                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(False)
-                
-                self.pxrfRunning = False
-                self.statusDetailed.setText("Ready to collect")
-                self.sampleBtn.setText("Sample")
-            except rospy.ServiceException as e:
-                print("Service call failed: %s"%e)
+        try:
+            lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            lower_arm_service(True)
+            
+            rospy.sleep(1.5)
+            
+            start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
+            start_scan_service(True)
+            
+            self.pxrfRunning = True
+            self.statusDetailed.setText("Collecting Sample")
+            self.sampleBtn.setText("Stop PXRF")
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')

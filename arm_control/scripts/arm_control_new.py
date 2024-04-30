@@ -129,7 +129,7 @@ class EndEffectorTrajectory:
 
     def get_return_waypoints(self):
         rows = 4  # num of joint angles
-        cols = 6  # num of target waypoints
+        cols = 5  # num of target waypoints
         pos = np.zeros((rows, cols))
         initial_angles = self.robot_controller.get_joint_angles()
         pos[:, 0] = initial_angles
@@ -137,7 +137,6 @@ class EndEffectorTrajectory:
         pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, 0.439913826]
         pos[:, 3] = [4.89430189, 0.72055084, -2.27849388, -0.12733116]
         pos[:, 4] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
-        pos[:, 5] = [4.7336320877075195, -0.019812583923339844, -3.154970169067383, -0.23143387]
         return pos
 
         #positions = np.array([
@@ -278,8 +277,8 @@ class EndEffectorTrajectory:
             self.get_hebi_trajectory(waypoints)
             self.execute_trajectory()
             
-            # rospy.loginfo("Arm Drooping to Home...")
-            rospy.sleep(1)
+            rospy.loginfo("Arm Drooping to Home...")
+            rospy.sleep(5)
             rospy.loginfo("Arm Back to Home")
             
             self.motor4()
