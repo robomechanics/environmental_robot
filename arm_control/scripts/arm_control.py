@@ -89,8 +89,13 @@ class EndEffectorTrajectory:
 
         self.load_ros_params()
         
-        self.goto_and_hold_home_pose()
-
+        self.is_arm_in_home_pose = rospy.get_param(
+            self._is_arm_in_home_pose_param_name
+            ) # Arm pose flag that persists across restarts
+        
+        if not self.is_arm_in_home_pose:
+            self.arm_return()
+        
         self._lower_arm_service = rospy.Service(self._lower_arm_service_name,
                                                 SetBool,
                                                 self.lower_arm_callback)
@@ -101,6 +106,8 @@ class EndEffectorTrajectory:
         # Load service names into params
         self._lower_arm_service_name = rospy.get_param(
             "lower_arm_service_name")
+        self._is_arm_in_home_pose_param_name = rospy.get_param(
+            "is_arm_in_home_pose_param_name")
 
     def get_touchdown_waypoints(self):
         rows = 4  # num of joint angles
@@ -265,24 +272,36 @@ class EndEffectorTrajectory:
 
     def lower_arm_callback(self, req):
         if (req.data):
-            waypoints = self.get_touchdown_waypoints()
-            self.get_hebi_trajectory(waypoints)
-            self.execute_trajectory_with_efforts()
-            # self.execute_trajectory()
-            return SetBoolResponse(
-                success=True,
-                message="Touchdown Trajectory executed successfully")
+            self.arm_touchdown()
         else:
-            waypoints = self.get_return_waypoints()
-            self.get_hebi_trajectory(waypoints)
-            self.execute_trajectory()
+            self.arm_return()
+           
+    def arm_touchdown(self):
+        # Set a param flag that persists across restarts
+        rospy.set_param(self._is_arm_in_home_pose_param_name, False)
+        
+        waypoints = self.get_touchdown_waypoints()
+        self.get_hebi_trajectory(waypoints)
+        self.execute_trajectory_with_efforts()
+        # self.execute_trajectory()
+        return SetBoolResponse(
+            success=True,
+            message="Touchdown Trajectory executed successfully")
+    
+    def arm_return(self):
+        waypoints = self.get_return_waypoints()
+        self.get_hebi_trajectory(waypoints)
+        self.execute_trajectory()
+        
+        self.goto_and_hold_home_pose()
+        
+        # Set a param flag that persists across restarts
+        rospy.set_param(self._is_arm_in_home_pose_param_name, True)
             
-            self.goto_and_hold_home_pose()
-                
-            return TriggerResponse(
-                success=True,
-                message="Return Trajectory executed successfully")
-            
+        return TriggerResponse(
+            success=True,
+            message="Return Trajectory executed successfully")
+    
     def goto_and_hold_home_pose(self):
         self.robot_controller.group.command_lifetime = 0
         cmd = hebi.GroupCommand(self.robot_controller.group.size)

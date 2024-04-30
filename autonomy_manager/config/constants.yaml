@@ -43,6 +43,7 @@ lipo_battery_voltage_topic: 'arm/lipo_battery_voltage'
 lipo_current_topic: 'arm/lipo_motor_current'
 lipo_battery_info_refresh_interval: 30  # In secs
 lower_arm_service_name: 'arm/lower'
+is_arm_in_home_pose_param_name: 'is_arm_in_home_pose'
 
 # GPS
 tf_base_link_frame: 'base_link'

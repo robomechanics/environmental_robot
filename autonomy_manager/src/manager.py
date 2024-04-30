@@ -36,7 +36,7 @@ RUNNING_SEARCH_ALGO = "Running search algo"
 READY = "Ready"
 WAITING_FOR_GPS_INIT = "Waiting for GPS init"
 RUNNING_GRID_ALGO = "Running grid algo"
-RUNNING_WAYPOINT_ALGO = "running waypoint algorithm"
+RUNNING_WAYPOINT_ALGO = "Running waypoint algo"
 SCANNING = "Scanning"
 ARM_RETURNING = "Arm returning"
 ARM_LOWERING = "Arm lowering"
@@ -57,7 +57,15 @@ class Manager(object):
         )
         self.update_status(INIT)
         
+        # Flags 
         self.is_full_nav_achieved = False
+        self.nav_goal_gps = None
+        self.lat = None
+        self.lon = None
+        self.run_loop_flag = False
+        self.is_arm_in_home_pose = rospy.get_param(
+            self._is_arm_in_home_pose_param_name
+            ) # Arm pose flag that persists across restarts
         
         self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
         self._scan_completed_sub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
@@ -81,15 +89,6 @@ class Manager(object):
         self.adaptive_sampling = False
         self.waypoint_sampling = False
 
-        #######################change it to None#################################
-        self.lat = None
-        self.lon = None
-        self.nav_goal_complete = False
-        self.pxrf_complete = False
-        self.pxrf_mean_value = -1
-        self.gps = None
-        self.run_loop_flag = False
-        
         self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
         
         self._set_search_boundary_service = rospy.Service(
@@ -212,6 +211,8 @@ class Manager(object):
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._scan_completed_topic = rospy.get_param("scan_completed_topic")
+        self._is_arm_in_home_pose_param_name = rospy.get_param(
+            "is_arm_in_home_pose_param_name")
         
         # Load service names into params
         self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
@@ -321,7 +322,7 @@ class Manager(object):
     def navigate_to_scan_loc(self):
         self.update_status(NAVIGATION_TO_SCAN_LOC)
         # self.navigation(self.nextScanLoc[0],self.nextScanLoc[1])
-        self.publish_move_base_goal(self.gps[0], self.gps[1])
+        self.publish_move_base_goal(self.nav_goal_gps[0], self.nav_goal_gps[1])
 
     def run_sensor_prep(self):
         self.sensorPrep(True)
@@ -351,6 +352,14 @@ class Manager(object):
             print("location failed")
 
     def publish_move_base_goal(self, lat, lon):
+        self.is_arm_in_home_pose = rospy.get_param(
+            self._is_arm_in_home_pose_param_name
+            ) # Arm pose flag that persists across restarts
+        
+        if not self.is_arm_in_home_pose:
+            rospy.logerr("Arm is not in home pose, will not publish move_base goal!")
+            return
+        
         #TODO: Orientation for goal
         self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
         
@@ -419,7 +428,7 @@ class Manager(object):
         self.pxrf_mean_value = None
         self.nextScanLoc = self.waypoints.pop(0)
         self.send_location_to_GUI(self.nextScanLoc[0], self.nextScanLoc[1])
-        self.gps = [self.nextScanLoc[0], self.nextScanLoc[1]]
+        self.nav_goal_gps = [self.nextScanLoc[0], self.nextScanLoc[1]]
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
     def run_search_algo(self):
@@ -432,9 +441,9 @@ class Manager(object):
         self.pxrf_mean_value = None
         
         self.nextScanLoc = self.adaptiveROS.predict()
-        self.gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
-        rospy.loginfo(f" | Sending Adaptive Algorithm Location: {self.gps}")
-        self.send_location_to_GUI(self.gps[0], self.gps[1])
+        self.nav_goal_gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
+        rospy.loginfo(f" | Sending Adaptive Algorithm Location: {self.nav_goal_gps}")
+        self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
     def run_grid_algo(self):
@@ -442,8 +451,8 @@ class Manager(object):
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         self.nextScanLoc = self.gridROS.next()
-        self.gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
-        self.send_location_to_GUI(self.gps[0], self.gps[1])
+        self.nav_goal_gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
+        self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
 
