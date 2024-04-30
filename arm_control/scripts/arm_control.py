@@ -88,6 +88,8 @@ class EndEffectorTrajectory:
         self.robot_controller = robot_controller
 
         self.load_ros_params()
+        
+        self.goto_and_hold_home_pose()
 
         self._lower_arm_service = rospy.Service(self._lower_arm_service_name,
                                                 SetBool,
@@ -127,14 +129,15 @@ class EndEffectorTrajectory:
 
     def get_return_waypoints(self):
         rows = 4  # num of joint angles
-        cols = 5  # num of target waypoints
+        cols = 6  # num of target waypoints
         pos = np.zeros((rows, cols))
         initial_angles = self.robot_controller.get_joint_angles()
         pos[:, 0] = initial_angles
-        pos[:, 1] = [4.7661829, 2.58495361, -1.95124054, -0.492874146]
-        pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, -0.623106194]
+        pos[:, 1] = [4.7661829, 2.58495361, -1.95124054, 0.439913826]
+        pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, 0.439913826]
         pos[:, 3] = [4.89430189, 0.72055084, -2.27849388, -0.12733116]
         pos[:, 4] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
+        pos[:, 5] = [4.7336320877075195, -0.019812583923339844, -3.154970169067383, -0.23143387]
         return pos
 
         #positions = np.array([
@@ -258,6 +261,7 @@ class EndEffectorTrajectory:
 
             t = t + period
             sleep(period)
+        
 
     def lower_arm_callback(self, req):
         if (req.data):
@@ -272,9 +276,20 @@ class EndEffectorTrajectory:
             waypoints = self.get_return_waypoints()
             self.get_hebi_trajectory(waypoints)
             self.execute_trajectory()
+            
+            self.goto_and_hold_home_pose()
+                
             return TriggerResponse(
                 success=True,
                 message="Return Trajectory executed successfully")
+            
+    def goto_and_hold_home_pose(self):
+        self.robot_controller.group.command_lifetime = 0
+        cmd = hebi.GroupCommand(self.robot_controller.group.size)
+        
+        cmd.position = [4.7336320877075195, -0.019812583923339844, -3.154970169067383, -0.23143387]
+        
+        self.robot_controller.group.send_command_with_acknowledgement(cmd)
 
 
 if __name__ == "__main__":
