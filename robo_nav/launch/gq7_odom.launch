@@ -41,7 +41,7 @@
   <!-- Manually configure the node instead of the launch file so we can use the passed arguments -->
   <node name="gq7_driver" pkg="microstrain_inertial_driver" type="microstrain_inertial_driver_node" output="screen" ns="/gq7">
     <!-- Set the parameters through our custom params file -->
-    <rosparam file="$(find robomech_nav)/config/gq7_odom.yml" command="load" subst_value="true" />
+    <rosparam file="$(find robo_nav)/config/gq7_odom.yml" command="load" subst_value="true" />
 
     <!-- If you want to override any settings specified in the params.yml file, make a new yaml file, and set the value via the params_file arg -->
     <rosparam file="$(arg params_file)" command="load" unless="$(eval arg('params_file') == ' ')" subst_value="true" />
