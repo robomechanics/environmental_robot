@@ -350,7 +350,7 @@ class GpsNavigationGui:
             managerStepOnce_client = rospy.ServiceProxy(self._manager_run_loop_service_name, Trigger)
             managerStepOnce_client()
         except rospy.ServiceException as e:
-            print("Service call failed: %s"%e)
+            rospy.logerr("Service call failed: %s", e)
      
     def pxrfResponseCallback(self, result:String):
         if self.pxrfRunning and result.data == "201":
@@ -368,13 +368,13 @@ class GpsNavigationGui:
             
                 rospy.sleep(1.0)
             except rospy.ServiceException as e:
-                print("Service call failed: %s"%e)
+                rospy.logerr("Service call failed: %s", e)
 
     # This function adds points to roi (when user is editing path)
     def addROIPoint(self, point):
         if self.editPathMode or self.editBoundaryMode:
             points = [[handle['pos'].x(),handle['pos'].y()] for handle in self.pathRoi.handles]
-            print(f'Clicked at point: {point}')
+            rospy.loginfo(f'Clicked at point: {point}')
             points.append(point)
             self.pathRoi.setPoints(points)
     
@@ -423,10 +423,9 @@ class GpsNavigationGui:
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
             res = sendBoundaryClient(lat,lon)
-            print("Boundary Sent")
+            rospy.loginfo("Boundary Sent")
         except rospy.ServiceException as e:
-            print(e)
-            print("Boundary sent unsuccessfully")
+            rospy.logerr("Boundary was not send successfully: %s", e)
 
     def sendWaypoints(self, waypoints):
         #rospy.wait_for_service('/waypoints')
@@ -435,17 +434,17 @@ class GpsNavigationGui:
             lat = [float(lat[0]) for lat in waypoints]
             lon = [float(lon[1]) for lon in waypoints]
             res = sendWaypointsClient(lat,lon)
-            print("Waypoints sent! ")
+            rospy.loginfo("Waypoints sent!")
         except rospy.ServiceException:
-            print("Waypoints sent unsuccessfully")
+            rospy.logerr("Waypoints were not sent successfully")
         
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
         if self.editPathMode:
-            print("Warning: Please finish editing the path first")
+            rospy.logwarn("Warning: Please finish editing the path first")
             return
         elif self.editBoundaryMode and self.pathRoi.handles == []:
-            print('Warning: No boundary to edit, please draw a boundary first')
+            rospy.logwarn('Warning: No boundary to edit, please draw a boundary first')
             return
 
         self.editBoundaryMode = not self.editBoundaryMode
@@ -479,11 +478,11 @@ class GpsNavigationGui:
     # This function turns on/off editing mode
     def toggleEditPathMode(self):
         if self.editBoundaryMode:
-            print("Warning: Please finish editing the boundary first")
+            rospy.logwarn("Warning: Please finish editing the boundary first")
             return
         #check if pathRoi is empty
         elif self.editPathMode and self.pathRoi.handles == []:
-            print('Warning: No path to edit, please draw a path first')
+            rospy.logwarn('Warning: No path to edit, please draw a path first')
             return
 
         self.editPathMode = not self.editPathMode
@@ -503,7 +502,7 @@ class GpsNavigationGui:
             x, y = zip(*self.pathPlotPoints)
             #size of x
             self.pathPlot.setData(x=list(x), y=list(y))
-            print(self.pathGPS)
+            rospy.loginfo(f"Waypoints: {self.pathGPS}")
             self.pathRoi.setPoints([])
             self.sendWaypoints(self.pathGPS)
     
@@ -520,7 +519,7 @@ class GpsNavigationGui:
     
     def toggleGrid(self):
         if not self.editPathMode and not self.editBoundaryMode:
-            print("start grid")
+            rospy.loginfo("grid mode")
             self.grid = not self.grid
             rospy.set_param('/grid', True)
             rospy.set_param('/adaptive', False)
@@ -619,7 +618,7 @@ class GpsNavigationGui:
     # This function updates the goal and displays it on the map
     def onNextGoalUpdate(self, req: NavigateGPS):
         if self.adaptive:
-            print("adaptive mode")
+            rospy.loginfo("adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
             self.pathPlotPoints.append(self.satMap.coord2Pixel(req.goal_lat, req.goal_lon))
             #self.pathPlot.setData(x = x_loc, y = y_loc)
@@ -630,7 +629,7 @@ class GpsNavigationGui:
             point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
             self.updateGoalMarker(point)
         else:
-            print("Next point")
+            rospy.loginfo("Next point")
             point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
             self.updateGoalMarker(point)
 
@@ -640,7 +639,7 @@ class GpsNavigationGui:
     def onGridPoints(self, req: Waypoints):
         #display it on the map by setting the data of the pathPlot
         if True:
-            print("Printing grid points")
+            rospy.loginfo("Printing grid points")
             self.waypointsGPS = []
             self.waypointsPath = []
             for i in range(len(req.waypoints_lat)):
@@ -653,7 +652,7 @@ class GpsNavigationGui:
             clear_service_client = rospy.ServiceProxy(self._clear_service_name, Complete)
             res = clear_service_client(True)
         except rospy.ServiceException as e:
-            print("Reset Failed")
+            rospy.loginfo("Reset Failed")
 
     def togglePxrfCollection(self):
         try:
@@ -669,7 +668,7 @@ class GpsNavigationGui:
             self.statusDetailed.setText("Collecting Sample")
             self.sampleBtn.setText("Stop PXRF")
         except rospy.ServiceException as e:
-            print("Service call failed: %s"%e)
+            rospy.loginfo("Service call failed: %s", e)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
