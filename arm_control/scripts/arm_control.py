@@ -42,7 +42,19 @@ class RobotController:
 
         self.num_joints = self.group.size
         self.group_fbk = hebi.GroupFeedback(self.num_joints)
+        self.batt_voltage = 0.0
         # gainsCmd.mstop_strategy = 2
+    
+    def get_batt_voltage(self):
+        # Get position feedback from the robot to use as initial conditions
+        group_fbk = hebi.GroupFeedback(self.group.size)
+        
+        if self.group.get_next_feedback(reuse_fbk=group_fbk) is None:
+            rospy.logerr("Couldn't get feedback")
+            return False
+        else:
+            self.batt_voltage = str(min(group_fbk.voltage))
+            return True
 
     def get_joint_angles(self):
         # Get position feedback from the robot to use as initial conditions
@@ -88,26 +100,39 @@ class EndEffectorTrajectory:
         self.robot_controller = robot_controller
 
         self.load_ros_params()
+        rospy.on_shutdown(self.shutdown_handler)
         
-        self.is_arm_in_home_pose = rospy.get_param(
-            self._is_arm_in_home_pose_param_name
-            ) # Arm pose flag that persists across restarts
         
-        if not self.is_arm_in_home_pose:
+       
+        self.home_pose = [4.7336320877075195, -0.019812583923339844, -3.154970169067383, -0.23143387]
+        self.num_joints = len(robot_controller.get_joint_angles())
+        
+        # Move arm to home pose
+        if not self.check_if_robot_in_home_pose():
             self.arm_return()
-        
+         
         self._lower_arm_service = rospy.Service(self._lower_arm_service_name,
                                                 SetBool,
                                                 self.lower_arm_callback)
 
-        self.num_joints = len(robot_controller.get_joint_angles())
-
+        self._get_arm_battery_voltage_service = rospy.Service(self._get_arm_battery_voltage_service_name,
+                                                Trigger,
+                                                self.get_arm_battery_voltage_callback)
+        
+        
+        
     def load_ros_params(self):
         # Load service names into params
         self._lower_arm_service_name = rospy.get_param(
             "lower_arm_service_name")
         self._is_arm_in_home_pose_param_name = rospy.get_param(
             "is_arm_in_home_pose_param_name")
+        self._get_arm_battery_voltage_service_name = rospy.get_param(
+            "lipo_battery_voltage_service_name")
+    
+    def get_arm_battery_voltage_callback(self, data):
+        batt_volt_status = self.robot_controller.get_batt_voltage()
+        return TriggerResponse(batt_volt_status, self.robot_controller.batt_voltage)
 
     def get_touchdown_waypoints(self):
         rows = 4  # num of joint angles
@@ -144,7 +169,7 @@ class EndEffectorTrajectory:
         pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, 0.439913826]
         pos[:, 3] = [4.89430189, 0.72055084, -2.27849388, -0.12733116]
         pos[:, 4] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
-        pos[:, 5] = [4.7336320877075195, -0.019812583923339844, -3.154970169067383, -0.23143387]
+        pos[:, 5] = list(self.home_pose)
         return pos
 
         #positions = np.array([
@@ -306,10 +331,24 @@ class EndEffectorTrajectory:
         self.robot_controller.group.command_lifetime = 0
         cmd = hebi.GroupCommand(self.robot_controller.group.size)
         
-        cmd.position = [4.7336320877075195, -0.019812583923339844, -3.154970169067383, -0.23143387]
+        cmd.position = self.home_pose
         
         self.robot_controller.group.send_command_with_acknowledgement(cmd)
 
+    def check_if_robot_in_home_pose(self):
+        current_joint_angles = self.robot_controller.get_joint_angles()
+        pose_diff = abs(np.max(current_joint_angles-np.array(self.home_pose)))
+        rospy.loginfo(f"Home Pose Diff: {pose_diff}")
+        if pose_diff > 0.1:
+            rospy.loginfo("Arm is not in home pose")
+            return False
+        else:
+            return True
+    
+    def shutdown_handler(self):
+        # Move arm to home pose
+        if not self.check_if_robot_in_home_pose():
+            self.arm_return()
 
 if __name__ == "__main__":
     # Initialize the ROS node
@@ -331,7 +370,7 @@ if __name__ == "__main__":
         "config/hrdf/anakin.hrdf",
     )
     end_effector_trajectory = EndEffectorTrajectory(robot_controller)
-
+    
+    
     rospy.spin()
-
     rospy.loginfo("Shutting down the ROS node.")
