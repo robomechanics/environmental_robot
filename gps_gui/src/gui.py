@@ -6,7 +6,7 @@ import numpy as np
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
-from std_msgs.msg import String, Bool
+from std_msgs.msg import String, Bool, Int32
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
@@ -78,6 +78,7 @@ class GpsNavigationGui:
 
         # Add arrow to show robot
         self.robotArrow = pg.ArrowItem(headLen=40, tipAngle=30, brush='r')
+        self.robotArrow.setStyle(angle = 90)
         self.click_plot.addItem(self.robotArrow)
 
         # init ROI for editing path
@@ -101,7 +102,7 @@ class GpsNavigationGui:
         # interaction for adding path points
         self.click_plot.click_handlers = [self.addROIPoint]
 
-        # robot's history (path measured by gps)
+        # Robot's history (path measured by gps)
         self.historyPoints: list[list[int]] = []
         self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=2))
         self.setHistory()
@@ -166,6 +167,9 @@ class GpsNavigationGui:
         
         self.pxrfSub = rospy.Subscriber(self._pxrf_response_topic, String, self.pxrfResponseCallback)
         
+        self.roverBatterySub = rospy.Subscriber(self._rover_battery_voltage_topic, Int32, self.roverBatteryCallback)
+        self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_voltage_topic, String, self.lipoBatteryCallback)
+    
     def loadROSParams(self):
         # Load topic names into params
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
@@ -176,6 +180,8 @@ class GpsNavigationGui:
         self._status_sub_topic = rospy.get_param('status_topic')
         self._manager_run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
         self._scan_completed_topic = rospy.get_param("scan_completed_topic")
+        self._rover_battery_voltage_topic = rospy.get_param("rover_battery_voltage_topic")
+        self._lipo_battery_voltage_topic = rospy.get_param("lipo_battery_voltage_topic")
         
         # Load service names into params
         self._parking_brake_service = rospy.get_param('parking_break_service_name')
@@ -287,15 +293,25 @@ class GpsNavigationGui:
         
         self.statusDetailed = QtWidgets.QLineEdit("")
         self.statusDetailed.setReadOnly(True)
+        
+        self.statusRoverBattery = QtWidgets.QLineEdit("XX")
+        self.statusRoverBattery.setStyleSheet("background-color: purple")
+        self.statusRoverBattery.setReadOnly(True)
+        
+        self.statusLIPOBattery = QtWidgets.QLineEdit("XX")
+        self.statusLIPOBattery.setStyleSheet("background-color: purple")
+        self.statusLIPOBattery.setReadOnly(True)
 
         # add buttons to the layout
         self.widget.addWidget(self.statusGPS,          row=1, col=0, colspan=2)
         self.widget.addWidget(self.statusManager,      row=1, col=2, colspan=2)
         self.widget.addWidget(self.statusDetailed,     row=1, col=4, colspan=2)
+        self.widget.addWidget(self.statusRoverBattery, row=1, col=6, colspan=1)
+        self.widget.addWidget(self.statusLIPOBattery,  row=1, col=7, colspan=1)
         
-        self.widget.addWidget(clearHistoryBtn,         row=2, col=4, colspan=2)
-        self.widget.addWidget(clearPathBtn,            row=2, col=2, colspan=2)
         self.widget.addWidget(self.editPathBtn,        row=2, col=0, colspan=2)
+        self.widget.addWidget(clearPathBtn,            row=2, col=2, colspan=2)
+        self.widget.addWidget(clearHistoryBtn,         row=2, col=4, colspan=2)
         # self.widget.addWidget(loadPathFileBtn,       row=2, col=2, colspan=1)
         # self.widget.addWidget(savePathBtn,           row=2, col=3, colspan=1)
         self.widget.addWidget(self.startPauseBtn,      row=2, col=6, colspan=2)
@@ -312,6 +328,12 @@ class GpsNavigationGui:
         self.widget.addWidget(self.eStopBtn,           row=4, col=4, colspan=2)
         self.widget.addWidget(self.gridBtn,            row=4, col=6, colspan=2)
 
+    def roverBatteryCallback(self, data: Int32):
+        self.statusRoverBattery.setText(f"Rover: {data.data}")
+    
+    def lipoBatteryCallback(self, data: String):
+        self.statusLIPOBattery.setText(f"LIPO: {data.data}")
+        
     def showPXRFResults(self):
         generate_plot(self.scanData.file_name)
 
@@ -597,7 +619,7 @@ class GpsNavigationGui:
         robotHeading = eulerVals[2]
 
         if not self.robotArrow is None:
-            self.robotArrow.setStyle(angle = 180 - robotHeading*180.0/np.pi)
+            self.robotArrow.setStyle(angle = 180 - (robotHeading*180.0/np.pi))
             self.robotArrow.setPos(pixX, pixY)
             self.robotArrow.update()
 
