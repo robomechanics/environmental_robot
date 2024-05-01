@@ -12,6 +12,8 @@ import csv
 import time
 from tf.transformations import euler_from_quaternion
 import numpy as np
+from datetime import datetime
+from std_srvs.srv import Empty
 
 def chemistry_parser(chemistry):
     s = chemistry.strip()
@@ -47,18 +49,21 @@ class PXRFHandler(object):
         rospy.init_node("pxrf_handler", anonymous=True)
         self.load_ros_params()
         
-        self.data_file = os.path.join(self.data_dir, str(date.today()) + ".csv")
+        self.create_log_file()
 
         self.pxrf_command_pub = rospy.Publisher(self._pxrf_cmd_topic, String, queue_size=1)
         self.scan_completed_pub = rospy.Publisher(self._scan_completed_topic, CompletedScanData, queue_size=1)
         
         self._pxrf_response_sub = rospy.Subscriber(self._pxrf_response_topic, String, self.response_listener)
         self._pxrf_data_sub = rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.data_listener)
-        self._start_scan_sub = rospy.Service(self._start_scan_service_name, Complete, self.scan_start)
         self._gps_sub = rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
         self.utm_odom_sub = rospy.Subscriber(
             self._gps_odom_topic, Odometry, self.gps_odom_callback
         )
+        
+        self._start_scan_service = rospy.Service(self._start_scan_service_name, Complete, self.scan_start)
+        self._rotate_log_file_service = rospy.Service(self._rotate_scan_log_file_service_name, Empty, self.rotate_log_file_callback)
+        
         
         self.scanning = False
         self.gps_location = [0, 0]
@@ -66,7 +71,6 @@ class PXRFHandler(object):
         self.gps_quaternion = np.zeros(4)
         self.gps_odom_heading = 0
         
-        self.file_check()
         rospy.loginfo("Started PXRF Handler...")
         
         rospy.spin()
@@ -79,6 +83,7 @@ class PXRFHandler(object):
         self._scan_completed_topic = rospy.get_param("scan_completed_topic")
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
+        self._rotate_scan_log_file_service_name = rospy.get_param("rotate_scan_log_file_service_name")
         
         self.data_dir = os.path.expanduser(rospy.get_param("data_dir"))
         self.element_of_interest = rospy.get_param("element_of_interest")
@@ -106,7 +111,9 @@ class PXRFHandler(object):
             self.scanning = False
         return True
 
-    def file_check(self):
+    def create_log_file(self):
+        self.data_file = os.path.join(self.data_dir, (datetime.now().strftime("%d-%m-%Y_%H:%M:%S")) + ".csv")
+        
         if not os.path.exists(self.data_dir):
             rospy.loginfo(f" |Creating directory {self.data_dir}")
             os.makedirs(self.data_dir)
@@ -115,13 +122,17 @@ class PXRFHandler(object):
             rospy.loginfo(f" |Creating file {self.data_file}")
             with open(self.data_file, 'w') as fp:
                 pass
+    
+    def rotate_log_file_callback(self, data):
+        self.create_log_file()
+        return True
 
     def data_listener(self, data: PxrfMsg):
         if self.scanning and self.test_stopped:
             self.scanning = False
             
             # get ros and system time
-            self.system_time = time.localtime()
+            self.system_time = str(datetime.datetime.now())
             self.ros_time = rospy.Time.now()
             
             # record and process received response
@@ -130,14 +141,14 @@ class PXRFHandler(object):
                 data.dailyId,
                 data.testId,
                 data.testDateTime,
+                self.system_time,
+                self.ros_time,
                 self.gps_location,
                 self.gps_odom_location,
                 self.gps_odom_heading,
-                self.system_time,
-                self.ros_time,
             ]
             
-            self.file_check()
+            self.create_log_file()
             with open(self.data_file, "a+") as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
