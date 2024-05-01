@@ -25,13 +25,7 @@
 
   <!-- Arm Camera -->
   <group if="$(arg useArmCamera)">
-    <node name="arm_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
-      <param name="video_device" value="/dev/video0" />
-      <param name="image_width" value="640" />
-      <param name="image_height" value="480" />
-      <param name="pixel_format" value="yuyv" />
-      <param name="camera_frame_id" value="arm_cam" />
-    </node>
+    <include file = "$(find autonomy_manager)/launch/arm_camera.launch"/>
   </group>
 
 </launch>
