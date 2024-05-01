@@ -8,6 +8,7 @@ import hebi
 import rospkg
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from os.path import join as os_path_join
+from std_msgs.msg import String
 
 
 class RobotController:
@@ -53,7 +54,7 @@ class RobotController:
             rospy.logerr("Couldn't get feedback")
             return False
         else:
-            self.batt_voltage = str(min(group_fbk.voltage))
+            self.batt_voltage = min(group_fbk.voltage)
             return True
 
     def get_joint_angles(self):
@@ -96,7 +97,7 @@ class RobotController:
 
 class EndEffectorTrajectory:
 
-    def __init__(self, robot_controller):
+    def __init__(self, robot_controller: RobotController):
         self.robot_controller = robot_controller
 
         self.load_ros_params()
@@ -115,11 +116,12 @@ class EndEffectorTrajectory:
                                                 SetBool,
                                                 self.lower_arm_callback)
 
-        self._get_arm_battery_voltage_service = rospy.Service(self._get_arm_battery_voltage_service_name,
-                                                Trigger,
-                                                self.get_arm_battery_voltage_callback)
+        self.lipo_battery_voltage_pub = rospy.Publisher(self._lipo_battery_voltage_topic,
+                                                        String, 
+                                                        queue_size=1)
         
-        
+        self._batt_voltage_timer = rospy.Timer(rospy.Duration(30), self.publish_lipo_battery_voltage)
+
         
     def load_ros_params(self):
         # Load service names into params
@@ -127,12 +129,12 @@ class EndEffectorTrajectory:
             "lower_arm_service_name")
         self._is_arm_in_home_pose_param_name = rospy.get_param(
             "is_arm_in_home_pose_param_name")
-        self._get_arm_battery_voltage_service_name = rospy.get_param(
-            "lipo_battery_voltage_service_name")
+        self._lipo_battery_voltage_topic = rospy.get_param(
+            "lipo_battery_voltage_topic")
     
-    def get_arm_battery_voltage_callback(self, data):
-        batt_volt_status = self.robot_controller.get_batt_voltage()
-        return TriggerResponse(batt_volt_status, self.robot_controller.batt_voltage)
+    def publish_lipo_battery_voltage(self, data):
+        self.robot_controller.get_batt_voltage()
+        self.lipo_battery_voltage_pub.publish(f"{self.robot_controller.batt_voltage:.1})")
 
     def get_touchdown_waypoints(self):
         rows = 4  # num of joint angles
@@ -300,6 +302,7 @@ class EndEffectorTrajectory:
             self.arm_touchdown()
         else:
             self.arm_return()
+        return SetBoolResponse(True, "SUCCESS")
            
     def arm_touchdown(self):
         # Set a param flag that persists across restarts
