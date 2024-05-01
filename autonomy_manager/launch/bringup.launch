@@ -4,6 +4,7 @@
   <arg name="usePXRF" default="true"/>
   <arg name="useManager" default="true"/>
   <arg name="useArmCamera" default="true"/>
+  <arg name="useRTK" default="true"/>
 
   <!-- ROS Params, TF and Vel Pub -->
   <include file = "$(find autonomy_manager)/launch/basic.launch"/>
@@ -26,6 +27,11 @@
   <!-- Arm Camera -->
   <group if="$(arg useArmCamera)">
     <include file = "$(find autonomy_manager)/launch/arm_camera.launch"/>
+  </group>
+
+  <!-- RTK Base Station -->
+  <group if="$(arg useArmCamera)">
+    <include file = "$(find rtk_base)/launch/base_rtcm_pub.launch"/>
   </group>
 
 </launch>
