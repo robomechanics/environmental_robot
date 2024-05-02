@@ -45,13 +45,18 @@ def chemistry_parser(chemistry):
             error.append(arr[i])
     return element, concentration, error
 
+ALGO_ADAPTIVE = 'adaptive'
+ALGO_GRID = 'grid'
+ALGO_WAYPOINT = 'waypoint'
+ALGO_MANUAL = 'manual'
+ALGO_NONE = 'algo_none'
+VALID_ALGOS = [ALGO_ADAPTIVE, ALGO_GRID, ALGO_WAYPOINT, ALGO_MANUAL]
+
 class PXRFHandler(object):
     def __init__(self):
         rospy.init_node("pxrf_handler", anonymous=True)
         self.load_ros_params()
         
-        self.create_log_file()
-
         self.pxrf_command_pub = rospy.Publisher(self._pxrf_cmd_topic, String, queue_size=1)
         self.scan_completed_pub = rospy.Publisher(self._scan_completed_topic, CompletedScanData, queue_size=1)
         
@@ -86,7 +91,9 @@ class PXRFHandler(object):
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._rotate_scan_log_file_service_name = rospy.get_param("rotate_scan_log_file_service_name")
         self._autonomy_params_service_name = rospy.get_param("autonomy_params_service_name")
+        self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
         
+        self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
         self.element_of_interest = rospy.get_param("element_of_interest")
     
@@ -114,18 +121,21 @@ class PXRFHandler(object):
         return True
 
     def create_log_file(self):
+        self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.data_dir = os.path.join(self.root_data_dir, datetime.now().strftime("%d-%m-%Y_%H:%M:%S"))
-        self.data_file = os.path.join(self.data_dir, "scan_results.csv")
+        self.data_file = os.path.join(self.data_dir, "scan_results_" + self.algorithm_type + ".csv")
         self.yaml_file = os.path.join(self.data_dir, "params.yaml")
         
         if not os.path.exists(self.data_dir):
             rospy.loginfo(f" |Creating directory {self.data_dir}")
             os.makedirs(self.data_dir)
         
-        if not os.path.exists(self.data_file):
-            rospy.loginfo(f" |Creating file {self.data_file}")
-            with open(self.data_file, 'w') as fp:
-                pass
+        for algo_type in VALID_ALGOS:
+            data_file = os.path.join(self.data_dir, "scan_results_" + algo_type + ".csv")
+            if not os.path.exists(data_file):
+                rospy.loginfo(f" |Creating file {data_file}")
+                with open(data_file, 'w') as fp:
+                    pass
     
     def autonomy_params_callback(self, data: AutonomyParams):
         data_info = {
@@ -174,6 +184,10 @@ class PXRFHandler(object):
                 self.gps_odom_location,
                 self.gps_odom_heading,
             ]
+            
+            
+            self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+            self.data_file = os.path.join(self.data_dir, "scan_results_" + self.algorithm_type + ".csv")
             
             with open(self.data_file, "a+") as f:
                 writer = csv.writer(f)

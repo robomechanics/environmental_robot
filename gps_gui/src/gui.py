@@ -40,6 +40,7 @@ ALGO_ADAPTIVE = 'adaptive'
 ALGO_GRID = 'grid'
 ALGO_WAYPOINT = 'waypoint'
 ALGO_NONE = 'algo_none'
+ALGO_MANUAL = 'manual'
 
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height):
@@ -419,6 +420,9 @@ class GpsNavigationGui:
             
             self.addMarkerAt(self.prev_lat, self.prev_lon, f'Sample#{self.numMeasurements}')
             
+            rospy.set_param(self._algorithm_type_param_name, self.algorithm_type_before_manual_sample)
+            rospy.sleep(0.5)
+            
             try:
                 lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
                 lower_arm_service(False)
@@ -711,6 +715,8 @@ class GpsNavigationGui:
             lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
             lower_arm_service(True)
             
+            self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
             rospy.sleep(1.5)
             
             start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
