@@ -28,6 +28,7 @@ import argparse
 from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from copy import deepcopy
 import qdarktheme
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 qss = """
 QPushButton {
@@ -63,7 +64,7 @@ class GpsNavigationGui:
 
         # Add plot for map
         satGUI = pg.GraphicsLayoutWidget()
-        self.widget.addWidget(satGUI, row=0, col=0, colspan=8)
+        self.widget.addWidget(satGUI, row=0, col=0, colspan=10)
         # satGUI.setBackground('black')
         self.click_plot = PlotWithClick()
         satGUI.addItem(self.click_plot)
@@ -182,7 +183,7 @@ class GpsNavigationGui:
         self._scan_completed_topic = rospy.get_param("scan_completed_topic")
         self._rover_battery_voltage_topic = rospy.get_param("rover_battery_voltage_topic")
         self._lipo_battery_voltage_topic = rospy.get_param("lipo_battery_voltage_topic")
-        
+        self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
         # Load service names into params
         self._parking_brake_service = rospy.get_param('parking_break_service_name')
         self._next_point_service = rospy.get_param('next_goal_to_GUI_service_name')
@@ -192,6 +193,7 @@ class GpsNavigationGui:
         self._start_scan_service_name = rospy.get_param('start_scan_service_name')
         self._clear_service_name = rospy.get_param('clear_service_name')
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
+        self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
         
         # Load action client topic names
         self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
@@ -246,11 +248,21 @@ class GpsNavigationGui:
         self.sampleBtn = QtWidgets.QPushButton('Sample')
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
+        
+        self.is_arm_in_home_pose = rospy.get_param(
+            self._is_arm_in_home_pose_param_name, True
+            ) # Arm pose flag that persists across restarts
+        if self.is_arm_in_home_pose:
+            self.ArmBtn = QtWidgets.QPushButton('Lower Arm')
+        else:
+            self.ArmBtn = QtWidgets.QPushButton('Raise Arm')
+        self.ArmBtn.setStyleSheet("color: lightblue")
+        self.ArmBtn.clicked.connect(self.toggleArm)
 
         
         self.statusGPS = QtWidgets.QLineEdit()
         self.statusGPS.setText('GPS Connecting...')
-        self.statusGPS.setReadOnly(True)
+        self.statusGPS.setReadOnly(False)
         
         self.showPxrfBtn = QtWidgets.QPushButton('PXRF Results')
         self.showPxrfBtn.setStyleSheet("color: lightblue")
@@ -295,19 +307,23 @@ class GpsNavigationGui:
         self.statusDetailed.setReadOnly(True)
         
         self.statusRoverBattery = QtWidgets.QLineEdit("XX")
-        self.statusRoverBattery.setStyleSheet("background-color: purple")
+        self.statusRoverBattery.setStyleSheet("background-color: lightpurple")
         self.statusRoverBattery.setReadOnly(True)
         
         self.statusLIPOBattery = QtWidgets.QLineEdit("XX")
-        self.statusLIPOBattery.setStyleSheet("background-color: purple")
+        self.statusLIPOBattery.setStyleSheet("background-color: lightpurple")
         self.statusLIPOBattery.setReadOnly(True)
+        
+        self.cancelMBGaolsBtn = QtWidgets.QPushButton('Cancel Goals')
+        self.cancelMBGaolsBtn.setStyleSheet("color: red")
+        self.cancelMBGaolsBtn.clicked.connect(self.cancelMoveBaseGoals)
 
         # add buttons to the layout
-        self.widget.addWidget(self.statusGPS,          row=1, col=0, colspan=2)
-        self.widget.addWidget(self.statusManager,      row=1, col=2, colspan=2)
-        self.widget.addWidget(self.statusDetailed,     row=1, col=4, colspan=2)
-        self.widget.addWidget(self.statusRoverBattery, row=1, col=6, colspan=1)
-        self.widget.addWidget(self.statusLIPOBattery,  row=1, col=7, colspan=1)
+        self.widget.addWidget(self.statusGPS,          row=1, col=0, colspan=1)
+        self.widget.addWidget(self.statusManager,      row=1, col=1, colspan=3)
+        self.widget.addWidget(self.statusDetailed,     row=1, col=4, colspan=3)
+        self.widget.addWidget(self.statusRoverBattery, row=1, col=7, colspan=1)
+        self.widget.addWidget(self.statusLIPOBattery,  row=1, col=8, colspan=1)
         
         self.widget.addWidget(self.editPathBtn,        row=2, col=0, colspan=2)
         self.widget.addWidget(clearPathBtn,            row=2, col=2, colspan=2)
@@ -324,10 +340,18 @@ class GpsNavigationGui:
 
         # self.widget.addWidget(self.parkBtn,          row=4, col=6, colspan=2)
         self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=2)
-        self.widget.addWidget(self.showPxrfBtn,        row=4, col=2, colspan=2)
-        self.widget.addWidget(self.eStopBtn,           row=4, col=4, colspan=2)
-        self.widget.addWidget(self.gridBtn,            row=4, col=6, colspan=2)
+        self.widget.addWidget(self.ArmBtn,             row=4, col=2, colspan=2)
+        self.widget.addWidget(self.showPxrfBtn,        row=4, col=4, colspan=2)
+        self.widget.addWidget(self.eStopBtn,           row=4, col=6, colspan=1)
+        self.widget.addWidget(self.cancelMBGaolsBtn,   row=4, col=7, colspan=1)
+        self.widget.addWidget(self.gridBtn,            row=4, col=8, colspan=2)
 
+    def cancelMoveBaseGoals(self, data):
+        mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
+        rospy.loginfo(f"Cancelling all Movebase goals...")
+        mb_client.cancel_all_goals()
+        rospy.loginfo(f"Cancelled all Movebase goals!")
+            
     def roverBatteryCallback(self, data: Int32):
         self.statusRoverBattery.setText(f"Rover: {data.data}")
     
@@ -691,6 +715,31 @@ class GpsNavigationGui:
             self.sampleBtn.setText("Stop PXRF")
         except rospy.ServiceException as e:
             rospy.loginfo("Service call failed: %s", e)
+    
+    def toggleArm(self):
+        self.is_arm_in_home_pose = rospy.get_param(
+            self._is_arm_in_home_pose_param_name
+            )
+        if self.is_arm_in_home_pose:
+            try:
+                # Lower Arm
+                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+                lower_arm_service(False)
+
+                # Arm is lowered
+                self.ArmBtn.setText("Raise Arm")
+            except rospy.ServiceException as e:
+                rospy.loginfo("Service call failed: %s", e)
+        else:
+            try:
+                # Raise Arm
+                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+                lower_arm_service(True)
+
+                # Arm is raised
+                self.ArmBtn.setText("Lower Arm")
+            except rospy.ServiceException as e:
+                rospy.loginfo("Service call failed: %s", e)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
