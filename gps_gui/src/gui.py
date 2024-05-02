@@ -151,7 +151,7 @@ class GpsNavigationGui:
 
     def setupROS(self):
         # Services
-        self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
+        # self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
         self.nextPoint = rospy.Service(self._next_point_service, NavigateGPS, self.onNextGoalUpdate)
         self.grid_points = rospy.Service(self._grid_points_service, Waypoints, self.onGridPoints)
         
@@ -260,17 +260,8 @@ class GpsNavigationGui:
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
         
-        while '/arm_control_node' not in rosnode.get_node_names():
-            rospy.loginfo("Waiting for Arm Control Node")
-            rospy.sleep(1) 
-        self.is_arm_in_home_pose = rospy.get_param(
-                self._is_arm_in_home_pose_param_name
-                ) # Arm pose flag that persists across restarts
         
-        if self.is_arm_in_home_pose:
-            self.ArmBtn = QtWidgets.QPushButton('Lower Arm')
-        else:
-            self.ArmBtn = QtWidgets.QPushButton('Raise Arm')
+        self.ArmBtn = QtWidgets.QPushButton('Toggle Arm')
         self.ArmBtn.setStyleSheet("color: lightblue")
         self.ArmBtn.clicked.connect(self.toggleArm)
 
@@ -724,7 +715,8 @@ class GpsNavigationGui:
             
             self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
             rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
-            rospy.sleep(1.5)
+            rospy.sleep(1.0)
+            rospy.loginfo(f"Algo Type: {rospy.get_param(self._algorithm_type_param_name)}")
             
             start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
             start_scan_service(True)
@@ -736,27 +728,29 @@ class GpsNavigationGui:
             rospy.loginfo("Service call failed: %s", e)
     
     def toggleArm(self):
+        while '/arm_control_node' not in rosnode.get_node_names():
+            rospy.loginfo("Waiting for Arm Control Node")
+            rospy.sleep(1) 
         self.is_arm_in_home_pose = rospy.get_param(
-            self._is_arm_in_home_pose_param_name
-            )
+                self._is_arm_in_home_pose_param_name
+                ) # Arm pose flag that persists across restarts
+        
         if self.is_arm_in_home_pose:
             try:
                 # Lower Arm
                 lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(False)
+                lower_arm_service(True)
 
                 # Arm is lowered
-                self.ArmBtn.setText("Raise Arm")
             except rospy.ServiceException as e:
                 rospy.loginfo("Service call failed: %s", e)
         else:
             try:
                 # Raise Arm
                 lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(True)
+                lower_arm_service(False)
 
                 # Arm is raised
-                self.ArmBtn.setText("Lower Arm")
             except rospy.ServiceException as e:
                 rospy.loginfo("Service call failed: %s", e)
 

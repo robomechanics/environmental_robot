@@ -111,7 +111,8 @@ class EndEffectorTrajectory:
         # Move arm to home pose
         if not self.check_if_robot_in_home_pose():
             self.arm_return()
-         
+            
+             
         self._lower_arm_service = rospy.Service(self._lower_arm_service_name,
                                                 SetBool,
                                                 self.lower_arm_callback)
@@ -134,45 +135,48 @@ class EndEffectorTrajectory:
     
     def publish_lipo_battery_voltage(self, data):
         self.robot_controller.get_batt_voltage()
-        self.lipo_battery_voltage_pub.publish(f"{self.robot_controller.batt_voltage:.1})")
+        self.lipo_battery_voltage_pub.publish(f"{self.robot_controller.batt_voltage:.1f}")
 
-    def get_touchdown_waypoints(self):
-        rows = 4  # num of joint angles
-        cols = 6  # num of target waypoints
-        pos = np.zeros((rows, cols))
-        initial_joint_angles = self.robot_controller.get_joint_angles().tolist()
-        pos[:, 0] = initial_joint_angles
-        pos[:, 1] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
-        pos[:, 2] = [4.89430189, 0.72055084, -2.27849388, -0.22733116]
-        pos[:, 3] = [4.83683014, 1.60074646, -2.15341663, -0.13106194]
-        pos[:, 4] = [4.7667532, 2.01732284, -1.83409595, -0.66559677]
-        pos[:, 5] = [4.70845413, 2.87031967, -1.8154192, 0.439913826]
+    def get_forward_waypoints(self, traj_type = 0):
+        if traj_type == 0:
+            rows = 4  # num of joint angles
+            cols = 5  # num of target waypoints
+            pos = np.zeros((rows, cols))
+            initial_joint_angles = self.robot_controller.get_joint_angles().tolist()
+            pos[:, 0] = initial_joint_angles
+            pos[:, 1] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
+            pos[:, 2] = [4.79459, 0.72055084, -2.1341663, -0.22733116]
+            pos[:, 3] = [4.79459, 1.60074646, -2.1341663, 0.439913826]
+            pos[:, 4] = [4.79459, 2.3232284, -1.83409595, 0.439913826]
+            return pos
+        
+        elif traj_type == 1:
+            rows = 4  # num of joint angles
+            cols = 2  # num of target waypoints
+            pos = np.zeros((rows, cols))
+            # initial_joint_angles = self.robot_controller.get_joint_angles().tolist()
+            pos[:, 0] = [4.79459, 2.3232284, -1.83409595, 0.439913826]
+            pos[:, 1] = [4.79459, 2.87031967, -1.8154192, 0.439913826]
+            return pos
 
-        # initial_joint_angles = self.robot_controller.get_joint_angles().tolist(
-        # )
-        # positions = np.array([
-        #     initial_joint_angles,
-        #     [4.79459, 0.39897567, -2.67670345, -0.23143387],
-        #     [4.89430189, 0.72055084, -2.27849388, -0.22733116],
-        #     [4.83683014, 1.60074646, -2.15341663, -0.23106194],
-        #     [4.7667532, 2.01732284, -1.83409595, -0.86559677],
-        #     [4.70845413, 2.87031967, -1.8154192, 0.09913826],
-        # ])
-
-        return pos
-
-    def get_return_waypoints(self):
-        rows = 4  # num of joint angles
-        cols = 6  # num of target waypoints
-        pos = np.zeros((rows, cols))
-        initial_angles = self.robot_controller.get_joint_angles()
-        pos[:, 0] = initial_angles
-        pos[:, 1] = [4.7661829, 2.58495361, -1.95124054, 0.439913826]
-        pos[:, 2] = [4.83683014, 1.60074646, -2.15341663, 0.439913826]
-        pos[:, 3] = [4.89430189, 0.72055084, -2.27849388, -0.12733116]
-        pos[:, 4] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
-        pos[:, 5] = list(self.home_pose)
-        return pos
+    def get_return_waypoints(self, traj_type = 0):
+        if traj_type == 0:
+            rows = 4  # num of joint angles
+            cols = 2  # num of target waypoints
+            pos = np.zeros((rows, cols))
+            initial_angles = self.robot_controller.get_joint_angles()
+            pos[:, 0] = initial_angles
+            pos[:, 1] = [4.7661829, 2.00495361, -2.06000, 0.439913826]
+            return pos
+        elif traj_type == 1:
+            rows = 4  # num of joint angles
+            cols = 4  # num of target waypoints
+            pos = np.zeros((rows, cols))
+            pos[:, 0] = [4.7661829, 2.00495361, -2.06000, 0.329913826]
+            pos[:, 1] = [4.83683014, 1.60074646, -2.15341663, 0.329913826]
+            pos[:, 2] = [4.79459, 0.39897567, -2.67670345, -0.23143387]
+            pos[:, 3] = list(self.home_pose)
+            return pos
 
         #positions = np.array([
         #    self.robot_controller.get_joint_angles().tolist(),
@@ -277,7 +281,7 @@ class EndEffectorTrajectory:
         t = 0.0
         duration = self.trajectory.duration
 
-        rospy.loginfo(f"Number of joints: {self.num_joints}")
+        # rospy.loginfo(f"Number of joints: {self.num_joints}")
 
         while t < duration:
             # self.robot_controller.group.get_next_feedback(reuse_fbk=self.group_fbk)
@@ -299,8 +303,12 @@ class EndEffectorTrajectory:
 
     def lower_arm_callback(self, req):
         if (req.data):
+            if not self.check_if_robot_in_home_pose():
+                return SetBoolResponse(True, "Arm is already in touchdown position")
             self.arm_touchdown()
         else:
+            if self.check_if_robot_in_home_pose():
+                return SetBoolResponse(True, "Arm is already in home position")
             self.arm_return()
         return SetBoolResponse(True, "SUCCESS")
            
@@ -308,17 +316,26 @@ class EndEffectorTrajectory:
         # Set a param flag that persists across restarts
         rospy.set_param(self._is_arm_in_home_pose_param_name, False)
         
-        waypoints = self.get_touchdown_waypoints()
-        self.get_hebi_trajectory(waypoints)
+        waypoints_forward = self.get_forward_waypoints(traj_type=0)
+        self.get_hebi_trajectory(waypoints_forward, 3)
         self.execute_trajectory_with_efforts()
+        
+        waypoints_touchdown = self.get_forward_waypoints(traj_type=1)
+        self.get_hebi_trajectory(waypoints_touchdown, 4)
+        self.execute_trajectory_with_efforts()
+        
         # self.execute_trajectory()
         return SetBoolResponse(
             success=True,
             message="Touchdown Trajectory executed successfully")
     
     def arm_return(self):
-        waypoints = self.get_return_waypoints()
-        self.get_hebi_trajectory(waypoints)
+        waypoints = self.get_return_waypoints(traj_type=0)
+        self.get_hebi_trajectory(waypoints, 4)
+        self.execute_trajectory()
+        
+        waypoints = self.get_return_waypoints(traj_type=1)
+        self.get_hebi_trajectory(waypoints, 5)
         self.execute_trajectory()
         
         self.goto_and_hold_home_pose()
@@ -342,20 +359,23 @@ class EndEffectorTrajectory:
         current_joint_angles = self.robot_controller.get_joint_angles()
         pose_diff = abs(np.max(current_joint_angles-np.array(self.home_pose)))
         rospy.loginfo(f"Home Pose Diff: {pose_diff}")
-        if pose_diff > 0.1:
-            rospy.loginfo("Arm is not in home pose")
+        if pose_diff > 0.2:
+            rospy.loginfo("Arm is NOT in home pose")
             return False
         else:
+            rospy.set_param(self._is_arm_in_home_pose_param_name, True)
+            rospy.loginfo("Arm is in home pose")
             return True
     
     def shutdown_handler(self):
         # Move arm to home pose
         if not self.check_if_robot_in_home_pose():
             self.arm_return()
+        rospy.loginfo("Arm should be in home position, Exiting...")
 
 if __name__ == "__main__":
     # Initialize the ROS node
-    rospy.init_node("arm_control_node")
+    rospy.init_node("arm_control")
     
     rospy.loginfo("Started Arm Control Node...")
     
@@ -376,4 +396,3 @@ if __name__ == "__main__":
     
     
     rospy.spin()
-    rospy.loginfo("Shutting down the ROS node.")
