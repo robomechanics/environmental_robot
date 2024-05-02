@@ -7,7 +7,6 @@ from nav_msgs.msg import Odometry
 from autonomy_manager.srv import Complete
 import os
 from sensor_msgs.msg import NavSatFix
-from datetime import date
 import csv
 import time
 from tf.transformations import euler_from_quaternion
@@ -132,7 +131,7 @@ class PXRFHandler(object):
             self.scanning = False
             
             # get ros and system time
-            self.system_time = str(datetime.datetime.now())
+            self.system_time = str(datetime.now())
             self.ros_time = rospy.Time.now()
             
             # record and process received response

@@ -80,6 +80,8 @@ class Manager(object):
         )
 
         # intialize adaptive sampling class and conversion class
+        self.pxrf_complete = False
+        self.pxrf_mean_value = None
         self.adaptiveROS = None
         self.gridROS = None
         self.conversion = Conversion()
@@ -198,6 +200,7 @@ class Manager(object):
     
     def run_loop_callback(self, data):
         self.run_loop_flag = True
+        return TriggerResponse(True, "SUCCESS")
 
     def load_ros_params(self):
         # Load topic names into params
@@ -358,6 +361,7 @@ class Manager(object):
         
         if not self.is_arm_in_home_pose:
             rospy.logerr("Arm is not in home pose, will not publish move_base goal!")
+            self.update_status("ERROR")
             return
         
         #TODO: Orientation for goal

@@ -16,9 +16,9 @@
   <arg name="filter_relative_position_ref"    default="[0.0, 0.0, 0.01]" doc="Reference position. Units dictated by filter_relative_position_frame" />
 
   <arg name="gnss1_antenna_offset_source" default="1"                doc="GNSS1 antenna offset source selector" />
-  <arg name="gnss1_antenna_offset"        default="[0.1746, -0.1547, -0.0074]"  doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
+  <arg name="gnss1_antenna_offset"        default="[0.1908,-0.2500,-0.0074]"  doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
   <arg name="gnss2_antenna_offset_source" default="1"                doc="GNSS1 antenna offset source selector" />
-  <arg name="gnss2_antenna_offset"        default="[-0.189, 0.1547, -0.0074]" doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
+  <arg name="gnss2_antenna_offset"        default="[-0.1728, 0.0594, -0.0074]" doc="GNSS2 antenna offset. Only used if gnss2_antenna_offset_source is set to 1" />
 
   <arg name="filter_auto_heading_alignment_selector" default="1" doc="Filter initialization auto-heading alignment selector" />
 

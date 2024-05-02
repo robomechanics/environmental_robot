@@ -59,9 +59,14 @@ COM -> IMU                  (-0.0162, -0.0953, +0.0074)
   y = 114 - 18.72 => 95.28 mm
   z =             => 7.37  mm
 
+IMU -> FRONT_ANTENNA        (0.1746+0.0162, 0.1547+0.0953)
+IMU -> FRONT_ANTENNA        (0.1908,0.25)
 
-IMU -> FRONT_ANTENNA        (+0.1604, +0.2160, -0.0074)
-IMU -> BACK_ANTENNA         (-0.1108, -0.0347, -0.0074)
+IMU -> BACK_ANTENNA         (0.189-0.0162, 0.1547-0.0953)
+IMU -> BACK_ANTENNA         (0.1728, 0.0594)
+
+OLD IMU -> FRONT_ANTENNA        (+0.1604, +0.2160, -0.0074)
+OLD IMU -> BACK_ANTENNA         (-0.1108, -0.0347, -0.0074)
 ```
 
 ### Topics
