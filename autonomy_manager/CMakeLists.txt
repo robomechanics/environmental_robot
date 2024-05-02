@@ -61,6 +61,7 @@ add_service_files(
   RunSensorPrep.srv
   Complete.srv
   Waypoints.srv
+  AutonomyParams.srv
 )
 
 ## Generate actions in the 'action' folder

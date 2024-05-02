@@ -82,6 +82,8 @@ class GPSNavigationInterface:
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
         
+        self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
+        self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
 
     def gps_status_callback(self, data):
         # todo: check data.status_flags.heading_warning?
@@ -126,6 +128,9 @@ class GPSNavigationInterface:
         
         rospy.set_param(self._start_utm_x_param, self.x_UTM_start)
         rospy.set_param(self._start_utm_y_param, self.y_UTM_start)
+
+        rospy.set_param(self._start_utm_lat_param, data.latitude)
+        rospy.set_param(self._start_utm_lon_param, data.longitude)
 
         self.gps_status_sub.unregister()
 

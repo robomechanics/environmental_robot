@@ -1,0 +1,11 @@
+float64[] boundary_lat
+float64[] boundary_lon
+float64 start_utm_x
+float64 start_utm_y
+float64 start_utm_lat
+float64 start_utm_lon
+float64 width
+float64 height
+float64 total_samples_count
+---
+bool status

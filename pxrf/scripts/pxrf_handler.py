@@ -13,6 +13,8 @@ from tf.transformations import euler_from_quaternion
 import numpy as np
 from datetime import datetime
 from std_srvs.srv import Empty
+from autonomy_manager.srv import AutonomyParams
+import yaml
 
 def chemistry_parser(chemistry):
     s = chemistry.strip()
@@ -62,7 +64,7 @@ class PXRFHandler(object):
         
         self._start_scan_service = rospy.Service(self._start_scan_service_name, Complete, self.scan_start)
         self._rotate_log_file_service = rospy.Service(self._rotate_scan_log_file_service_name, Empty, self.rotate_log_file_callback)
-        
+        self._autonomy_params_service = rospy.Service(self._autonomy_params_service_name, AutonomyParams, self.autonomy_params_callback)
         
         self.scanning = False
         self.gps_location = [0, 0]
@@ -83,10 +85,11 @@ class PXRFHandler(object):
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._rotate_scan_log_file_service_name = rospy.get_param("rotate_scan_log_file_service_name")
+        self._autonomy_params_service_name = rospy.get_param("autonomy_params_service_name")
         
-        self.data_dir = os.path.expanduser(rospy.get_param("data_dir"))
+        self.root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
         self.element_of_interest = rospy.get_param("element_of_interest")
-
+    
     def gps_odom_callback(self, data: Odometry):
         
         self.gps_odom_location = [data.pose.pose.position.x, data.pose.pose.position.y]
@@ -111,7 +114,9 @@ class PXRFHandler(object):
         return True
 
     def create_log_file(self):
-        self.data_file = os.path.join(self.data_dir, (datetime.now().strftime("%d-%m-%Y_%H:%M:%S")) + ".csv")
+        self.data_dir = os.path.join(self.root_data_dir, datetime.now().strftime("%d-%m-%Y_%H:%M:%S"))
+        self.data_file = os.path.join(self.data_dir, "scan_results.csv")
+        self.yaml_file = os.path.join(self.data_dir, "params.yaml")
         
         if not os.path.exists(self.data_dir):
             rospy.loginfo(f" |Creating directory {self.data_dir}")
@@ -122,6 +127,29 @@ class PXRFHandler(object):
             with open(self.data_file, 'w') as fp:
                 pass
     
+    def autonomy_params_callback(self, data: AutonomyParams):
+        data_info = {
+            "boundary_lat": list(data.boundary_lat),
+            "boundary_lon": list(data.boundary_lon),
+            "width": data.width,
+            "height": data.height,
+            "total_samples_count": data.total_samples_count,
+            "start_utm_x": data.start_utm_x,
+            "start_utm_y": data.start_utm_y,
+            "start_utm_lat": data.start_utm_lat,
+            "start_utm_lon": data.start_utm_lon
+            }
+        
+        rospy.loginfo(f"{data_info}")
+        
+        self.create_log_file()
+        
+        with open(self.yaml_file, "w") as file:
+            yaml.dump(data_info, file)
+        rospy.loginfo(f"Saved Params into {self.yaml_file}")
+        
+        return True
+     
     def rotate_log_file_callback(self, data):
         self.create_log_file()
         return True
@@ -147,7 +175,6 @@ class PXRFHandler(object):
                 self.gps_odom_heading,
             ]
             
-            self.create_log_file()
             with open(self.data_file, "a+") as f:
                 writer = csv.writer(f)
                 writer.writerow(header)

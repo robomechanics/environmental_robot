@@ -24,6 +24,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 from pyproj import Transformer
 import rosnode
+from autonomy_manager.srv import AutonomyParams
 
 INIT = "Initialization"
 RECEIVED_SEARCH_AREA = "Received search area"
@@ -106,6 +107,7 @@ class Manager(object):
         self._run_loop_service = rospy.Service(
             self._run_loop_service_name, Trigger, self.run_loop_callback
         )
+        
 
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
@@ -165,7 +167,7 @@ class Manager(object):
                 elif self.status == FINISHED_RAKING:
                     self.update_status(FINISHED_SCAN)
             self.last_skip_button_status = data.buttons[1] > 0
-
+    
     def gps_odom_callback(self, data: Odometry):
         self.is_full_nav_achieved = True
         
@@ -238,10 +240,13 @@ class Manager(object):
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
         self._cancel_goal_topic = rospy.get_param("cancel_goal_topic")
         self._run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
+        self._autonomy_params_service_name = rospy.get_param("autonomy_params_service_name")
         
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
         self._run_type = rospy.get_param("manager_run_type")
+        self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
+        self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
 
     def scan(self):
         self.update_status(SCANNING)
@@ -269,6 +274,28 @@ class Manager(object):
             self.pxrf_complete = False
         return True
 
+    def send_autonomy_params(self, boundary_lat, boundary_lon, width, height):
+        start_utm_x = rospy.get_param(self._start_utm_x_param)
+        start_utm_y = rospy.get_param(self._start_utm_y_param)
+        start_utm_lat = rospy.get_param(self._start_utm_lat_param)
+        start_utm_lon = rospy.get_param(self._start_utm_lon_param)
+        
+        try:
+            send_autonomy_params_client = rospy.ServiceProxy(self._autonomy_params_service_name, AutonomyParams)
+            res = send_autonomy_params_client(boundary_lat,
+                                              boundary_lon,
+                                              start_utm_x,
+                                              start_utm_y,
+                                              start_utm_lat,
+                                              start_utm_lon,
+                                              width,
+                                              height,
+                                              self.adaptive_sample_count)
+        except rospy.ServiceException as e:
+            rospy.logerr(e)
+            rospy.logerr("Send Autonomy Params service call failed!")
+            
+    
     def set_search_boundary_callback(self, data):
         rospy.loginfo(f"----------------\n Boundary Points:\n {list(zip(data.boundary_lat, data.boundary_lon))}\n----------------")
         
@@ -312,12 +339,19 @@ class Manager(object):
             lon.append(gps[1])
         rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
         
+        self.send_autonomy_params(data.boundary_lat, 
+                                  data.boundary_lon,
+                                  self.conversion.width, 
+                                  self.conversion.height)
+       
         try:
             grid_points = rospy.ServiceProxy(self._grid_points_service_name, Waypoints)
             res = grid_points(lat, lon)
         except rospy.ServiceException as e:
             rospy.logerr(e)
             rospy.logerr("Grid points display failed")
+            
+        
 
         # self.gridROS.updateBoundary(boundary_utm_offset)
         # print(boundary_utm_offset)

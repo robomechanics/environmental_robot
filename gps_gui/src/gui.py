@@ -465,7 +465,7 @@ class GpsNavigationGui:
     
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
-        rospy.loginfo(f" Sending Boundary Points: {boundary}")
+        rospy.loginfo(f" Sending Boundary Points:\n {boundary} \n----------------")
         try:
             sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, DeployAutonomy)
             if len(boundary) > 0:
@@ -475,7 +475,7 @@ class GpsNavigationGui:
             res = sendBoundaryClient(lat,lon)
             rospy.loginfo("Boundary Sent")
         except rospy.ServiceException as e:
-            rospy.logerr("Boundary was not send successfully: %s", e)
+            rospy.logerr("Boundary was not sent successfully: %s", e)
 
     def sendWaypoints(self, waypoints):
         #rospy.wait_for_service('/waypoints')
