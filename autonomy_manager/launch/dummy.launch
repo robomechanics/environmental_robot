@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Static TF: base_link -> gq7_link -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_odom"
+        args="0 0 0 0 0 0 1 base_link utm_odom" />
+   
+  <rosparam param="arm/is_arm_in_home_pose">true</rosparam>
+  <rosparam param="start_utm_x">0</rosparam>
+  <rosparam param="start_utm_y">0</rosparam>
+
+  <!-- <node name="arm_control_node" pkg="autonomy_manager" type="dummy_node.py" output="screen" /> -->
+  
+  <node name="utm_to_odom_node" pkg="autonomy_manager" type="dummy_odom_llh.py" output="screen" />
+  
+  <node name="dummy_move_base_node" pkg="autonomy_manager" type="dummy_move_base.py" output="screen" />
+
+  <node name="arm_control_node" pkg="autonomy_manager" type="dummy_arm_control.py" output="screen" />
+
+  <node name="pxrf_handler" pkg="autonomy_manager" type="dummy_scan_node.py" output="screen" />
+
+</launch>
