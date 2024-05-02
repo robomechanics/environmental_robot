@@ -58,6 +58,8 @@ class Manager(object):
         self.update_status(INIT)
         
         # Flags 
+        self.pxrf_complete = False
+        self.pxrf_mean_value = None
         self.is_full_nav_achieved = False
         self.nav_goal_gps = None
         self.lat = None
