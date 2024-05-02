@@ -29,7 +29,7 @@ from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from copy import deepcopy
 import qdarktheme
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-
+import rosnode
 qss = """
 QPushButton {
     font-size: 11pt; 
@@ -249,9 +249,13 @@ class GpsNavigationGui:
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
         
+        while '/arm_control_node' not in rosnode.get_node_names():
+            rospy.loginfo("Waiting for Arm Control Node")
+            rospy.sleep(1) 
         self.is_arm_in_home_pose = rospy.get_param(
-            self._is_arm_in_home_pose_param_name, True
-            ) # Arm pose flag that persists across restarts
+                self._is_arm_in_home_pose_param_name
+                ) # Arm pose flag that persists across restarts
+        
         if self.is_arm_in_home_pose:
             self.ArmBtn = QtWidgets.QPushButton('Lower Arm')
         else:
