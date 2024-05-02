@@ -7,6 +7,8 @@
   <rosparam param="arm/is_arm_in_home_pose">true</rosparam>
   <rosparam param="start_utm_x">0</rosparam>
   <rosparam param="start_utm_y">0</rosparam>
+  <rosparam param="start_utm_lat">0</rosparam>
+  <rosparam param="start_utm_lon">0</rosparam>
 
   <!-- <node name="arm_control_node" pkg="autonomy_manager" type="dummy_node.py" output="screen" /> -->
   
@@ -16,6 +18,8 @@
 
   <node name="arm_control_node" pkg="autonomy_manager" type="dummy_arm_control.py" output="screen" />
 
-  <node name="pxrf_handler" pkg="autonomy_manager" type="dummy_scan_node.py" output="screen" />
+  <node name="pxrf_start_scan_dummy" pkg="autonomy_manager" type="dummy_scan_node.py" output="screen" />
+
+  <node name="pxrf_handler" pkg="pxrf" type="pxrf_handler.py" output="screen" />
 
 </launch>
