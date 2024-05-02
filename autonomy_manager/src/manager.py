@@ -25,6 +25,7 @@ import actionlib
 from pyproj import Transformer
 import rosnode
 from autonomy_manager.srv import AutonomyParams
+from gps_gui.srv import SetString, SetStringResponse
 
 INIT = "Initialization"
 RECEIVED_SEARCH_AREA = "Received search area"
@@ -46,7 +47,6 @@ ARM_RETURNED = "Arm returned"
 ARM_LOWERED = "Arm lowered"
 ERROR = "Error"
 DONE = "Manager done"
-
 ALGO_ADAPTIVE = 'adaptive'
 ALGO_GRID = 'grid'
 ALGO_WAYPOINT = 'waypoint'
@@ -72,7 +72,8 @@ class Manager(object):
         self.nav_goal_gps = None
         self.lat = None
         self.lon = None
-        self.run_loop_flag = False
+        self.run_type = None
+        self.run_once_flag = False
         self.is_arm_in_home_pose = None
         self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
         self._scan_completed_sub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
@@ -107,7 +108,7 @@ class Manager(object):
             self._waypoints_service_name, Waypoints, self.set_waypoints
         )
         self._run_loop_service = rospy.Service(
-            self._run_loop_service_name, Trigger, self.run_loop_callback
+            self._run_loop_service_name, SetString, self.run_loop_callback
         )
 
         # Action Services
@@ -171,10 +172,10 @@ class Manager(object):
         self.is_full_nav_achieved = True
         
     def run_once(self):
-        self.run_loop_flag = False
+        self.run_once_flag = False
         rospy.loginfo("----------- Manager Loop START-----------")
         
-        if self.status == RECEIVED_SEARCH_AREA or self.status == ARM_RETURNED:
+        if self.status == RECEIVED_SEARCH_AREA or self.status == ARM_RETURNED or self.status == READY:
             if self.algorithm_type == ALGO_ADAPTIVE:
                 self.run_adaptive_search_algo()
             elif self.algorithm_type == ALGO_WAYPOINT:
@@ -205,13 +206,27 @@ class Manager(object):
     def run(self):
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            if self._run_type == 0 or self.run_loop_flag == True:
+            if self.run_type == "State Step" and self.run_once_flag == True:
                 self.run_once()
+            elif self.run_type == "Sample Step" and self.status != ARM_RETURNED and self.status != ERROR:
+                self.run_once()
+                self.run_once_flag = True
+                rate.sleep()
+            elif self.run_type == "Continuous" and self.status != ERROR:
+                self.run_once()
+                self.run_once_flag = True
+                rate.sleep()
+            
             rate.sleep()
     
     def run_loop_callback(self, data):
-        self.run_loop_flag = True
-        return TriggerResponse(True, "SUCCESS")
+        self.run_type = data.text
+        self.run_once_flag = True
+        
+        if self.run_type == "Sample Step" and self.status == ARM_RETURNED:
+            self.update_status(READY)
+        
+        return SetStringResponse(True, "SUCCESS")
 
     def load_ros_params(self):
         # Load topic names into params
@@ -248,7 +263,6 @@ class Manager(object):
         
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
-        self._run_type = rospy.get_param("manager_run_type")
         self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
         self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
 

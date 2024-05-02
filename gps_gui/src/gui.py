@@ -30,6 +30,8 @@ from copy import deepcopy
 import qdarktheme
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import rosnode
+from gps_gui.srv import SetString
+
 qss = """
 QPushButton {
     font-size: 11pt; 
@@ -113,10 +115,11 @@ class GpsNavigationGui:
         self.historyPoints: list[list[int]] = []
         self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=2))
         self.setHistory()
+        
+        self.setupWidgets()
 
         self.setupROS()
         
-        self.setupWidgets()
 
     # This function converts the current path from gps coordinates to pixels
     def gpsToPixels(self):
@@ -307,7 +310,7 @@ class GpsNavigationGui:
         self.gridBtn.clicked.connect(self.toggleGrid)
         
         self.managerComboBox = QtWidgets.QComboBox()
-        self.managerComboBox.addItems(['Step', 'Continuous'])
+        self.managerComboBox.addItems(['State Step', 'Sample Step', 'Continuous'])
         self.managerComboBox.setStyleSheet("color: lightgreen")
         self.managerComboBox.currentTextChanged.connect(self.managerComboBoxChanged)
         
@@ -386,7 +389,7 @@ class GpsNavigationGui:
         self.statusManager.setText(data.status)
         
     def managerComboBoxChanged(self, selected_item):
-        if selected_item == "Step":
+        if selected_item == "State Step" or selected_item == "Sample Step":
             self.managerStepOnceBtn.setEnabled(True)
         else:
             self.managerStepOnceBtn.setEnabled(False)
@@ -405,8 +408,8 @@ class GpsNavigationGui:
             
     def managerStepOnce(self):
         try:
-            managerStepOnce_client = rospy.ServiceProxy(self._manager_run_loop_service_name, Trigger)
-            managerStepOnce_client()
+            managerStepOnce_client = rospy.ServiceProxy(self._manager_run_loop_service_name, SetString)
+            managerStepOnce_client(str(self.managerComboBox.currentText()))
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s", e)
      
@@ -568,18 +571,19 @@ class GpsNavigationGui:
             self.sendWaypoints(self.pathGPS)
     
     def toggleAdaptive(self):
-        if not self.editPathMode and not self.editBoundaryMode:
-            self.adaptive = not self.adaptive
+        self.adaptive = not self.adaptive
+        
+        if self.adaptive:
             rospy.set_param(self._algorithm_type_param_name, ALGO_ADAPTIVE)
             self.adaptiveBtn.setText('Stop Adaptive')
         else:
-            self.adaptiveBtn.setText('Start Adaptive')
             rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
+            self.adaptiveBtn.setText('Start Adaptive')
     
     def toggleGrid(self):
-        if not self.editPathMode and not self.editBoundaryMode:
+        self.grid = not self.grid
+        if self.grid:
             rospy.loginfo("grid mode")
-            self.grid = not self.grid
             rospy.set_param(self._algorithm_type_param_name, ALGO_GRID)
             x, y = zip(*self.waypointsPath)
             self.pathPlot.setData(x=list(x), y=list(y))
@@ -588,8 +592,8 @@ class GpsNavigationGui:
             self.waypointsPath = []
             self.gridBtn.setText('Stop Grid')
         else:
-            self.gridBtn.setText('Start Grid')
             rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
+            self.gridBtn.setText('Start Grid')
 
 
     #CHECK
