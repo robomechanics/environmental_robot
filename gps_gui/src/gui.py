@@ -53,7 +53,7 @@ class GpsNavigationGui:
         self.scanData = CompletedScanData()
         self.scanData.file_name = os.path.expanduser(self._pxrf_test_results_file) # test file if no sample was made yet
         self.pxrfComplete = True
-        self.pxrfRunning = False
+        self.pxrfManualSampleRunning = False
         self.numMeasurements = 0
         
         # Set variables
@@ -380,7 +380,10 @@ class GpsNavigationGui:
         if data.status == True:
             self.pxrfComplete = True
             self.scanData = deepcopy(data)
-            self.statusDetailed.setText(self.scanData.element + "Scan Value: " + str(self.scanData.mean))
+            self.statusDetailed.setText(f"{self.scanData.element}: {self.scanData.mean:.2}")
+            
+            self.numMeasurements += 1
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#{self.numMeasurements}: {self.scanData.mean:.2}")
         else:
             self.pxrfComplete = False
         return True
@@ -414,14 +417,14 @@ class GpsNavigationGui:
             rospy.logerr("Service call failed: %s", e)
      
     def pxrfResponseCallback(self, result:String):
-        if self.pxrfRunning and result.data == "201":
-            self.pxrfRunning = False
+        if self.pxrfManualSampleRunning and result.data == "201":
+            self.pxrfManualSampleRunning = False
             self.sampleBtn.setText('Sample')
             self.statusDetailed.setText("Ready to collect")
 
             self.numMeasurements += 1
             
-            self.addMarkerAt(self.prev_lat, self.prev_lon, f'Sample#{self.numMeasurements}')
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f'M#{self.numMeasurements}')
             
             rospy.set_param(self._algorithm_type_param_name, self.algorithm_type_before_manual_sample)
             rospy.sleep(0.5)
@@ -726,7 +729,7 @@ class GpsNavigationGui:
             start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
             start_scan_service(True)
             
-            self.pxrfRunning = True
+            self.pxrfManualSampleRunning = True
             self.statusDetailed.setText("Collecting Sample")
             self.sampleBtn.setText("Stop PXRF")
         except rospy.ServiceException as e:
