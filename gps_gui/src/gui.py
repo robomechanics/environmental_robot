@@ -36,6 +36,11 @@ QPushButton {
     font-weight: 400;  
 }"""
 
+ALGO_ADAPTIVE = 'adaptive'
+ALGO_GRID = 'grid'
+ALGO_WAYPOINT = 'waypoint'
+ALGO_NONE = 'algo_none'
+
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height):
         # Load ROS Params
@@ -184,6 +189,8 @@ class GpsNavigationGui:
         self._rover_battery_voltage_topic = rospy.get_param("rover_battery_voltage_topic")
         self._lipo_battery_voltage_topic = rospy.get_param("lipo_battery_voltage_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
+        self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
+        
         # Load service names into params
         self._parking_brake_service = rospy.get_param('parking_break_service_name')
         self._next_point_service = rospy.get_param('next_goal_to_GUI_service_name')
@@ -559,21 +566,17 @@ class GpsNavigationGui:
     def toggleAdaptive(self):
         if not self.editPathMode and not self.editBoundaryMode:
             self.adaptive = not self.adaptive
-            rospy.set_param('/adaptive', True)
-            rospy.set_param('/grid', False)
-            rospy.set_param('/waypoint', False)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_ADAPTIVE)
             self.adaptiveBtn.setText('Stop Adaptive')
         else:
             self.adaptiveBtn.setText('Start Adaptive')
-            rospy.set_param('/adaptive', False)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
     
     def toggleGrid(self):
         if not self.editPathMode and not self.editBoundaryMode:
             rospy.loginfo("grid mode")
             self.grid = not self.grid
-            rospy.set_param('/grid', True)
-            rospy.set_param('/adaptive', False)
-            rospy.set_param('/waypoint', False)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_GRID)
             x, y = zip(*self.waypointsPath)
             self.pathPlot.setData(x=list(x), y=list(y))
             self.pathRoi.setPoints([])
@@ -582,7 +585,8 @@ class GpsNavigationGui:
             self.gridBtn.setText('Stop Grid')
         else:
             self.gridBtn.setText('Start Grid')
-            rospy.set_param('/grid', False)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
+
 
     #CHECK
     # This function starts/ pauses the navigation
@@ -605,12 +609,10 @@ class GpsNavigationGui:
         if self.is_navigating:
             self.startPauseBtn.setText('Pause')
             self.startPauseBtn.setStyleSheet("background-color : green")
-            rospy.set_param('/waypoint', True)
-            rospy.set_param('/adaptive', False)
-            rospy.set_param('/grid', False)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_WAYPOINT)
         elif self.pathIndex == 0:
             self.startPauseBtn.setText('Start')
-            rospy.set_param('/waypoint', False)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
         else:
             self.startPauseBtn.setText('Continue')
 

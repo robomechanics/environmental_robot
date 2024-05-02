@@ -47,6 +47,11 @@ ARM_LOWERED = "Arm lowered"
 ERROR = "Error"
 DONE = "Manager done"
 
+ALGO_ADAPTIVE = 'adaptive'
+ALGO_GRID = 'grid'
+ALGO_WAYPOINT = 'waypoint'
+ALGO_NONE = 'algo_none'
+
 DEBUG_FLAG = False 
 
 class Manager(object):
@@ -60,7 +65,7 @@ class Manager(object):
         )
         self.update_status(INIT)
         
-        # Flags 
+        # Flags
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         self.is_full_nav_achieved = False
@@ -89,9 +94,6 @@ class Manager(object):
         self.conversion = Conversion()
         self.searchBoundary = []
         self.waypoints = []
-        self.grid_sampling = False
-        self.adaptive_sampling = False
-        self.waypoint_sampling = False
 
         self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
         
@@ -107,7 +109,6 @@ class Manager(object):
         self._run_loop_service = rospy.Service(
             self._run_loop_service_name, Trigger, self.run_loop_callback
         )
-        
 
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
@@ -125,23 +126,21 @@ class Manager(object):
         
         self.update_status(READY)
 
-        # get ros param
+        # Reset and Get rosparam
         rospy.loginfo(" | Waiting to start (Choose a sampling algorithm)")
-        while (
-            self.grid_sampling == False
-            and self.adaptive_sampling == False
-            and self.waypoint_sampling == False
-        ):
-            self.grid_sampling = rospy.get_param("grid", False)
-            self.adaptive_sampling = rospy.get_param("adaptive", False)
-            self.waypoint_sampling = rospy.get_param("waypoint", False)
-            self.adaptive_sample_count = rospy.get_param("number_points", 16)
+        rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
+        self.algorithm_type = ALGO_NONE
+        rospy.sleep(1)
+        while self.algorithm_type == ALGO_NONE:
+            self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+            self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
+            rospy.sleep(1)
             
-        if self.adaptive_sampling:
-            rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = {self.adaptive_sample_count}")
-        elif self.waypoint_sampling:
+        if self.algorithm_type == ALGO_ADAPTIVE:
+            rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = {self.algorithm_total_samples}")
+        elif self.algorithm_type == ALGO_WAYPOINT:
             rospy.loginfo(f" | Algorithm Set to WAYPOINT")
-        elif self.grid_sampling:
+        elif self.algorithm_type == ALGO_GRID:
             rospy.loginfo(f" | Algorithm Set to GRID")
         
         rospy.loginfo("----------- READY -----------")
@@ -176,12 +175,13 @@ class Manager(object):
         rospy.loginfo("----------- Manager Loop START-----------")
         
         if self.status == RECEIVED_SEARCH_AREA or self.status == ARM_RETURNED:
-            if self.adaptive_sampling:
-                self.run_search_algo()
-            elif self.grid_sampling:
-                self.run_grid_algo()
-            elif self.waypoint_sampling:
+            if self.algorithm_type == ALGO_ADAPTIVE:
+                self.run_adaptive_search_algo()
+            elif self.algorithm_type == ALGO_WAYPOINT:
                 self.run_waypoint_algo()
+            elif self.algorithm_type == ALGO_GRID:
+                self.run_grid_algo()
+
             rospy.loginfo(f" Next Scan Location: {self.nextScanLoc}")
         elif self.status == RECEIVED_NEXT_SCAN_LOC:
             self.navigate_to_scan_loc()
@@ -226,8 +226,12 @@ class Manager(object):
         self._manager_set_status_after_error_param_name = rospy.get_param("manager_set_status_after_error_param_name")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._scan_completed_topic = rospy.get_param("scan_completed_topic")
-        self._is_arm_in_home_pose_param_name = rospy.get_param(
-            "is_arm_in_home_pose_param_name")
+        self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
+        self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
+        
+        self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+        self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
+        
         
         # Load service names into params
         self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
@@ -290,7 +294,7 @@ class Manager(object):
                                               start_utm_lon,
                                               width,
                                               height,
-                                              self.adaptive_sample_count)
+                                              self.algorithm_total_samples)
         except rospy.ServiceException as e:
             rospy.logerr(e)
             rospy.logerr("Send Autonomy Params service call failed!")
@@ -320,11 +324,11 @@ class Manager(object):
             self.conversion.width,
             self.conversion.height,
             [startx, starty],
-            self.adaptive_sample_count,
+            self.algorithm_total_samples,
         )
         self.adaptiveROS.updateBoundary(boundary_utm_offset)
         self.gridROS = gridROS(
-            self.conversion.width, self.conversion.height, [0, 0], self.adaptive_sample_count
+            self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
         )
         
         # self.gridROS.updateBoundary(boundary_utm_offset)
@@ -487,7 +491,7 @@ class Manager(object):
         self.nav_goal_gps = [self.nextScanLoc[0], self.nextScanLoc[1]]
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
-    def run_search_algo(self):
+    def run_adaptive_search_algo(self):
         self.update_status(RUNNING_SEARCH_ALGO)
         if self.pxrf_complete == True and self.pxrf_mean_value != -1:
             pos = self.conversion.gps2map(self.lat, self.lon)
