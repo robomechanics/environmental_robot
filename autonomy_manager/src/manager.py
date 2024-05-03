@@ -111,8 +111,8 @@ class Manager(object):
 
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
-        # print(" | Waiting for move_base server")
-        # self.mb_client.wait_for_server()
+        print(" | Waiting for move_base server")
+        self.mb_client.wait_for_server()
         
         # wait until GPS Full Nav is achieved
         while not self.is_full_nav_achieved:
