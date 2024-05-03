@@ -736,6 +736,9 @@ class GpsNavigationGui:
             rospy.loginfo("Service call failed: %s", e)
     
     def toggleArm(self):
+        while '/arm_control' not in rosnode.get_node_names():
+            rospy.loginfo("Waiting for Arm Control Node")
+            rospy.sleep(1)
         self.is_arm_in_home_pose = rospy.get_param(
                 self._is_arm_in_home_pose_param_name
                 ) # Arm pose flag that persists across restarts
