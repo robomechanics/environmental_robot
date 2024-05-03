@@ -18,7 +18,7 @@ from sklearn.gaussian_process.kernels import Matern
 
 class adaptiveROS:
     #init 50,50, [0,0], [[1,0],[30,5],[35,40],[2,40]], 5, 15
-    def __init__(self, sizex, sizey, startpoint, total_number, minDist = 0, maxDist = 100,
+    def __init__(self, sizex, sizey, startpoint, total_number, minDist = 0, maxDist = 1000,
                  simu = True, mode = 1, boundary = [], kernel = RBF(8e-4)): #Matern(length_scale=5, nu=0.5
         self.sizex = sizex
         self.sizey = sizey
@@ -47,7 +47,7 @@ class adaptiveROS:
         self.mu = []
         self.std_var = []
         self.path_len = 0
-        self.delta = 1
+        self.delta = 25 
         
         #scale beta from 0 to 30
         #beta balances mu and var. when the number of samples is low, the algorithm prioritizes high mean regions. when the number of samples approaches the set number, it prioritizes high-variance regions. Beta is dependent on how many samples have been collected already and delta. delta is a tuning parameter that needs to be scaled correctly based on the environment.
