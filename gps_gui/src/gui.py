@@ -57,6 +57,7 @@ class GpsNavigationGui:
         self.numMeasurements = 0
         
         # Set variables
+        self.quaternion = tf.transformations.random_quaternion()
         self.prev_lat = 0
         self.prev_lon = 0
         self.prev_heading = 0
@@ -112,6 +113,9 @@ class GpsNavigationGui:
         self.click_plot.click_handlers = [self.addROIPoint]
 
         # Robot's history (path measured by gps)
+        self.lastHistoryDrawTime = rospy.Time.now() - rospy.Duration(10)
+        self.lastRobotDrawTime = rospy.Time.now() - rospy.Duration(10)
+        self.lastGPSUpdateTime = rospy.Time.now() - rospy.Duration(10)
         self.historyPoints: list[list[int]] = []
         self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=2))
         self.setHistory()
@@ -151,7 +155,7 @@ class GpsNavigationGui:
 
     def setupROS(self):
         # Services
-        self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
+        # self.parking_brake = rospy.ServiceProxy(self._parking_brake_service, SetBool)
         self.nextPoint = rospy.Service(self._next_point_service, NavigateGPS, self.onNextGoalUpdate)
         self.grid_points = rospy.Service(self._grid_points_service, Waypoints, self.onGridPoints)
         
@@ -166,7 +170,7 @@ class GpsNavigationGui:
             self._estop_reset_topic, Bool, queue_size=1
         )
 
-        # Subscribers
+        # Subscribers        
         self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.onGpsUpdate) # Use GPS moving avg llh position
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
         
@@ -196,7 +200,7 @@ class GpsNavigationGui:
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
         
         # Load service names into params
-        self._parking_brake_service = rospy.get_param('parking_break_service_name')
+        # self._parking_brake_service = rospy.get_param('parking_break_service_name')
         self._next_point_service = rospy.get_param('next_goal_to_GUI_service_name')
         self._grid_points_service = rospy.get_param('grid_points_service_name')
         self._set_search_boundary_name = rospy.get_param('set_search_boundary_name')
@@ -260,17 +264,7 @@ class GpsNavigationGui:
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
         
-        while '/arm_control_node' not in rosnode.get_node_names():
-            rospy.loginfo("Waiting for Arm Control Node")
-            rospy.sleep(1) 
-        self.is_arm_in_home_pose = rospy.get_param(
-                self._is_arm_in_home_pose_param_name
-                ) # Arm pose flag that persists across restarts
-        
-        if self.is_arm_in_home_pose:
-            self.ArmBtn = QtWidgets.QPushButton('Lower Arm')
-        else:
-            self.ArmBtn = QtWidgets.QPushButton('Raise Arm')
+        self.ArmBtn = QtWidgets.QPushButton('Toggle Arm')
         self.ArmBtn.setStyleSheet("color: lightblue")
         self.ArmBtn.clicked.connect(self.toggleArm)
 
@@ -636,46 +630,51 @@ class GpsNavigationGui:
        
     # This function is called by subscriber of gps sensor
     def robotUpdate(self, data: Odometry):
-        if self.latitude == None or self.longitude == None:
-            return
-        
-        lat = self.latitude
-        lon = self.longitude
+        if (rospy.Time.now() - self.lastRobotDrawTime).secs > 0.5:
+            if self.latitude == None or self.longitude == None:
+                return
+            
+            lat = self.latitude
+            lon = self.longitude
 
-        #calculate heading based on gps coordinates 
-        pixX, pixY = self.satMap.coord2Pixel(lat, lon)
-        
-        # rospy.loginfo_throttle(10, "Robot Lat/Lon    : %s %s", self.latitude, self.longitude)
-        # rospy.loginfo_throttle(10, "Tile Map Lat/Lon : %s %s", self.satMap.lat, self.satMap.lon)
-        # rospy.loginfo_throttle(10, "Tile Map X/Y     : %s %s", self.satMap.x, self.satMap.y)
-        rospy.loginfo_once("Robot Pixel Pos  : %s %s", pixX, pixY)
-        
-        self.quaternion = tf.transformations.random_quaternion()
-        self.quaternion[0] = data.pose.pose.orientation.x
-        self.quaternion[1] = data.pose.pose.orientation.y
-        self.quaternion[2] = data.pose.pose.orientation.z
-        self.quaternion[3] = data.pose.pose.orientation.w
-        
-        eulerVals = euler_from_quaternion(self.quaternion, "sxyz")
-        robotHeading = eulerVals[2]
+            #calculate heading based on gps coordinates 
+            pixX, pixY = self.satMap.coord2Pixel(lat, lon)
+            
+            # rospy.loginfo_throttle(10, "Robot Lat/Lon    : %s %s", self.latitude, self.longitude)
+            # rospy.loginfo_throttle(10, "Tile Map Lat/Lon : %s %s", self.satMap.lat, self.satMap.lon)
+            # rospy.loginfo_throttle(10, "Tile Map X/Y     : %s %s", self.satMap.x, self.satMap.y)
+            # rospy.loginfo_once("Robot Pixel Pos  : %s %s", pixX, pixY)
+            
+            self.quaternion[0] = data.pose.pose.orientation.x
+            self.quaternion[1] = data.pose.pose.orientation.y
+            self.quaternion[2] = data.pose.pose.orientation.z
+            self.quaternion[3] = data.pose.pose.orientation.w
+            robotHeading = euler_from_quaternion(self.quaternion, "sxyz")[2]
 
-        if not self.robotArrow is None:
+            # if not self.robotArrow is None:
             self.robotArrow.setStyle(angle = 180 - (robotHeading*180.0/np.pi))
             self.robotArrow.setPos(pixX, pixY)
             self.robotArrow.update()
-
-        self.historyPoints.append([pixX, pixY])
-        self.setHistory()
-        self.prev_lat = lat
-        self.prev_lon = lon
-        self.prev_heading = robotHeading
+            self.lastRobotDrawTime = rospy.Time.now()
+            
+            if (rospy.Time.now() - self.lastHistoryDrawTime).secs > 5:
+                self.historyPoints.append([pixX, pixY])
+                self.setHistory()
+                self.prev_lat = lat
+                self.prev_lon = lon
+                self.prev_heading = robotHeading
+                
+                self.lastHistoryDrawTime = rospy.Time.now()
+                
     
     # This function updates the value of longitude and latitude information
     def onGpsUpdate(self, data: NavSatFix):
         self.latitude = data.latitude
         self.longitude = data.longitude
         
-        self.statusGPS.setText("GPS: " + str(round(self.latitude,4)) + " | " + str(round(self.longitude, 4)))
+        if (rospy.Time.now() - self.lastGPSUpdateTime).secs > 5:
+            self.statusGPS.setText("GPS:" + str(round(self.latitude,6)) + " | " + str(round(self.longitude, 6)))
+            self.lastGPSUpdateTime = rospy.Time.now()
 
     #CHECK
     # This function updates the goal and displays it on the map
@@ -724,7 +723,8 @@ class GpsNavigationGui:
             
             self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
             rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
-            rospy.sleep(1.5)
+            rospy.sleep(1.0)
+            rospy.loginfo(f"Algo Type: {rospy.get_param(self._algorithm_type_param_name)}")
             
             start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
             start_scan_service(True)
@@ -737,28 +737,16 @@ class GpsNavigationGui:
     
     def toggleArm(self):
         self.is_arm_in_home_pose = rospy.get_param(
-            self._is_arm_in_home_pose_param_name
-            )
-        if self.is_arm_in_home_pose:
-            try:
-                # Lower Arm
-                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(False)
-
-                # Arm is lowered
-                self.ArmBtn.setText("Raise Arm")
-            except rospy.ServiceException as e:
-                rospy.loginfo("Service call failed: %s", e)
-        else:
-            try:
-                # Raise Arm
-                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(True)
-
-                # Arm is raised
-                self.ArmBtn.setText("Lower Arm")
-            except rospy.ServiceException as e:
-                rospy.loginfo("Service call failed: %s", e)
+                self._is_arm_in_home_pose_param_name
+                ) # Arm pose flag that persists across restarts
+        
+        rospy.loginfo(f"Arm in home Pose: {self.is_arm_in_home_pose}")
+        
+        try:
+            lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            lower_arm_service(self.is_arm_in_home_pose)
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service call failed: %s", e)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
@@ -788,7 +776,6 @@ if __name__ == '__main__':
     # Set Color Scheme
     app.setStyleSheet(qdarktheme.load_stylesheet())
     qdarktheme.setup_theme(custom_colors={"primary": "#D0BCFF"}, additional_qss=qss)
-    
     mw = QtWidgets.QMainWindow()
     gps_node = GpsNavigationGui(lat, lon, zoom, width, height)
     mw.setCentralWidget(gps_node.widget)
