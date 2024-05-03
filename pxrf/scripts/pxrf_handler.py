@@ -77,6 +77,7 @@ class PXRFHandler(object):
         self.gps_quaternion = np.zeros(4)
         self.gps_odom_heading = 0
         
+        self.create_log_file()
         rospy.loginfo("Started PXRF Handler...")
         
         rospy.spin()
@@ -184,7 +185,6 @@ class PXRFHandler(object):
                 self.gps_odom_location,
                 self.gps_odom_heading,
             ]
-            
             
             self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
             self.data_file = os.path.join(self.data_dir, "scan_results_" + self.algorithm_type + ".csv")
