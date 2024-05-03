@@ -88,8 +88,6 @@ class Manager(object):
         )
 
         # intialize adaptive sampling class and conversion class
-        self.pxrf_complete = False
-        self.pxrf_mean_value = None
         self.adaptiveROS = None
         self.gridROS = None
         self.conversion = Conversion()
@@ -173,7 +171,10 @@ class Manager(object):
         
     def run_once(self):
         self.run_once_flag = False
-        rospy.loginfo("----------- Manager Loop START-----------")
+        
+        self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+        
+        rospy.loginfo(f"----------- Manager Loop: {self.algorithm_type} -----------")
         
         if self.status == RECEIVED_SEARCH_AREA or self.status == ARM_RETURNED or self.status == READY:
             if self.algorithm_type == ALGO_ADAPTIVE:
@@ -204,27 +205,31 @@ class Manager(object):
         rospy.loginfo("----------- Manager Loop END -----------")
     
     def run(self):
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(2)
         while not rospy.is_shutdown():
-            if self.run_type == "State Step" and self.run_once_flag == True:
-                self.run_once()
-            elif self.run_type == "Sample Step" and self.status != ARM_RETURNED and self.status != ERROR:
-                self.run_once()
-                self.run_once_flag = True
-                rate.sleep()
-            elif self.run_type == "Continuous" and self.status != ERROR:
-                self.run_once()
-                self.run_once_flag = True
-                rate.sleep()
+            if self.status != SCANNING:
+                if self.run_type == "State Step" and self.run_once_flag == True:
+                    self.run_once()
+                elif self.run_type == "Sample Step" and self.status != ARM_RETURNED and self.status != ERROR:
+                    self.run_once()
+                    self.run_once_flag = True
+                elif self.run_type == "Continuous" and self.status != ERROR:
+                    self.run_once()
+                    self.run_once_flag = True
             
             rate.sleep()
     
     def run_loop_callback(self, data):
         self.run_type = data.text
-        self.run_once_flag = True
+        
+        if self.status != SCANNING:
+            self.run_once_flag = True
         
         if self.run_type == "Sample Step" and self.status == ARM_RETURNED:
             self.update_status(READY)
+            
+        rospy.loginfo(f"self.run_type: {self.run_type} | self.run_once_flag: {self.run_once_flag} | self.status: {self.status}")
+        
         
         return SetStringResponse(True, "SUCCESS")
 
@@ -268,6 +273,7 @@ class Manager(object):
 
     def scan(self):
         self.update_status(SCANNING)
+        self.pxrf_complete = False
         # call ros service to start scanning
         # rospy.wait_for_service('scan_start')
         try:
@@ -280,14 +286,14 @@ class Manager(object):
 
         if self.pxrf_complete == True:
             print("Scan Completed")
-
-        self.update_status(FINISHED_SCAN)
+            self.update_status(FINISHED_SCAN)
 
     def pxrf_scan_completed_callback(self, data):
         if data.status == True:
             self.pxrf_complete = True
             self.pxrf_mean_value = data.mean
             print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+            self.update_status(FINISHED_SCAN)
         else:
             self.pxrf_complete = False
         return True
@@ -418,7 +424,7 @@ class Manager(object):
             print("location failed")
 
     def publish_move_base_goal(self, lat, lon):
-        while '/arm_control_node' not in rosnode.get_node_names():
+        while '/arm_control' not in rosnode.get_node_names():
             rospy.loginfo("Waiting for Arm Control Node")
             rospy.sleep(1) 
         self.is_arm_in_home_pose = rospy.get_param(
@@ -507,7 +513,7 @@ class Manager(object):
 
     def run_adaptive_search_algo(self):
         self.update_status(RUNNING_SEARCH_ALGO)
-        if self.pxrf_complete == True and self.pxrf_mean_value != -1:
+        if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)
             self.adaptiveROS.update(pos[0], pos[1], self.pxrf_mean_value)
         # reset
