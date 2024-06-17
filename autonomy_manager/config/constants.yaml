@@ -71,8 +71,6 @@ vanta_ip: "192.168.7.2"
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
 rover_battery_voltage_topic: /rr_openrover_driver/battery_state_of_charge
-#todo, add a topic for the rover batter
-#rover_batter_percentage_topic: /rr_openrover_driver/battery_percentage
 
 # PXRF
 start_scan_service_name: 'scan_start'
