@@ -44,6 +44,9 @@ class RobotController:
         self.num_joints = self.group.size
         self.group_fbk = hebi.GroupFeedback(self.num_joints)
         self.batt_voltage = 0.0
+        self.min_lipo_voltage = 0.0 #placeholder
+        self.max_lipo_voltage = 34.0  #placeholder
+
         # gainsCmd.mstop_strategy = 2
     
     def get_batt_voltage(self):
@@ -120,6 +123,10 @@ class EndEffectorTrajectory:
                                                         String, 
                                                         queue_size=1)
         
+        self.lipo_battery_percentage_pub = rospy.Publisher(self._lipo_battery_percentage_topic, 
+                                                           String,
+                                                           queue_size=1)
+        #now need to check how self.lipo_battery_voltage_pub was used
         self._batt_voltage_timer = rospy.Timer(rospy.Duration(30), self.publish_lipo_battery_voltage)
 
         
@@ -133,8 +140,14 @@ class EndEffectorTrajectory:
             "lipo_battery_voltage_topic")
     
     def publish_lipo_battery_voltage(self, data):
+        #publishes voltage and percentage simultaneously
         self.robot_controller.get_batt_voltage()
         self.lipo_battery_voltage_pub.publish(f"{self.robot_controller.batt_voltage:.1f}")
+        #lipo_battery_percentage = (difference / total range) * 100
+        lipo_battery_percentage = (((self.robot_controller.batt_voltage - 
+                                  self.min_lipo_voltage) * 100) /
+                                  (self.max_lipo_voltage - self.min_lipo_voltage))
+        self.lipo_battery_percentage_pub.publish(f"{lipo_battery_percentage:.1f}")
 
     def get_forward_waypoints(self, traj_type = 0):
         if traj_type == 0:
