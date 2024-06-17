@@ -44,8 +44,10 @@ class RobotController:
         self.num_joints = self.group.size
         self.group_fbk = hebi.GroupFeedback(self.num_joints)
         self.batt_voltage = 0.0
-        self.min_lipo_voltage = 0.0 #placeholder
-        self.max_lipo_voltage = 34.0  #placeholder
+        #maximum and minimum based off of 
+        #https://maxamps.com/products/lipo-3250-8s-29-6v-battery-pack
+        self.min_lipo_voltage = 25.6 #Uses the cutoff voltage for safety
+        self.max_lipo_voltage = 33.6  
 
         # gainsCmd.mstop_strategy = 2
     
