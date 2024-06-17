@@ -10,8 +10,8 @@ from std_msgs.msg import String, Bool, Int32
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
-from std_srvs.srv import SetBool, Trigger
-from sensor_msgs.msg import NavSatFix, NavSatStatus
+from std_srvs.srv import SetBool
+from sensor_msgs.msg import NavSatFix
 from autonomy_manager.msg import ManagerStatus
 from tile import TileMap
 import actionlib
@@ -28,9 +28,12 @@ import argparse
 from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from copy import deepcopy
 import qdarktheme
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
+
+from env_utils.algo_constants import *
+from env_utils.pxrf_utils import PXRF
 
 qss = """
 QPushButton {
@@ -38,11 +41,6 @@ QPushButton {
     font-weight: 400;  
 }"""
 
-ALGO_ADAPTIVE = 'adaptive'
-ALGO_GRID = 'grid'
-ALGO_WAYPOINT = 'waypoint'
-ALGO_NONE = 'algo_none'
-ALGO_MANUAL = 'manual'
 
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height):
@@ -55,6 +53,8 @@ class GpsNavigationGui:
         self.pxrfComplete = True
         self.pxrfManualSampleRunning = False
         self.numMeasurements = 0
+        
+        self.pxrf = PXRF(self.scanCompletedCallback)
         
         # Set variables
         self.quaternion = tf.transformations.random_quaternion()
@@ -124,7 +124,6 @@ class GpsNavigationGui:
 
         self.setupROS()
         
-
     # This function converts the current path from gps coordinates to pixels
     def gpsToPixels(self):
         self.pathPlotPoints = []
@@ -174,7 +173,7 @@ class GpsNavigationGui:
         self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.onGpsUpdate) # Use GPS moving avg llh position
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
         
-        self.scanCompletedSub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.scanCompletedCallback)
+        # self.scanCompletedSub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.scanCompletedCallback)
         self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
@@ -193,7 +192,7 @@ class GpsNavigationGui:
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
         self._manager_run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
-        self._scan_completed_topic = rospy.get_param("scan_completed_topic")
+        self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
         self._rover_battery_voltage_topic = rospy.get_param("rover_battery_voltage_topic")
         self._lipo_battery_voltage_topic = rospy.get_param("lipo_battery_voltage_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
@@ -592,7 +591,6 @@ class GpsNavigationGui:
             rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
             self.gridBtn.setText('Start Grid')
 
-
     #CHECK
     # This function starts/ pauses the navigation
     def startPause(self):
@@ -726,8 +724,7 @@ class GpsNavigationGui:
             rospy.sleep(1.0)
             rospy.loginfo(f"Algo Type: {rospy.get_param(self._algorithm_type_param_name)}")
             
-            start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
-            start_scan_service(True)
+            self.pxrf.start_scan()
             
             self.pxrfManualSampleRunning = True
             self.statusDetailed.setText("Collecting Sample")

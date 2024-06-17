@@ -73,7 +73,7 @@ rover_battery_voltage_topic: /rr_openrover_driver/battery_state_of_charge
 
 # PXRF
 start_scan_service_name: 'scan_start'
-scan_completed_topic: 'scan_completed'
+scan_recorded_to_disk_topic: 'scan_recorded_to_disk'
 pxrf_cmd_topic: 'pxrf_cmd'
 pxrf_response_topic: 'pxrf_response'
 pxrf_data_topic: 'pxrf_data'

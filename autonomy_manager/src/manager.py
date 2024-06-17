@@ -26,31 +26,8 @@ from pyproj import Transformer
 import rosnode
 from autonomy_manager.srv import AutonomyParams
 from gps_gui.srv import SetString, SetStringResponse
-
-INIT = "Initialization"
-RECEIVED_SEARCH_AREA = "Received search area"
-RECEIVED_NEXT_SCAN_LOC = "Received next scan loc"
-ARRIVED_AT_SCAN_LOC = "Arrived at scan loc"
-FINISHED_RAKING = "Finished raking"
-FINISHED_SCAN = "Finished scan"
-RAKING = "Raking"
-NAVIGATION_TO_SCAN_LOC = "Navigating to scan loc"
-RUNNING_SEARCH_ALGO = "Running search algo"
-READY = "Ready"
-WAITING_FOR_GPS_INIT = "Waiting for GPS init"
-RUNNING_GRID_ALGO = "Running grid algo"
-RUNNING_WAYPOINT_ALGO = "Running waypoint algo"
-SCANNING = "Scanning"
-ARM_RETURNING = "Arm returning"
-ARM_LOWERING = "Arm lowering"
-ARM_RETURNED = "Arm returned"
-ARM_LOWERED = "Arm lowered"
-ERROR = "Error"
-DONE = "Manager done"
-ALGO_ADAPTIVE = 'adaptive'
-ALGO_GRID = 'grid'
-ALGO_WAYPOINT = 'waypoint'
-ALGO_NONE = 'algo_none'
+from env_utils.algo_constants import *
+from env_utils.pxrf_utils import PXRF
 
 DEBUG_FLAG = False 
 
@@ -76,7 +53,7 @@ class Manager(object):
         self.run_once_flag = False
         self.is_arm_in_home_pose = None
         self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
-        self._scan_completed_sub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.pxrf_scan_completed_callback)
+        self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.pxrf_scan_completed_callback)
         
         self.sensorPrep = rospy.ServiceProxy(
             self._sensor_prep_service_name, RunSensorPrep
@@ -124,6 +101,8 @@ class Manager(object):
         self.odom_sub.unregister()
         
         self.update_status(READY)
+        
+        self.pxrf = PXRF()
 
         # Reset and Get rosparam
         rospy.loginfo(" | Waiting to start (Choose a sampling algorithm)")
@@ -245,7 +224,7 @@ class Manager(object):
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._manager_set_status_after_error_param_name = rospy.get_param("manager_set_status_after_error_param_name")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
-        self._scan_completed_topic = rospy.get_param("scan_completed_topic")
+        self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
         
@@ -273,20 +252,7 @@ class Manager(object):
 
     def scan(self):
         self.update_status(SCANNING)
-        self.pxrf_complete = False
-        # call ros service to start scanning
-        # rospy.wait_for_service('scan_start')
-        try:
-            scan = rospy.ServiceProxy(self._start_scan_service_name, Complete)
-            res = scan(True)
-        except rospy.ServiceException as e:
-            rospy.logerr("Scan failed")
-            self.update_status(ERROR)
-            return
-
-        if self.pxrf_complete == True:
-            print("Scan Completed")
-            self.update_status(FINISHED_SCAN)
+        self.pxrf.start_scan()
 
     def pxrf_scan_completed_callback(self, data):
         if data.status == True:
@@ -294,8 +260,6 @@ class Manager(object):
             self.pxrf_mean_value = data.mean
             print("PXRF Mean Value: " + str(self.pxrf_mean_value))
             self.update_status(FINISHED_SCAN)
-        else:
-            self.pxrf_complete = False
         return True
 
     def send_autonomy_params(self, boundary_lat, boundary_lon, width, height):
