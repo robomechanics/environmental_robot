@@ -45,6 +45,7 @@ cmd_vel_managed_topic: '/cmd_vel'
 
 # Arm
 lipo_battery_voltage_topic: 'arm/lipo_battery_voltage'
+lipo_battery_percentage_topic: 'arm/lipo_battery_percentage'
 lipo_current_topic: 'arm/lipo_motor_current'
 lipo_battery_refresh_interval: 30  # In secs
 lower_arm_service_name: 'arm/lower'
