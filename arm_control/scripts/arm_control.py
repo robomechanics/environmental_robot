@@ -140,6 +140,8 @@ class EndEffectorTrajectory:
             "is_arm_in_home_pose_param_name")
         self._lipo_battery_voltage_topic = rospy.get_param(
             "lipo_battery_voltage_topic")
+        self._lipo_battery_percentage_topic = rospy.get_param(
+            "lipo_battery_percentage_topic")
     
     def publish_lipo_battery_voltage(self, data):
         #publishes voltage and percentage simultaneously
