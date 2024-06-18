@@ -64,20 +64,20 @@ class PatrickTeleop:
                 rospy.loginfo("E-STOP Reset")
                 self.estop_reset_publisher.publish(True)
             
-            if self.joy_buttons[3]:
+            if self.joy_buttons[3]: #+V button
                 self.drive_factor = min(3, self.drive_factor + 0.5)
                 rospy.loginfo("Drive Factor: %s", self.drive_factor)
-            elif self.joy_buttons[0]:
+            elif self.joy_buttons[0]: #-V button
                 self.drive_factor = max(0, self.drive_factor - 0.5)
                 rospy.loginfo("Drive Factor: %s", self.drive_factor)
-            elif self.joy_buttons[1]:
+            elif self.joy_buttons[1]: #+W button
                 self.turn_factor = min(3, self.turn_factor + 0.5)
                 rospy.loginfo("Turn Factor: %s", self.turn_factor)
-            elif self.joy_buttons[2]:
+            elif self.joy_buttons[2]: #-W button
                 self.turn_factor = max(0, self.turn_factor - 0.5)
                 rospy.loginfo("Turn Factor: %s", self.turn_factor)
 
-            if self.joy_buttons[5]:
+            if self.joy_buttons[5]: #rs button
                 self.pub_twist_cmd = True
             else:
                 self.pub_twist_cmd = False
