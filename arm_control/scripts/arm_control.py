@@ -149,8 +149,8 @@ class EndEffectorTrajectory:
         self.lipo_battery_voltage_pub.publish(f"{self.robot_controller.batt_voltage:.1f}")
         #lipo_battery_percentage = (difference / total range) * 100
         lipo_battery_percentage = (((self.robot_controller.batt_voltage - 
-                                  self.min_lipo_voltage) * 100) /
-                                  (self.max_lipo_voltage - self.min_lipo_voltage))
+                                  self.robot_controller.min_lipo_voltage) * 100) /
+                                  (self.robot_controller.max_lipo_voltage - self.robot_controller.min_lipo_voltage))
         self.lipo_battery_percentage_pub.publish(f"{lipo_battery_percentage:.1f}")
 
     def get_forward_waypoints(self, traj_type = 0):
