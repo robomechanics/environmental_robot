@@ -58,10 +58,12 @@ class PatrickTeleop:
             # Soft E-stop Enable
             if self.joy_buttons[8]:
                 rospy.loginfo("E-STOP Enabled")
+                print("E-STOP ENABLED, this is button 8")
                 self.estop_enable_publisher.publish(True)
             # Soft E-stop Reset
             if self.joy_buttons[7]:
                 rospy.loginfo("E-STOP Reset")
+                print("E-STOP reset, this is button 7")
                 self.estop_reset_publisher.publish(True)
             
             if self.joy_buttons[3]: #+V button
