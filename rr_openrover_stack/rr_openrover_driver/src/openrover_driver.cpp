@@ -405,6 +405,10 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
 
   timeout_timer.stop();
 
+  flipper_motor_speed = ((int)round(flipper_rate * motor_speed_flipper_coef_) + 125) % 250;
+
+  motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = (unsigned char)flipper_motor_speed;
+
     if (e_stop_on_)
     {
         if (!prev_e_stop_state_)
@@ -419,16 +423,12 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
     }
     else
     {
-        if (prev_e_stop_state_)
+        if (prev_e_stop_state_) //this could be concerning, depending on if e_stop_on is incorrectly transmitted
         {
             prev_e_stop_state_ = false;
             ROS_INFO("Openrover driver - Soft e-stop off.");
         }
     }
-
-  flipper_motor_speed = ((int)round(flipper_rate * motor_speed_flipper_coef_) + 125) % 250;
-
-  motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = (unsigned char)flipper_motor_speed;
 
   timeout_timer.start();
   return;
@@ -442,6 +442,8 @@ void OpenRover::eStopCB(const std_msgs::Bool::ConstPtr& msg)
     if(msg->data && !prev_e_stop_state_)
     {
         e_stop_on_ = true;
+        cout << "Emergency Stop activated";
+        
     }
 
     prev_e_stop_state_ = msg->data;
@@ -453,6 +455,7 @@ void OpenRover::eStopResetCB(const std_msgs::Bool::ConstPtr& msg)
     if(msg->data)
     {
         e_stop_on_ = false;
+        cout << "Emergency Stop deactivated";
     }
     return;
 }
