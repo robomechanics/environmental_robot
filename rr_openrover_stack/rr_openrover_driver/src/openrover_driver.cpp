@@ -403,12 +403,11 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
   right_vel_commanded_ = linear_rate + 0.5 * diff_vel_commanded;
   left_vel_commanded_ = linear_rate - 0.5 * diff_vel_commanded;
 
-  timeout_timer.stop();
-
   flipper_motor_speed = ((int)round(flipper_rate * motor_speed_flipper_coef_) + 125) % 250;
-
+  //if for some reason the flipper still moves, move the lines nearest to here below the timeout_timer.stop();
   motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = (unsigned char)flipper_motor_speed;
 
+  timeout_timer.stop();
     if (e_stop_on_)
     {
         if (!prev_e_stop_state_)
@@ -416,6 +415,28 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
             prev_e_stop_state_ = true;
             ROS_WARN("Openrover driver - Soft e-stop on.");
         }
+        //below code should make the decrease more gradual. Didn't add for flipper as stability isn't as affected
+        //a
+        // if (motor_speeds_commanded_[LEFT_MOTOR_INDEX_] > MOTOR_NEUTRAL) //positive speed
+        // {   //taking the maximum of the speed - 50 and the neutral speed
+        //     motor_speeds_commanded_[LEFT_MOTOR_INDEX_] = ((motor_speeds_commanded_[LEFT_MOTOR_INDEX_] - 50 > MOTOR_NEUTRAL) ? 
+        //                                                    motor_speeds_commanded_[LEFT_MOTOR_INDEX_] - 50 : MOTOR_NEUTRAL);
+        // }
+        // else if (motor_speeds_commanded_[LEFT_MOTOR_INDEX_] < MOTOR_NEUTRAL) //negative speed
+        // {   //taking the minimum of the speed + 50 and the neutral speed
+        //     motor_speeds_commanded_[LEFT_MOTOR_INDEX_] = ((motor_speeds_commanded_[LEFT_MOTOR_INDEX_] + 50 < MOTOR_NEUTRAL) ? 
+        //                                                    motor_speeds_commanded_[LEFT_MOTOR_INDEX_] + 50 : MOTOR_NEUTRAL);
+        // }
+        // if (motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] > MOTOR_NEUTRAL) //positive speed
+        // {   //taking the maximum of the speed - 50 and the neutral speed
+        //     motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] = ((motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] - 50 > MOTOR_NEUTRAL) ? 
+        //                                                    motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] - 50 : MOTOR_NEUTRAL);
+        // }
+        // else if (motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] < MOTOR_NEUTRAL) //negative speed
+        // {   //taking the minimum of the speed + 50 and the neutral speed
+        //     motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] = ((motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] + 50 < MOTOR_NEUTRAL) ? 
+        //                                                    motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] + 50 : MOTOR_NEUTRAL);
+        // }
         motor_speeds_commanded_[LEFT_MOTOR_INDEX_] = MOTOR_NEUTRAL;
         motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] = MOTOR_NEUTRAL;
         motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = MOTOR_NEUTRAL;
