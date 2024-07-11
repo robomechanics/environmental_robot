@@ -24,6 +24,17 @@ roslaunch microstrain_inertial_localization gq7_odom.launch
 rosrun joy joy_node
 ```
 
+
+## pip requirements
+- PyQtGraph
+- pyqt6
+- scipy
+- pandas
+- scikit-learn
+- shapely
+- wget
+- matplotlib
+
 ## System Info
 Intel NUC 13th Gen: 12.0V – 19 V
 
