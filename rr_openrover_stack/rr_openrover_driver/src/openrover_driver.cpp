@@ -396,22 +396,22 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
   double turn_rate = msg->angular.z;
   double linear_rate = msg->linear.x;
   double flipper_rate = msg->angular.y;
-  static bool prev_e_stop_state_ = false;
 
   double diff_vel_commanded = turn_rate / odom_angular_coef_ / odom_traction_factor_;
 
   right_vel_commanded_ = linear_rate + 0.5 * diff_vel_commanded;
   left_vel_commanded_ = linear_rate - 0.5 * diff_vel_commanded;
+  
+  flipper_motor_speed = ((int)round(flipper_rate * motor_speed_flipper_coef_) + 125) % 250;
+
+  motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = (unsigned char)flipper_motor_speed;
 
   timeout_timer.stop();
-
     if (e_stop_on_)
     {
-        if (!prev_e_stop_state_)
-        {
-            prev_e_stop_state_ = true;
-            ROS_WARN("Openrover driver - Soft e-stop on.");
-        }
+
+        ROS_WARN("Openrover driver - Soft e-stop on.");
+
         motor_speeds_commanded_[LEFT_MOTOR_INDEX_] = MOTOR_NEUTRAL;
         motor_speeds_commanded_[RIGHT_MOTOR_INDEX_] = MOTOR_NEUTRAL;
         motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = MOTOR_NEUTRAL;
@@ -419,16 +419,8 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
     }
     else
     {
-        if (prev_e_stop_state_)
-        {
-            prev_e_stop_state_ = false;
-            ROS_INFO("Openrover driver - Soft e-stop off.");
-        }
+      ROS_INFO("Openrover driver - Soft e-stop off.");
     }
-
-  flipper_motor_speed = ((int)round(flipper_rate * motor_speed_flipper_coef_) + 125) % 250;
-
-  motor_speeds_commanded_[FLIPPER_MOTOR_INDEX_] = (unsigned char)flipper_motor_speed;
 
   timeout_timer.start();
   return;
@@ -436,15 +428,12 @@ void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
 
 void OpenRover::eStopCB(const std_msgs::Bool::ConstPtr& msg)
 {
-    static bool prev_e_stop_state_ = false;
-
+    
     // e-stop only trigger on the rising edge of the signal and only deactivates when reset
-    if(msg->data && !prev_e_stop_state_)
+    if(msg->data)
     {
         e_stop_on_ = true;
     }
-
-    prev_e_stop_state_ = msg->data;
     return;
 }
 
