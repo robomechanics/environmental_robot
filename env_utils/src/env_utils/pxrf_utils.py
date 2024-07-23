@@ -62,4 +62,10 @@ class PXRF(object):
         
         if self.data_response_callback:
             self.data_response_callback(data)
-        
+
+
+if __name__ == '__main__':
+    rospy.init_node('pxrf_handler',anonymous=True)
+    pxrf = PXRF()
+    pxrf.start_scan()
+    rospy.spin()
