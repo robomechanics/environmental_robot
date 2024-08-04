@@ -1,11 +1,27 @@
 #!/usr/bin/env python3
 
+
+#TO-DO change the sessionID to dailyID
+
 #Generates fake PXRF data for use in simulation and testing purposes
 #Uploads this data into mock_chemistry.csv for general use
 #Incorporated into a rosservice and that can be launched and run 
 #Mimics the data in chemistry.csv
-
 import csv
+import time
+import rospy
+import statistics
+from pxrf.msg import PxrfMsg
+from fake_pxrf_response.srv import fake_pxrf_response #this line might be off
+import sys
+
+# add pxrf's plot script to lookup path
+import os
+import rospkg
+rospack = rospkg.RosPack()
+pxrf_path = rospack.get_path('pxrf')
+sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
+
 import random
 import datetime
 
@@ -21,8 +37,41 @@ class Mock_pxrf:
         self.mock_pxrf_data_filename = 'mock_chemistry.csv'
         self.concentrations = []
         self.scan = []
+        rospy.init_node('mock_pxrf_data', anonymous=True)
+        rospy.Service('/generate_fake_pxrf_data', fake_pxrf_response, self.generate_element_distributions)
+        rospy.spin()
+    
+    def generate_element_distributions(self):
+        measured_elements = ['Mg','Al','Si','P','S','Cl','Ca','Ti','V','Cr','Mn',
+                            'Fe','Co','Ni','Cu','Zn','As','Se','Rb','Sr','Y','Zr',
+                            'Nb','Mo','Ag','Cd','Sn','Sb','Ba','La','Ce','Pr','Nd',
+                            'W','Hg','Pb','Bi','Th','U','LE']
+        file_path = 'C:/Users/redkr/Desktop/environmental_robot/pxrf/scripts/mock_pxrf_data/mock_scans_made.txt'
+        self.current_mock_scans_made += 1
+        total_mock_scans_made = read_and_update_total_mock_scans_made('total_mock_scans_made.txt')
 
-    pass
+        
+
+        #add first line to scan [scans made in the current session, total scans made, 
+        #date time,  longitude of scan latitude of scan]
+        self.scan.append([self.current_mock_scans_made, 
+                            total_mock_scans_made, 
+                            f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
+                            f'Lon: {self.longitude} Lat: {self.longitude}'])
+        #add second line [list of measured elements]
+        self.scan.append(measured_elements)
+        #add third line [list of element concentrations] choosing of values could be improved
+        self.scan.append(get_mock_concentrations('mock_soil_concentration_ranges.txt'))
+        #add fourth line [list of predicted element error range] currently modelled after a basic exponential distribution
+        #could be improved
+        error_average = 1 / 10**3
+        self.scan.append([random.expovariate(1/error_average) for i in range(len(measured_elements))])
+
+        #write the scan to our mock_csv file
+        with open(self.mock_pxrf_data_filename, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(self.scan)
+
 
 #gets the fake concentrations of various elements randomly
 #random mock concentration parsing is roughly based on the ranges in mock_soil_concentration_ranges.txt
@@ -59,38 +108,5 @@ def read_and_update_total_mock_scans_made(filepath):
         file.write(f'total_mock_scans_made:{total_mock_scans}')
     return total_mock_scans
 
-def generate_element_distributions():
-    measured_elements = ['Mg','Al','Si','P','S','Cl','Ca','Ti','V','Cr','Mn',
-                         'Fe','Co','Ni','Cu','Zn','As','Se','Rb','Sr','Y','Zr',
-                         'Nb','Mo','Ag','Cd','Sn','Sb','Ba','La','Ce','Pr','Nd',
-                         'W','Hg','Pb','Bi','Th','U','LE']
-    file_path = 'C:/Users/redkr/Desktop/environmental_robot/pxrf/scripts/mock_pxrf_data/mock_scans_made.txt'
-    mock_scan = Mock_pxrf(longitude, latitude)
-    mock_scan.current_mock_scans_made += 1
-    total_mock_scans_made = read_and_update_total_mock_scans_made('total_mock_scans_made.txt')
-
-    
-
-    #add first line to scan [scans made in the current session, total scans made, 
-    #date time,  longitude of scan latitude of scan]
-    mock_scan.scan.append([mock_scan.current_mock_scans_made, 
-                           total_mock_scans_made, 
-                           f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
-                           f'Lon: {mock_scan.longitude} Lat: {mock_scan.longitude}'])
-    #add second line [list of measured elements]
-    mock_scan.scan.append(measured_elements)
-    #add third line [list of element concentrations] choosing of values could be improved
-    mock_scan.scan.append(get_mock_concentrations('mock_soil_concentration_ranges.txt'))
-    #add fourth line [list of predicted element error range] currently modelled after a basic exponential distribution
-    #could be improved
-    error_average = 1 / 10**3
-    mock_scan.scan.append([random.expovariate(1/error_average) for i in range(len(measured_elements))])
-
-    #write the scan to our mock_csv file
-    with open(mock_scan.mock_pxrf_data_filename, mode='a', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerows(mock_scan.scan)
-
-
 if __name__ == '__main__':
-    generate_element_distributions()
+    Mock_pxrf(Mock_pxrf(longitude, latitude))

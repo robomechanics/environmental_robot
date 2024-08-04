@@ -39,6 +39,11 @@ generate_messages(
     actionlib_msgs
 )
 
+add_service_files(
+    FILES
+    fake_pxrf_response.srv
+)
+
 ## Declare a catkin package
 catkin_package(
     CATKIN_DEPENDS message_runtime
