@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Robot
 ## Run Info
 ### Start ROS services (on patrick)
@@ -29,6 +30,14 @@ Intel NUC 13th Gen: 12.0V – 19 V
 
 ## Network Info
 ### HEBI Arm
+=======
+# Jetson Environment
+## System Info
+### Power
+9.0V – 19.6V
+# Network Information
+## HEBI Arm
+>>>>>>> c702c34d44363ac2df2c80f3ae51dfdd68e3541c
 It is connected to eth0 and uses a static IP configuration.
 
 ```
@@ -43,6 +52,7 @@ ROBOT IP, Netmask, Gateway: 192.168.7.10, 24, 192.168.7.1
 PXRF IP : 192.168.7.2
 ```
 
+<<<<<<< HEAD
 ## RTK GPS
 ### TF Measurements
 ```
@@ -244,6 +254,8 @@ The main controller for waypoint navigation. It includes both LQR and PID contro
 
 # Programming Environment
 
+=======
+>>>>>>> c702c34d44363ac2df2c80f3ae51dfdd68e3541c
 ## Terminal Info
 - zsh is the default terminal. 
 - Instead of .bashrc, use .zshrc file to add aliases, source rosfiles, etc
