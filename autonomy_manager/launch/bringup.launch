@@ -3,11 +3,14 @@
   <arg name="useArm" default="true"/>
   <arg name="usePXRF" default="true"/>
   <arg name="useManager" default="true"/>
-  <arg name="useArmCamera" default="true"/>
-  <arg name="useRTK" default="true"/>
+  <arg name="useArmCamera" default="false"/>
+  <arg name="useRTK" default="false"/>
+  <arg name="useMoveBase" default="true"/>
 
   <!-- ROS Params, TF and Vel Pub -->
   <include file = "$(find autonomy_manager)/launch/basic.launch"/>
+
+  <node name="data_recorder" pkg="autonomy_manager" type="data_recorder.py" output="screen"/>
 
   <!-- Arm Raise and Lower Control -->
   <group if="$(arg useArm)">
@@ -30,8 +33,13 @@
   </group>
 
   <!-- RTK Base Station -->
-  <group if="$(arg useArmCamera)">
+  <group if="$(arg useRTK)">
     <include file = "$(find rtk_base)/launch/base_rtcm_pub.launch"/>
+  </group>
+
+   <!-- Movebase -->
+  <group if="$(arg useMoveBase)">
+    <include file = "$(find robo_nav)/launch/move_base.launch"/>
   </group>
 
 </launch>

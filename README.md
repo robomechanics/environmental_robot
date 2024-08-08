@@ -5,17 +5,27 @@
 # roscore
 sudo systemctl start roscore.service 
 
-# rover robotics
-sudo systemctl start roverrobotics.service
-
 # Basic Services for robot:
+#   Load all ROS Params
 #   joystick -> cmd_vel
 #   tf for base_link->gq7_link
 roslaunch autonomy_manager basic.launch
 
+# Rover robotics
+## Open Loop to drive around using the controller
+roslaunch rr_openrover_driver starterkit_bringup.launch rover_closed_loop_controller:=false
+
+## Closed Loop for move_base
+roslaunch rr_openrover_driver starterkit_bringup.launch
+
 # GPS
-# Params file Info: https://github.com/LORD-MicroStrain/microstrain_inertial_driver_common/blob/6d62789b0492e28a0e4b86be8b4dc0e562d08a5e/config/params.yml
-roslaunch microstrain_inertial_localization gq7_odom.launch
+## Params file Info: https://github.com/LORD-MicroStrain/microstrain_inertial_driver_common/blob/6d62789b0492e28a0e4b86be8b4dc0e562d08a5e/config/params.yml
+## Start gq7_odom.launch and gps_navigation_service.py
+roslaunch robo_nav localization.launch
+
+# All other robot nodes
+mon launch autonomy_manager bringup.launch --log="/home/patrick/catkin_ws/src/logs/$(date '+%Y-%m-%d-%H:%M:%S').log" --stop-timeout=10
+
 
 ```
 ### Start Joystick publisher (on remote)
@@ -29,6 +39,13 @@ Intel NUC 13th Gen: 12.0V – 19 V
 
 ## Network Info
 ### HEBI Arm
+=======
+# Jetson Environment
+## System Info
+### Power
+9.0V – 19.6V
+# Network Information
+## HEBI Arm
 It is connected to eth0 and uses a static IP configuration.
 
 ```
