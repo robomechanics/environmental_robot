@@ -43,6 +43,7 @@ class DataRecorder(object):
         self.create_logging_files()
         
         rospy.loginfo("Started Data Recorder...")
+        rospy.spin()
         
     def load_ros_params(self):
         self._pxrf_cmd_topic = rospy.get_param("pxrf_cmd_topic")

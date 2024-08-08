@@ -24,7 +24,7 @@ class RobotController:
 
         if self.group is None:
             rospy.logerr("Group not found")
-            raise "Error: Group not found"
+            raise "Error: Group not found! Make sure the arm is powered on."
 
         rospack = rospkg.RosPack()
         pkg_path = rospack.get_path("arm_control")
