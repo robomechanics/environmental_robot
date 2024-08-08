@@ -50,6 +50,32 @@ class RobotController:
         self.max_lipo_voltage = 33.6  
 
         # gainsCmd.mstop_strategy = 2
+        
+        # ROS Publisher for joint commands
+        self.joint_command_publisher = rospy.Publisher('/arm/joint_states', JointState, queue_size=10)
+        
+        self.joint_state = JointState()
+        self.joint_state.name = "arm"
+        
+    def start_joint_publisher(self)
+        if not self.is_joint_timer_running:
+            self._joint_timer = rospy.Timer(rospy.Duration(2), self.publish_joint_angles())
+            self.is_joint_timer_running = True
+            rospy.sleep(0.5)
+        else:
+            raise("Joint Timer is already running!")
+
+    def stop_joint_publisher(self):
+        if self.is_joint_timer_running:
+            self._joint_timer.shutdown()
+            self.is_joint_timer_running = False
+            rospy.sleep(0.5)
+        else:
+            raise("Joint Timer is already stopped!")
+        
+    def publish_joint_angles(self):
+        self.joint_state.position = self.get_joint_angles().to_list()
+        self.joint_command_publisher.publish(self.joint_state.position)
     
     def get_batt_voltage(self):
         # Get position feedback from the robot to use as initial conditions
@@ -318,6 +344,8 @@ class EndEffectorTrajectory:
         
 
     def lower_arm_callback(self, req):
+        self.robot_controller.stop_joint_publisher()
+        
         if (req.data):
             if not self.check_if_robot_in_home_pose():
                 return SetBoolResponse(True, "Arm is already in touchdown position")
@@ -326,6 +354,9 @@ class EndEffectorTrajectory:
             if self.check_if_robot_in_home_pose():
                 return SetBoolResponse(True, "Arm is already in home position")
             self.arm_return()
+        
+        self.robot_controller.start_joint_publisher()
+        
         return SetBoolResponse(True, "SUCCESS")
            
     def arm_touchdown(self):
@@ -395,10 +426,6 @@ if __name__ == "__main__":
     
     rospy.loginfo("Started Arm Control Node...")
     
-
-    # ROS Publisher for joint commands
-    # joint_command_publisher = rospy.Publisher('/robot/joint_commands', JointState, queue_size=10)
-
     # Wait for 2 seconds to allow time for the ROS system to initialize
     # sleep(2.0)
 

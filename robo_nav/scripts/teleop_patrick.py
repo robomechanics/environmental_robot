@@ -4,6 +4,7 @@ import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Bool
+from std_srvs.srv import SetBool, SetBoolResponse
 
 
 class PatrickTeleop:
@@ -29,6 +30,8 @@ class PatrickTeleop:
             self._estop_reset_topic, Bool, queue_size=1
         )
 
+        self._lower_arm_service_name = rospy.get_param(self._lower_arm_service_name)
+        
         self.drive_factor = 1.0
         self.turn_factor = 1.0
 
@@ -46,10 +49,27 @@ class PatrickTeleop:
         self._cmd_managed_topic = rospy.get_param("cmd_vel_managed_topic")
         self._estop_enable_topic = rospy.get_param("estop_enable_topic")
         self._estop_reset_topic = rospy.get_param("estop_reset_topic")
-
+        self._lower_arm_service_name = rospy.get_param("lower_arm_service_name")
+        
         rospy.loginfo("Subscribing to: %s", self._joy_topic)
         rospy.loginfo("Publishing  to: %s", self._cmd_managed_topic)
 
+    def arm_return(self):
+        try:
+            lower_arm = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            res = lower_arm(False)
+        except rospy.ServiceException as e:
+            rospy.logerr("Arm Return Failed")
+        rospy.loginfo("Arm Returned!")
+
+    def arm_touchdown(self):
+        try:
+            lower_arm = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            res = lower_arm(True)
+        except rospy.ServiceException as e:
+            rospy.logerr("Arm Touchdown Failed")
+        rospy.loginfo("Arm Lowered!")
+    
     def twist_msg_constructor(self):
         if self.joy_axis:
             self.twist_msg.linear.x = (self.joy_axis[1]) * self.drive_factor
@@ -78,6 +98,16 @@ class PatrickTeleop:
             elif self.joy_buttons[2]: #-W button
                 self.turn_factor = max(0, self.turn_factor - 0.5)
                 rospy.loginfo("Turn Factor: %s", self.turn_factor)
+            
+            # Lower Arm
+            if self.joy_buttons[7] > 0:
+                rospy.loginfo("Lowering Arm")
+                self.arm_touchdown()
+            
+            # Raise Arm
+            if self.joy_buttons[7] < 0:
+                rospy.loginfo("Returning Arm")
+                self.arm_return()
 
             if self.joy_buttons[5]: #rs button
                 self.pub_twist_cmd = True
