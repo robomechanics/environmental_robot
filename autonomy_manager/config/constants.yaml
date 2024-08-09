@@ -82,3 +82,13 @@ data_dir: "~/data/pxrf_results"
 pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/chemistry.csv'
 rotate_scan_log_file_service_name: rotate_scan_log_file
 autonomy_params_service_name: 'autonomy_params'
+
+#Fake PXRF
+fake_start_scan_service_name: 'fake_scan_start'
+fake_scan_completed_topic: 'fake_scan_completed'
+fake_pxrf_cmd_topic: 'fake_pxrf_cmd'
+fake_pxrf_response_topic: 'fake_pxrf_response'
+fake_pxrf_data_topic: 'fake_pxrf_data'
+fake_element_of_interest: 'Cl'
+fake_data_dir: "~/data/fake_pxrf_results"
+fake_pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/fake_pxrf/fake_chemistry.csv' #needs to be used in GUI
