@@ -18,7 +18,7 @@ from std_msgs.msg import String
 #from nav_msgs.msg import Odometry
 from pxrf.msg import PxrfMsg, CompletedScanData
 from pxrf.srv import fake_pxrf_response
-from autonomy_manager.srv import Complete
+from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 import sys
 import os
 
@@ -41,16 +41,12 @@ class FakePXRFHandler:
         rospy.init_node("fake_pxrf_handler", anonymous=True) #
         self.load_fake_ros_params() #
 
-        self.fake_pxrf_command_pub = rospy.Publisher(self._fake_pxrf_cmd_topic, String, queue_size=1)
-        self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic, CompletedScanData, queue_size=1)
-
-        
-        #self._fake_pxrf_response_sub = rospy.Subscriber(self._fake_pxrf_response_topic, String, self.response_listener)
-        #don't think the above line is neccessary since we aren't 
-        self._fake_pxrf_data_sub = rospy.Subscriber(self._fake_pxrf_data_topic, PxrfMsg, self.fake_data_listener)
-
-
-        self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name, Complete, self.fake_scan_start)
+        self.fake_pxrf_command_pub = rospy.Publisher(self._fake_pxrf_cmd_topic, String, 
+                                                     queue_size=1)
+        self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic, 
+                                                       CompletedScanData, queue_size=1)
+        self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name, 
+                                                      SetBool, self.fake_scan_start)
 
         self.longitude = longitude
         self.latitude = latitude
@@ -61,8 +57,6 @@ class FakePXRFHandler:
         self.concentrations = []
         self.scan = []
         rospy.init_node('fake_pxrf_data', anonymous=True)
-        rospy.Service('/generate_fake_pxrf_data', fake_pxrf_response, 
-                      self.generateElementDistributions) 
         
         rospy.spin()
     
@@ -83,14 +77,41 @@ class FakePXRFHandler:
         self.fake_root_data_dir = os.path.expanduser(rospy.get_param("fake_data_dir"))
         self.fake_element_of_interest = rospy.get_param("fake_element_of_interest")
     
-    def fake_scan_start(self, data):
-        if self.status:
-            self.scanning = True
-            self.fake_pxrf_command_pub.publish("start fake scan")
-        else:
-            self.fake_pxrf_command_pub.publish("stop fake scan")
-            self.scanning = False
-        return True
+    def fake_scan_start(self):
+        self.fake_pxrf_command_pub.publish("start fake scan")
+        # get ros and system time
+        self.system_time = str(datetime.now())
+        
+        
+        # record and process received response
+        fake_data = self.generate_fake_pxrf_data()
+        header, element, concentration, error = fake_data[0], fake_data[1], fake_data[2], fake_data[3]
+        
+        self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+        self.fake_data_file = os.path.join(self.fake_root_data_dir, "scan_results_" + self.algorithm_type + ".csv")
+        
+        with open(self.fake_data_file, "a+") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            writer.writerow(element)
+            writer.writerow(concentration)
+            writer.writerow(error)
+
+        # Publish results to manager and GUI
+        i = element.index(self.fake_element_of_interest)
+        completed_scan_data_msg = CompletedScanData()
+        completed_scan_data_msg.status = True
+        completed_scan_data_msg.element = self.element_of_interest
+        completed_scan_data_msg.mean = concentration[i]
+        completed_scan_data_msg.error = error[i]
+        completed_scan_data_msg.file_name = self.fake_data_file
+        self.fake_scan_completed_pub.publish(completed_scan_data_msg)
+
+
+        self.fake_pxrf_command_pub.publish("Stop Fake Scan")
+
+        return SetBoolResponse(sucess = True, 
+                               message = "Fake Scan Sucessful")
 
     def generate_fake_pxrf_data(self):
         measuredElements = ['Mg','Al','Si','P','S','Cl','Ca','Ti','V','Cr','Mn',
@@ -121,41 +142,9 @@ class FakePXRFHandler:
         
         return copy.copy(self.scan)
         
-    def fake_data_listener(self, data: PxrfMsg): #need to heavily modify (I think i've done it, double check)
-        if self.scanning and self.test_stopped:
-            self.scanning = False
-            
-            # get ros and system time
-            self.system_time = str(datetime.now())
-            
-            
-            # record and process received response
-            fake_data = self.generate_fake_pxrf_data()
-            header, element, concentration, error = fake_data[0], fake_data[1], fake_data[2], fake_data[3]
-            
-            self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
-            self.fake_data_file = os.path.join(self.fake_root_data_dir, "scan_results_" + self.algorithm_type + ".csv")
-            
-            with open(self.fake_data_file, "a+") as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                writer.writerow(element)
-                writer.writerow(concentration)
-                writer.writerow(error)
-
-            # Publish results to manager and GUI
-            i = element.index(self.fake_element_of_interest)
-            completed_scan_data_msg = CompletedScanData()
-            completed_scan_data_msg.status = True
-            completed_scan_data_msg.element = self.element_of_interest
-            completed_scan_data_msg.mean = concentration[i]
-            completed_scan_data_msg.error = error[i]
-            completed_scan_data_msg.file_name = self.fake_data_file
-            self.fake_scan_completed_pub.publish(completed_scan_data_msg)
-
-    def response_listener(self, data):
-        rospy.loginfo("Test complete")
-        self.test_stopped = (data.data == "201")
+    # def response_listener(self, data):
+    #     rospy.loginfo("Test complete")
+    #     self.test_stopped = (data.data == "201")
 
     #line contains a string with the lower and upper range of values
     def generateIndividualFakeConcentration(self, line):
