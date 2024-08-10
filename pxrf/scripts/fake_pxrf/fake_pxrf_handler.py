@@ -175,7 +175,7 @@ class FakePXRFHandler:
         totalFakeScans = int(totalFakeScans.split(':')[1])
         totalFakeScans += 1
         with open(filepath, 'w') as file: #rewrite to the file
-            file.write(f'numFakeSScandMade:{totalFakeScans}')
+            file.write(f'numFakeScansMade:{totalFakeScans}')
         return totalFakeScans
 
 
