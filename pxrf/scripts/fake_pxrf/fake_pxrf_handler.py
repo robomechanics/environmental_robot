@@ -17,16 +17,16 @@ import statistics
 from std_msgs.msg import String
 #from nav_msgs.msg import Odometry
 from pxrf.msg import PxrfMsg, CompletedScanData
-from pxrf.srv import fake_pxrf_response
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 import sys
 import os
 
 
 # add pxrf's plot script to lookup path
-
+sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robot/pxrf/scripts")
 rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf')
+sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts", "fake_pxrf")))
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 
 import random
@@ -37,16 +37,16 @@ latitude = 31.845601
     
 class FakePXRFHandler:
     fakeScans = []
-    def __init__(self, longitude, latitude):
+    def __init__(self):
         rospy.init_node("fake_pxrf_handler", anonymous=True) #
         self.load_fake_ros_params() #
 
-        self.fake_pxrf_command_pub = rospy.Publisher(self._fake_pxrf_cmd_topic, String, 
+        self.fake_pxrf_command_pub = rospy.Publisher(self._fake_pxrf_cmd_topic, String,
                                                      queue_size=1)
-        self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic, 
+        self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
-        self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name, 
-                                                      SetBool, self.fake_scan_start)
+        self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
+                                                      SetBool, self.fake_scan_start_callback)
 
         self.longitude = longitude
         self.latitude = latitude
@@ -56,7 +56,7 @@ class FakePXRFHandler:
         self.fileContainingFakeData = 'fake_chemistry.csv'
         self.concentrations = []
         self.scan = []
-        rospy.init_node('fake_pxrf_data', anonymous=True)
+        #rospy.init_node('fake_pxrf_data', anonymous=True)
         
         rospy.spin()
     
@@ -74,13 +74,16 @@ class FakePXRFHandler:
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
 
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
-        self.fake_root_data_dir = os.path.expanduser(rospy.get_param("fake_data_dir"))
+        self.fake_root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
         self.fake_element_of_interest = rospy.get_param("fake_element_of_interest")
     
-    def fake_scan_start(self):
+    def fake_scan_start_callback(self, req):
+        if not req.data:
+            return SetBoolResponse(True,"Fake Scan not Initated")
+        
         self.fake_pxrf_command_pub.publish("start fake scan")
         # get ros and system time
-        self.system_time = str(datetime.now())
+        self.system_time = str(datetime.datetime.now())
         
         
         # record and process received response
@@ -88,9 +91,10 @@ class FakePXRFHandler:
         header, element, concentration, error = fake_data[0], fake_data[1], fake_data[2], fake_data[3]
         
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
-        self.fake_data_file = os.path.join(self.fake_root_data_dir, "scan_results_" + self.algorithm_type + ".csv")
+        self.fake_data_file = os.path.join(self.fake_root_data_dir, "fake_scan_results_" + self.algorithm_type + ".csv")
         
-        with open(self.fake_data_file, "a+") as f:
+        print(os.path.join(self.fake_data_file))
+        with open(os.path.join(self.fake_data_file), "a+") as f:
             writer = csv.writer(f)
             writer.writerow(header)
             writer.writerow(element)
@@ -101,7 +105,7 @@ class FakePXRFHandler:
         i = element.index(self.fake_element_of_interest)
         completed_scan_data_msg = CompletedScanData()
         completed_scan_data_msg.status = True
-        completed_scan_data_msg.element = self.element_of_interest
+        completed_scan_data_msg.element = self.fake_element_of_interest
         completed_scan_data_msg.mean = concentration[i]
         completed_scan_data_msg.error = error[i]
         completed_scan_data_msg.file_name = self.fake_data_file
@@ -110,8 +114,7 @@ class FakePXRFHandler:
 
         self.fake_pxrf_command_pub.publish("Stop Fake Scan")
 
-        return SetBoolResponse(sucess = True, 
-                               message = "Fake Scan Sucessful")
+        return SetBoolResponse(True,"Fake Scan Sucessful")
 
     def generate_fake_pxrf_data(self):
         measuredElements = ['Mg','Al','Si','P','S','Cl','Ca','Ti','V','Cr','Mn',
@@ -119,8 +122,9 @@ class FakePXRFHandler:
                             'Nb','Mo','Ag','Cd','Sn','Sb','Ba','La','Ce','Pr','Nd',
                             'W','Hg','Pb','Bi','Th','U','LE']
 
-        self.numFakeScansInSesssion += 1
-        numFakeScans = self.getAndUpdateNumFakeScans('numFakeScans.txt')
+        self.fakeScansMadeInSesssion += 1
+        numFakeScans = self.getAndUpdateNumFakeScans("numFakeScansMade.txt")
+        #numFakeScans = random.randrange(0, 10**10) #placeholder will be fixed
         self.scan.append([self.fakeScansMadeInSesssion, 
                             numFakeScans, 
                             f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
@@ -128,7 +132,7 @@ class FakePXRFHandler:
 
         self.scan.append(measuredElements)
 
-        self.scan.append(self.generateFakeConcentrations('fakeSoilConcentrationRanges.txt'))
+        self.scan.append(self.generateFakeConcentrations("fakeSoilConcentrationRanges.txt"))
 
         #add fourth line [list of predicted element error range] currently modelled after a basic exponential distribution
         #could be improved
@@ -136,11 +140,14 @@ class FakePXRFHandler:
         self.scan.append([random.expovariate(1/averageError) for i in range(len(measuredElements))])
         self.fakeScans.append(self.scan)
 
-        with open(self.fileContainingFakeData, mode='a', newline='') as file:
+        with open(os.path.join(pxrf_path, 'scripts', 'fake_pxrf',self.fileContainingFakeData), mode='a', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(self.scan)
         
-        return copy.copy(self.scan)
+        fake_data = copy.copy(self.scan)
+        self.scan = []
+        
+        return fake_data
         
     # def response_listener(self, data):
     #     rospy.loginfo("Test complete")
@@ -157,7 +164,7 @@ class FakePXRFHandler:
     
     #random fake concentration parsing is roughly based on the ranges in fake_soil_concentration_ranges.txt
     def generateFakeConcentrations(self, filename):
-        with open(filename, 'r') as file:
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf',filename), 'r') as file:
             fakeConcentrationRanges = file.read()
 
         concentrations = [] 
@@ -170,14 +177,20 @@ class FakePXRFHandler:
         return concentrations
 
     def getAndUpdateNumFakeScans(self, filepath):
-        with open(filepath, 'r') as file: 
+        print(pxrf_path)
+        print(os.path.join(pxrf_path))
+        print(os.path.join(pxrf_path, 'scripts'))
+        print(os.path.join(pxrf_path, 'scripts', 'fake_pxrf'))
+        print(os.path.join(pxrf_path, 'scripts',f'fake_pxrf/{filepath}'))
+        
+        with open(os.path.join(pxrf_path, 'scripts',f'fake_pxrf/{filepath}'), 'r') as file: 
             totalFakeScans = file.read()
         totalFakeScans = int(totalFakeScans.split(':')[1])
         totalFakeScans += 1
-        with open(filepath, 'w') as file: #rewrite to the file
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf',filepath), 'w') as file: #rewrite to the file
             file.write(f'numFakeScansMade:{totalFakeScans}')
         return totalFakeScans
 
 
 if __name__ == '__main__':
-    FakePXRFHandler(longitude, latitude)
+    FakePXRFHandler()

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0.2)
 
 project(pxrf)
 
@@ -37,11 +37,6 @@ generate_messages(
     DEPENDENCIES
     std_msgs
     actionlib_msgs
-)
-
-add_service_files(
-    FILES
-    fake_pxrf_response.srv
 )
 
 ## Declare a catkin package

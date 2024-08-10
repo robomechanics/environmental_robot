@@ -7,7 +7,7 @@ import statistics
 from std_msgs.msg import String
 from pxrf.msg import PxrfMsg
 import sys
-sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robos/pxrf/scripts")
+sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robot/pxrf/scripts")
 from sensor_msgs.msg import NavSatFix
 
 # add pxrf's plot script to lookup path
@@ -26,9 +26,9 @@ class CHEMISTRY_PARSER:
         self.testId = -1
         self.testDateTime = ""
         self.chemistry = ""
-		self.numData = 0
-		self.lon_list = []
-		self.lat_list = []
+        self.numData = 0
+        self.lon_list = []
+        self.lat_list = []
         self.testStopped = False
         self.longitude = 0
         self.latitude = 0

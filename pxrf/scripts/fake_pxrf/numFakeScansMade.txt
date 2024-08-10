@@ -1,1 +1,1 @@
-total_mock_scans_made:22
+numFakeScansMade:27
