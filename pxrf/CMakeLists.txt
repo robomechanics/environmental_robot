@@ -33,6 +33,11 @@ add_message_files(
     CompletedScanData.msg
 )
 
+add_service_files(
+  FILES
+  GetPxrf.srv
+)
+
 generate_messages(
     DEPENDENCIES
     std_msgs

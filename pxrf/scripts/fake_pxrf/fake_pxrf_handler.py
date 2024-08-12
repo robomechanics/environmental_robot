@@ -11,6 +11,7 @@ import rospkg
 from std_msgs.msg import String
 from pxrf.msg import PxrfMsg, CompletedScanData
 from std_srvs.srv import SetBool, SetBoolResponse
+from pxrf.srv import Pxrf, PxrfResponse
 import sys
 import os
 import datetime, time, random, copy
@@ -38,7 +39,7 @@ class FakePXRFHandler:
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
-                                                      SetBool, self.fake_scan_start_callback)
+                                                      Pxrf, self.fake_scan_start_callback)
 
         self.longitude = longitude
         self.latitude = latitude
@@ -103,7 +104,11 @@ class FakePXRFHandler:
 
         self.fake_pxrf_command_pub.publish("Stop Fake Scan")
 
-        return SetBoolResponse(True,"Fake Scan Sucessful")
+        return PxrfResponse(completed_scan_data_msg.status,
+                            completed_scan_data_msg.element,
+                            completed_scan_data_msg.mean,
+                            completed_scan_data_msg.error,
+                            completed_scan_data_msg.file_name)
 
     #add fourth line [list of predicted element error range] currently modelled after a basic exponential distribution
     #methodology could certaintly be improved
@@ -116,7 +121,6 @@ class FakePXRFHandler:
             writer = csv.writer(file)
             writer.writerows(self.scan)
 
-    
     def getAndUpdateFakeScans(self, filepath, mode):
         with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filepath), 'r') as file: 
             totalFakeScans = file.read()
