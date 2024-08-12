@@ -11,7 +11,7 @@ import rospkg
 from std_msgs.msg import String
 from pxrf.msg import PxrfMsg, CompletedScanData
 from std_srvs.srv import SetBool, SetBoolResponse
-from pxrf.srv import Pxrf, PxrfResponse
+from pxrf.srv import GetPxrf, GetPxrfResponse
 import sys
 import os
 import datetime, time, random, copy
@@ -39,7 +39,7 @@ class FakePXRFHandler:
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
-                                                      Pxrf, self.fake_scan_start_callback)
+                                                      GetPxrf, self.fake_scan_start_callback)
 
         self.longitude = longitude
         self.latitude = latitude
@@ -104,7 +104,7 @@ class FakePXRFHandler:
 
         self.fake_pxrf_command_pub.publish("Stop Fake Scan")
 
-        return PxrfResponse(completed_scan_data_msg.status,
+        return GetPxrfResponse(completed_scan_data_msg.status,
                             completed_scan_data_msg.element,
                             completed_scan_data_msg.mean,
                             completed_scan_data_msg.error,
@@ -124,8 +124,8 @@ class FakePXRFHandler:
     def getAndUpdateFakeScans(self, filepath, mode):
         with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filepath), 'r') as file: 
             totalFakeScans = file.read()
-        descriptor, fakeScans = int(totalFakeScans.split(':'))
-
+        descriptor, fakeScans = totalFakeScans.split(':')
+        fakeScans = int(fakeScans)
         if mode == "daily" and descriptor != datetime.date.today():
             fakeScans = 0
         fakeScans += 1
@@ -140,12 +140,11 @@ class FakePXRFHandler:
         self.fakeScansMadeInSesssion += 1
 
         dailyID = self.getAndUpdateFakeScans("dailyFakeScansMade.txt", "daily")
-        numFakeScans = self.getAndUpdateNumFakeScans("numFakeScansMade.txt", "num")
+        numFakeScans = self.getAndUpdateFakeScans("numFakeScansMade.txt", "num")
 
-        self.scan.append([self.fakeScansMadeInSesssion, #header
-                            numFakeScans, 
-                            f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
-                            f'Lon: {self.longitude} Lat: {self.longitude}'])
+        self.scan.append([dailyID, numFakeScans, #header
+                          f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
+                          f'Lon: {self.longitude} Lat: {self.longitude}'])
 
         self.scan.append(self.measuredElements)
         self.scan.append(self.generateFakeConcentrations("fakeSoilConcentrationRanges.txt")) #path to a file containing ranges        
