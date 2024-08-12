@@ -208,6 +208,7 @@ class GpsNavigationGui:
         self._set_search_boundary_name = rospy.get_param('set_search_boundary_name')
         self._lower_arm_service_name = rospy.get_param('lower_arm_service_name')
         self._start_scan_service_name = rospy.get_param('start_scan_service_name')
+        self._fake_start_scan_service_name = rospy.get_param('fake_start_scan_service_name')
         self._clear_service_name = rospy.get_param('clear_service_name')
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
@@ -265,6 +266,10 @@ class GpsNavigationGui:
         self.sampleBtn = QtWidgets.QPushButton('Sample')
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
+
+        self.fakeSampleBtn = QtWidgets.QPushButton('Fake Sample')
+        self.fakeSampleBtn.setStyleSheet("color: lightblue")
+        self.fakeSampleBtn.clicked.connect(self.toggleFakePxrfCollection)
         
         self.ArmBtn = QtWidgets.QPushButton('Toggle Arm')
         self.ArmBtn.setStyleSheet("color: lightblue")
@@ -350,7 +355,8 @@ class GpsNavigationGui:
         self.widget.addWidget(self.managerComboBox,    row=3, col=7, colspan=1)
 
         # self.widget.addWidget(self.parkBtn,          row=4, col=6, colspan=2)
-        self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=2)
+        self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=1)
+        self.widget.addWidget(self.fakeSampleBtn,      row=4, col=1, colspan=1)
         self.widget.addWidget(self.ArmBtn,             row=4, col=2, colspan=2)
         self.widget.addWidget(self.showPxrfBtn,        row=4, col=4, colspan=2)
         self.widget.addWidget(self.eStopBtn,           row=4, col=6, colspan=1)
@@ -731,6 +737,23 @@ class GpsNavigationGui:
             
             self.pxrfManualSampleRunning = True
             self.sampleBtn.setText("Collecting")
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service call failed: %s", e)
+    
+    def toggleFakePxrfCollection(self):
+        try:   
+            self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
+            rospy.sleep(1.0)
+            rospy.loginfo(f"Algo Type: {rospy.get_param(self._algorithm_type_param_name)}")
+            
+            fake_start_scan_service = rospy.ServiceProxy(self._fake_start_scan_service_name, Complete)
+            fake_start_scan_service(True)
+
+            
+            self.fakeSampleBtn.setText("Collecting")
+            rospy.sleep(1.0)
+            self.fakeSampleBtn.setText("Fake Sample")
         except rospy.ServiceException as e:
             rospy.loginfo("Service call failed: %s", e)
     

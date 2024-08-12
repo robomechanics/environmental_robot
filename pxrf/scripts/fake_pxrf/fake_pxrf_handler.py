@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-
-#TO-DO change the sessionID to dailyID
-
 #Generates fake PXRF data for use in simulation and testing purposes
 #Uploads this data into fake_chemistry.csv for general use
 #Incorporated into a rosservice and that can be launched and run 
@@ -79,8 +76,6 @@ class FakePXRFHandler:
             return SetBoolResponse(True,"Fake Scan not Initated")
         
         self.fake_pxrf_command_pub.publish("start fake scan")
-        # get ros and system time
-        self.system_time = str(datetime.datetime.now())
         
         # generate and process fake data
         fake_data = self.generate_fake_pxrf_data()
@@ -121,10 +116,27 @@ class FakePXRFHandler:
             writer = csv.writer(file)
             writer.writerows(self.scan)
 
+    
+    def getAndUpdateFakeScans(self, filepath, mode):
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filepath), 'r') as file: 
+            totalFakeScans = file.read()
+        descriptor, fakeScans = int(totalFakeScans.split(':'))
+
+        if mode == "daily" and descriptor != datetime.date.today():
+            fakeScans = 0
+        fakeScans += 1
+
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf',filepath), 'w') as file: #rewrite to the file
+            if mode == "daily": file.write(f'{datetime.date.today()}:{fakeScans}')
+            else: file.write(f'numFakeScansMade:{fakeScans}')
+        return fakeScans
+    
     #generates fake_pxrf_data and writes to the fake_chemistry.csv file, does not publish
     def generate_fake_pxrf_data(self):
         self.fakeScansMadeInSesssion += 1
-        numFakeScans = self.getAndUpdateNumFakeScans("numFakeScansMade.txt")
+
+        dailyID = self.getAndUpdateFakeScans("dailyFakeScansMade.txt", "daily")
+        numFakeScans = self.getAndUpdateNumFakeScans("numFakeScansMade.txt", "num")
 
         self.scan.append([self.fakeScansMadeInSesssion, #header
                             numFakeScans, 
@@ -165,15 +177,6 @@ class FakePXRFHandler:
         total = sum(concentrations)
         concentrations = [((concentrations[i]/total)*100) for i in range(len(concentrations))]
         return concentrations
-
-    def getAndUpdateNumFakeScans(self, filepath):        
-        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filepath), 'r') as file: 
-            totalFakeScans = file.read()
-        totalFakeScans = int(totalFakeScans.split(':')[1])
-        totalFakeScans += 1
-        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf',filepath), 'w') as file: #rewrite to the file
-            file.write(f'numFakeScansMade:{totalFakeScans}')
-        return totalFakeScans
 
 if __name__ == '__main__':
     FakePXRFHandler()
