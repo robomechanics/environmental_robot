@@ -23,10 +23,6 @@ rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf') 
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts", "fake_pxrf")))
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
-
-#integrate this with the code better (give some way for a caller to the rosservice to input lon and lat)
-longitude = -101.992708 
-latitude = 31.845601
     
 class FakePXRFHandler:
     fakeScans = []
@@ -41,8 +37,6 @@ class FakePXRFHandler:
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
                                                       GetPxrf, self.fake_scan_start_callback)
 
-        self.longitude = longitude
-        self.latitude = latitude
         self.status = True
         self.scanning = False
         self.fakeScansMadeInSesssion = 0
@@ -75,6 +69,9 @@ class FakePXRFHandler:
     def fake_scan_start_callback(self, req):
         if not req.data:
             return SetBoolResponse(True,"Fake Scan not Initated")
+        
+        self.longitude = req.longitude
+        self.latitude = req.latitude
         
         self.fake_pxrf_command_pub.publish("start fake scan")
         

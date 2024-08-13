@@ -1,4 +1,6 @@
 bool data
+float64 latitude
+float64 longitude
 ---
 bool status
 string element
