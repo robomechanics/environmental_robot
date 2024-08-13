@@ -66,6 +66,78 @@ class FakePXRFHandler:
         self.fake_root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
         self.fake_element_of_interest = rospy.get_param("fake_element_of_interest")
     
+    #line contains a string with the lower and upper range of values
+    def generateIndividualFakeConcentration(self, line):
+        words = line.split()
+        if words[1] == 'Trace':
+            return 0.0
+    
+        _, lowerRange, upperRange = words[0][:-1], words[1][:-1], words[3][:-1]
+        return random.uniform(float(lowerRange), float(upperRange))
+    
+    #random fake concentration parsing is roughly based on the ranges in fake_soil_concentration_ranges.txt
+    def generateFakeConcentrations(self, filename):
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filename), 'r') as file:
+            fakeConcentrationRanges = file.read()
+
+        concentrations = [] 
+        for line in fakeConcentrationRanges.splitlines(): 
+            elementConcentration = self.generateIndividualFakeConcentration(line)
+            concentrations.append(elementConcentration)
+
+        total = sum(concentrations)
+        concentrations = [((concentrations[i]/total)*100) for i in range(len(concentrations))]
+        return concentrations
+    
+    #add fourth line [list of predicted element error range] currently modelled after a basic exponential distribution
+    #methodology could certaintly be improved
+    def generate_fake_pxrf_errors(self):
+        averageError = 1 / 10**3
+        return [random.expovariate(1/averageError) for i in range(len(self.measuredElements))]
+    
+    def write_to_fake_chemistry(self):
+        with open(os.path.join(pxrf_path, 'scripts', 'fake_pxrf',self.fileContainingFakeData), mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(self.scan)
+
+    def getAndUpdateFakeScans(self, filepath, mode):
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filepath), 'r') as file: 
+            totalFakeScans = file.read()
+        descriptor, fakeScans = totalFakeScans.split(':')
+        fakeScans = int(fakeScans)
+
+        if mode == "daily" and descriptor != datetime.date.today():
+            fakeScans = 0
+        fakeScans += 1
+
+        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf',filepath), 'w') as file: #rewrite to the file
+            if mode == "daily": file.write(f'{datetime.date.today()}:{fakeScans}')
+            else: file.write(f'numFakeScansMade:{fakeScans}')
+        return fakeScans
+    
+    #generates fake_pxrf_data and writes to the fake_chemistry.csv file, does not publish to a topic
+    def generate_fake_pxrf_data(self):
+        self.fakeScansMadeInSesssion += 1
+
+        dailyID = self.getAndUpdateFakeScans("dailyFakeScansMade.txt", "daily")
+        numFakeScans = self.getAndUpdateFakeScans("numFakeScansMade.txt", "num")
+
+        self.scan.append([dailyID, numFakeScans, #header
+                          f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
+                          f'Lon: {self.longitude} Lat: {self.longitude}'])
+
+        self.scan.append(self.measuredElements)
+        self.scan.append(self.generateFakeConcentrations("fakeSoilConcentrationRanges.txt")) #path to a file containing ranges        
+        self.scan.append(self.generate_fake_pxrf_errors())
+        self.fakeScans.append(self.scan)
+
+        self.write_to_fake_chemistry()
+        
+        fake_data = copy.copy(self.scan)
+        self.scan = [] #reset the scan 
+        
+        return fake_data
+
     def fake_scan_start_callback(self, req):
         if not req.data:
             return SetBoolResponse(True,"Fake Scan not Initated")
@@ -106,77 +178,6 @@ class FakePXRFHandler:
                             completed_scan_data_msg.mean,
                             completed_scan_data_msg.error,
                             completed_scan_data_msg.file_name)
-
-    #add fourth line [list of predicted element error range] currently modelled after a basic exponential distribution
-    #methodology could certaintly be improved
-    def generate_fake_pxrf_errors(self):
-        averageError = 1 / 10**3
-        return [random.expovariate(1/averageError) for i in range(len(self.measuredElements))]
-    
-    def write_to_fake_chemistry(self):
-        with open(os.path.join(pxrf_path, 'scripts', 'fake_pxrf',self.fileContainingFakeData), mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerows(self.scan)
-
-    def getAndUpdateFakeScans(self, filepath, mode):
-        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filepath), 'r') as file: 
-            totalFakeScans = file.read()
-        descriptor, fakeScans = totalFakeScans.split(':')
-        fakeScans = int(fakeScans)
-        if mode == "daily" and descriptor != datetime.date.today():
-            fakeScans = 0
-        fakeScans += 1
-
-        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf',filepath), 'w') as file: #rewrite to the file
-            if mode == "daily": file.write(f'{datetime.date.today()}:{fakeScans}')
-            else: file.write(f'numFakeScansMade:{fakeScans}')
-        return fakeScans
-    
-    #generates fake_pxrf_data and writes to the fake_chemistry.csv file, does not publish
-    def generate_fake_pxrf_data(self):
-        self.fakeScansMadeInSesssion += 1
-
-        dailyID = self.getAndUpdateFakeScans("dailyFakeScansMade.txt", "daily")
-        numFakeScans = self.getAndUpdateFakeScans("numFakeScansMade.txt", "num")
-
-        self.scan.append([dailyID, numFakeScans, #header
-                          f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
-                          f'Lon: {self.longitude} Lat: {self.longitude}'])
-
-        self.scan.append(self.measuredElements)
-        self.scan.append(self.generateFakeConcentrations("fakeSoilConcentrationRanges.txt")) #path to a file containing ranges        
-        self.scan.append(self.generate_fake_pxrf_errors())
-        self.fakeScans.append(self.scan)
-
-        self.write_to_fake_chemistry()
-        
-        fake_data = copy.copy(self.scan)
-        self.scan = [] #reset the scan 
-        
-        return fake_data
-
-    #line contains a string with the lower and upper range of values
-    def generateIndividualFakeConcentration(self, line):
-        words = line.split()
-        if words[1] == 'Trace':
-            return 0.0
-    
-        _, lowerRange, upperRange = words[0][:-1], words[1][:-1], words[3][:-1]
-        return random.uniform(float(lowerRange), float(upperRange))
-    
-    #random fake concentration parsing is roughly based on the ranges in fake_soil_concentration_ranges.txt
-    def generateFakeConcentrations(self, filename):
-        with open(os.path.join(pxrf_path, 'scripts','fake_pxrf', filename), 'r') as file:
-            fakeConcentrationRanges = file.read()
-
-        concentrations = [] 
-        for line in fakeConcentrationRanges.splitlines(): 
-            elementConcentration = self.generateIndividualFakeConcentration(line)
-            concentrations.append(elementConcentration)
-
-        total = sum(concentrations)
-        concentrations = [((concentrations[i]/total)*100) for i in range(len(concentrations))]
-        return concentrations
 
 if __name__ == '__main__':
     FakePXRFHandler()
