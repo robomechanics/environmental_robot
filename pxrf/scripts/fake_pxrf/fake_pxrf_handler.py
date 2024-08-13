@@ -6,11 +6,10 @@
 #Mimics the data in chemistry.csv
 import csv
 import rospy
-import rosservice
 import rospkg
 from std_msgs.msg import String
-from pxrf.msg import PxrfMsg, CompletedScanData
-from std_srvs.srv import SetBool, SetBoolResponse
+from pxrf.msg import CompletedScanData
+from std_srvs.srv import SetBoolResponse
 from pxrf.srv import GetPxrf, GetPxrfResponse
 import sys
 import os
@@ -154,6 +153,7 @@ class FakePXRFHandler:
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.fake_data_file = os.path.join(self.fake_root_data_dir, "fake_scan_results_" + self.algorithm_type + ".csv")
         
+        os.makedirs(self.fake_root_data_dir, exist_ok=True) # Make data dir if it doesn't exist
         with open(os.path.join(self.fake_data_file), "a+") as f:
             writer = csv.writer(f)
             writer.writerow(header)
