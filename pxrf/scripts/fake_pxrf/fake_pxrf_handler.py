@@ -9,12 +9,11 @@ import rospy
 import rospkg
 from std_msgs.msg import String
 from pxrf.msg import CompletedScanData
-from std_srvs.srv import SetBoolResponse
-from pxrf.srv import GetPxrf, GetPxrfResponse
 import sys
 import os
-import datetime, time, random, copy
-
+import datetime, random, copy
+from sensor_msgs.msg import NavSatFix
+from autonomy_manager.srv import Complete, CompleteResponse
 
 # add pxrf's plot script to lookup path
 sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robot/pxrf/scripts") #test to see if this is needed
@@ -34,8 +33,11 @@ class FakePXRFHandler:
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
-                                                      GetPxrf, self.fake_scan_start_callback)
+                                                      Complete, self.fake_scan_start_callback)
+        rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
 
+        self.latitude = 0.0
+        self.longitude = 0.0
         self.status = True
         self.scanning = False
         self.fakeScansMadeInSesssion = 0
@@ -138,12 +140,6 @@ class FakePXRFHandler:
         return fake_data
 
     def fake_scan_start_callback(self, req):
-        if not req.data:
-            return SetBoolResponse(True,"Fake Scan not Initated")
-        
-        self.longitude = req.longitude
-        self.latitude = req.latitude
-        
         self.fake_pxrf_command_pub.publish("start fake scan")
         
         # generate and process fake data
@@ -172,12 +168,12 @@ class FakePXRFHandler:
         self.fake_scan_completed_pub.publish(completed_scan_data_msg)
 
         self.fake_pxrf_command_pub.publish("Stop Fake Scan")
+    
+        return CompleteResponse(success=True)
 
-        return GetPxrfResponse(completed_scan_data_msg.status,
-                            completed_scan_data_msg.element,
-                            completed_scan_data_msg.mean,
-                            completed_scan_data_msg.error,
-                            completed_scan_data_msg.file_name)
+    def gps_callback(self, data):
+        self.latitude = data.latitude
+        self.longitude = data.longitude        
 
 if __name__ == '__main__':
     FakePXRFHandler()
