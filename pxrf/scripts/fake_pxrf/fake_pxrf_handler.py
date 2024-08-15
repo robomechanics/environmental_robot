@@ -6,6 +6,7 @@
 #Mimics the data in chemistry.csv
 import csv
 import rospy
+import rosservice
 import rospkg
 from std_msgs.msg import String
 from pxrf.msg import CompletedScanData
@@ -145,6 +146,7 @@ class FakePXRFHandler:
         
         #write to fake_data_file, different file than fake_chemistry.csv but both are written to
         #this file has one element, fake_chemistry.csv has all the elements
+        os.makedirs(self.fake_root_data_dir, exist_ok=True) # Make data dir if it doesn't exist
         with open(os.path.join(self.fake_data_file), "a+") as f:
             writer = csv.writer(f)
             writer.writerow(header)
