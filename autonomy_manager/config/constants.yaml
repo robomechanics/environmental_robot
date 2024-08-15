@@ -44,7 +44,6 @@ cmd_vel_topic: '/cmd_vel'
 cmd_vel_managed_topic: '/cmd_vel'
 
 # Arm
-lipo_battery_voltage_topic: 'arm/lipo_battery_voltage'
 lipo_battery_percentage_topic: 'arm/lipo_battery_percentage'
 lipo_current_topic: 'arm/lipo_motor_current'
 lipo_battery_refresh_interval: 30  # In secs
@@ -70,7 +69,7 @@ vanta_ip: "192.168.7.2"
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
-rover_battery_voltage_topic: /rr_openrover_driver/battery_state_of_charge
+rover_battery_percentage_topic: /rr_openrover_driver/battery_state_of_charge
 
 # PXRF
 start_scan_service_name: 'scan_start'

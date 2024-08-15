@@ -121,15 +121,10 @@ class EndEffectorTrajectory:
                                                 SetBool,
                                                 self.lower_arm_callback)
 
-        self.lipo_battery_voltage_pub = rospy.Publisher(self._lipo_battery_voltage_topic,
-                                                        String, 
-                                                        queue_size=1)
-        
         self.lipo_battery_percentage_pub = rospy.Publisher(self._lipo_battery_percentage_topic, 
                                                            String,
                                                            queue_size=1)
-        #now need to check how self.lipo_battery_voltage_pub was used
-        self._batt_voltage_timer = rospy.Timer(rospy.Duration(30), self.publish_lipo_battery_voltage)
+        self._batt_voltage_timer = rospy.Timer(rospy.Duration(self._lipo_battery_refresh_interval), self.publish_lipo_battery_voltage)
 
         
     def load_ros_params(self):
@@ -138,16 +133,14 @@ class EndEffectorTrajectory:
             "lower_arm_service_name")
         self._is_arm_in_home_pose_param_name = rospy.get_param(
             "is_arm_in_home_pose_param_name")
-        self._lipo_battery_voltage_topic = rospy.get_param(
-            "lipo_battery_voltage_topic")
         self._lipo_battery_percentage_topic = rospy.get_param(
             "lipo_battery_percentage_topic")
+        self._lipo_battery_refresh_interval = rospy.get_param(
+            "lipo_battery_refresh_interval")
     
     def publish_lipo_battery_voltage(self, data):
         #publishes voltage and percentage simultaneously
         self.robot_controller.get_batt_voltage()
-        self.lipo_battery_voltage_pub.publish(f"{self.robot_controller.batt_voltage:.1f}")
-        #lipo_battery_percentage = (difference / total range) * 100
         lipo_battery_percentage = (((self.robot_controller.batt_voltage - 
                                   self.robot_controller.min_lipo_voltage) * 100) /
                                   (self.robot_controller.max_lipo_voltage - self.robot_controller.min_lipo_voltage))
