@@ -129,7 +129,7 @@ class FakePXRFHandler:
         return fake_data
 
     def fake_scan_start_callback(self, req):
-        if not req.data:
+        if not req.data: #invalid request
             return GetPxrfResponse(False, self.fake_element_of_interest,
                             0.0, 0.0, self.fake_data_file)
         
