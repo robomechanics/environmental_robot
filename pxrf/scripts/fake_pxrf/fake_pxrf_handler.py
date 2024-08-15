@@ -6,7 +6,6 @@
 #Mimics the data in chemistry.csv
 import csv
 import rospy
-import rosservice
 import rospkg
 from std_msgs.msg import String
 from pxrf.msg import CompletedScanData
@@ -97,7 +96,7 @@ class FakePXRFHandler:
         descriptor, fakeScans = totalFakeScans.split(':')
         fakeScans = int(fakeScans)
 
-        if mode == "daily" and descriptor != datetime.date.today():
+        if mode == "daily" and descriptor != str(datetime.date.today()):
             fakeScans = 0
         fakeScans += 1
 
@@ -114,7 +113,7 @@ class FakePXRFHandler:
 
         self.scan.append([dailyID, numFakeScans, #header
                           f'{datetime.date.today()} {datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]}',
-                          f'Lon: {self.longitude} Lat: {self.longitude}'])
+                          f'Lon: {self.longitude} Lat: {self.latitude}'])
 
         self.scan.append(self.measuredElements)
         self.scan.append(self.generateFakeConcentrations("fakeSoilConcentrationRanges.txt")) #path to a file containing ranges        
@@ -129,6 +128,8 @@ class FakePXRFHandler:
         return fake_data
 
     def fake_scan_start_callback(self, req):
+        self.fake_data_file = os.path.join(self.fake_root_data_dir, "fake_scan_results_" + self.algorithm_type + ".csv")
+        
         if not req.data: #invalid request
             return GetPxrfResponse(False, self.fake_element_of_interest,
                             0.0, 0.0, self.fake_data_file)
@@ -142,8 +143,8 @@ class FakePXRFHandler:
         fake_data = self.generate_fake_pxrf_data()
         header, element, concentration, error = fake_data[0], fake_data[1], fake_data[2], fake_data[3]
         
-        self.fake_data_file = os.path.join(self.fake_root_data_dir, "fake_scan_results_" + self.algorithm_type + ".csv")
         
+
         #write to fake_data_file, different file than fake_chemistry.csv but both are written to
         #this file has one element, fake_chemistry.csv has all the elements
         os.makedirs(self.fake_root_data_dir, exist_ok=True) # Make data dir if it doesn't exist
