@@ -8,7 +8,7 @@
   <arg name="useMoveBase" default="true"/>
 
   <!-- ROS Params, TF and Vel Pub -->
-  <include file = "$(find autonomy_manager)/launch/basic.launch"/>
+  <!-- <include file = "$(find autonomy_manager)/launch/basic.launch"/> -->
 
   <node name="data_recorder" pkg="autonomy_manager" type="data_recorder.py" output="screen"/>
 

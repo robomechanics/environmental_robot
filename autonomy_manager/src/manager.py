@@ -304,13 +304,18 @@ class Manager(object):
         # the robot into the boundary first
         
         startx, starty = self.conversion.gps2map(self.lat, self.lon)
+        rospy.loginfo(f'Width: {self.conversion.width} | Height: {self.conversion.height}')
+        rospy.loginfo(f'Start: ({startx}, {starty})')
+        rospy.loginfo(f'Boundary Offset: {boundary_utm_offset}')
+        
         self.adaptiveROS = adaptiveROS(
             self.conversion.width,
             self.conversion.height,
             [startx, starty],
             self.algorithm_total_samples,
+            boundary = []
         )
-        self.adaptiveROS.updateBoundary(boundary_utm_offset)
+        self.adaptiveROS.update_boundary(boundary_utm_offset)
         self.gridROS = gridROS(
             self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
         )
