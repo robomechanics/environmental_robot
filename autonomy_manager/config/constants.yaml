@@ -19,6 +19,7 @@ start_utm_lon_param: 'start_utm_lon'
 algorithm_type_param_name: algorithm_type
 algorithm_type: algo_none
 algorithm_total_samples: 16
+sim_mode: false
 
 odometry_topic: 'odometry'
 cancel_goal_topic: 'cancel_goal'

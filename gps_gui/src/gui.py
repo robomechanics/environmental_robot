@@ -9,9 +9,9 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 from std_msgs.msg import String, Bool, Int32
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseStamped
-from std_srvs.srv import SetBool, Trigger
-from sensor_msgs.msg import NavSatFix, NavSatStatus
+from geometry_msgs.msg import PoseStamped, PointStamped
+from std_srvs.srv import SetBool
+from sensor_msgs.msg import NavSatFix
 from autonomy_manager.msg import ManagerStatus
 from tile import TileMap
 import actionlib
@@ -28,7 +28,7 @@ import argparse
 from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from copy import deepcopy
 import qdarktheme
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
 
@@ -218,7 +218,9 @@ class GpsNavigationGui:
         self._estop_enable_topic = rospy.get_param("estop_enable_topic")
         self._estop_reset_topic = rospy.get_param("estop_reset_topic")
         
+        # Load constants
         self._pxrf_test_results_file = rospy.get_param('pxrf_test_results_file')
+        self._sim_mode = rospy.get_param('sim_mode')
 
     def setupWidgets(self):
         def clearHistory():
