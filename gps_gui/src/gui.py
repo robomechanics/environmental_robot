@@ -31,6 +31,8 @@ import qdarktheme
 from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
+from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Point
 
 qss = """
 QPushButton {
@@ -186,6 +188,11 @@ class GpsNavigationGui:
         self.roverBatterySub = rospy.Subscriber(self._rover_battery_voltage_topic, Int32, self.roverBatteryCallback)
         self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_voltage_topic, String, self.lipoBatteryCallback)
     
+        self.rvizPoints = []
+        if self._sim_mode:
+            self.clickedPointSub = rospy.Subscriber("/clicked_point", PointStamped, self.onRvizClickedPoint)
+            self.rvizMarkerPub = rospy.Publisher("/exploration_polygon_marker", Marker, queue_size=10)
+
     def loadROSParams(self):
         # Load topic names into params
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
@@ -513,7 +520,7 @@ class GpsNavigationGui:
         if self.editPathMode:
             rospy.logwarn("Warning: Please finish editing the path first")
             return
-        elif self.editBoundaryMode and self.pathRoi.handles == []:
+        elif self.editBoundaryMode and self.pathRoi.handles == [] and self.rvizPoints == []:
             rospy.logwarn('Warning: No boundary to edit, please draw a boundary first')
             return
 
@@ -529,9 +536,12 @@ class GpsNavigationGui:
             # When boundary is confirmed
             self.addBoundaryBtn.setText('Edit Bound')
             self.pathPlotPoints = []
-            for handle in self.pathRoi.handles:
-                pos = handle['pos']
-                self.pathPlotPoints.append([pos.x(), pos.y()])
+            if self._sim_mode:
+                self.pathPlotPoints = self.rvizPoints
+            else:
+                for handle in self.pathRoi.handles:
+                    pos = handle['pos']
+                    self.pathPlotPoints.append([pos.x(), pos.y()])
             
             # Append the first point to the end to close the boundary
             self.pathPlotPoints.append(self.pathPlotPoints[0])
@@ -539,10 +549,68 @@ class GpsNavigationGui:
             self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
             x, y = zip(*self.pathPlotPoints)
             self.boundaryPlot.setData(x=list(x), y=list(y))
-            
+            if self._sim_mode:
+                self.drawRvizPolygon(self.pathPlotPoints)
+
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
             self.sendBoundary(self.boundaryPath)
+
+
+    def onRvizClickedPoint(self, msg):
+        if not self.editBoundaryMode:
+            rospy.logwarn("Received rviz /clicked_point but not in edit boundary mode! Aborting!")
+            return
+        p = msg.point
+        point = [float(p.x), float(p.y)]
+        self.rvizPoints.append(point)
+        rospy.loginfo(f'Received rviz point: {point}')
+
+    def drawRvizPolygon(self, points):
+        points = np.array(points)
+        # Create a Marker message
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "boundary"
+        marker.id = 0
+        marker.type = Marker.LINE_STRIP  # Use LINE_STRIP to draw a polygon
+        marker.action = Marker.ADD
+        marker.pose.orientation.w = 1.0
+
+        # Define the color and scale
+        marker.scale.x = 0.1 
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        # Publish
+        marker.points = [Point(x, y, 0) for (x,y) in points]
+        self.rvizMarkerPub.publish(marker)
+
+        # Draw the dimensions of square containing it
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "boundary_square"
+        marker.id = 1
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        marker.color.a = 0.5
+        min_x, max_x = min(points[:,0]), max(points[:,0])
+        min_y, max_y = min(points[:,1]), max(points[:,1])
+        width = max(max_x-min_x, max_y-min_y)
+        square_points = [[min_x, min_y], # bottom left
+                         [min_x+width, min_y], # bottom right
+                         [min_x+width, min_y+width], # top right
+                         [min_x, min_y+width]] # top left
+        # Append the first point to the end to close the boundary
+        square_points.append(square_points[0])
+
+        # Publish
+        marker.points = [Point(x, y, 0) for (x,y) in square_points]
+        self.rvizMarkerPub.publish(marker)
+
 
     # This function turns on/off editing mode
     def toggleEditPathMode(self):
