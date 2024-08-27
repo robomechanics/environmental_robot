@@ -1,6 +1,7 @@
 import rospy
 from std_msgs.msg import String
-
+import sys
+from pxrf.msg import PxrfMsg
 
 def chemistry_parser(chemistry):
     s = chemistry.strip()
@@ -33,19 +34,23 @@ def chemistry_parser(chemistry):
 
 
 class PXRF(object):
-    def __init__(self, data_response_callback=None):
+    def __init__(self, data_callback=None):
         self.load_ros_params()
         
         self.scanning = False
         self.scan_completed = False
-        self.data_response_callback = data_response_callback
+        self.data_callback = data_callback
         
-        self.pxrf_command_pub = rospy.Publisher(self._pxrf_cmd_topic, String, queue_size=1)
+        self._pxrf_command_pub = rospy.Publisher(self._pxrf_cmd_topic, String, queue_size=1)
         self._pxrf_response_sub = rospy.Subscriber(self._pxrf_response_topic, String, self.pxrf_response_callback)
+        
+        if self.data_callback:
+            self._pxrf_data_sub = rospy.Subscriber(self._pxrf_data_topic, String, self.pxrf_data_callback)
 
     def load_ros_params(self):
         self._pxrf_cmd_topic = rospy.get_param("pxrf_cmd_topic")
         self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
+        self._pxrf_data_topic = rospy.get_param("pxrf_data_topic")
 
     def start_scan(self):
         self.scanning = True
@@ -59,15 +64,24 @@ class PXRF(object):
     def pxrf_response_callback(self, data):
         # rospy.loginfo("Test complete")
         self.scan_completed = (data.data == "201")
-        
-        if self.data_response_callback and self.scan_completed:
-            self.data_response_callback(data)
-            self.scan_completed = False
-        
+
+    def pxrf_data_callback(self, data: PxrfMsg):
+        self.data_callback(data)
 
 
 if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <start|stop>")
+        sys.exit(1)
+
     rospy.init_node('pxrf_handler',anonymous=True)
     pxrf = PXRF()
-    pxrf.start_scan()
+    
+    command = sys.argv[1].lower()
+
+    if command == "start":
+        pxrf.start_scan()
+    elif command == "stop":
+        pxrf.stop_scan()
+    
     rospy.spin()
