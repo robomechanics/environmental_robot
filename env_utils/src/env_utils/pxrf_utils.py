@@ -55,10 +55,10 @@ class PXRF(object):
     def start_scan(self):
         self.scanning = True
         self.scan_completed = False
-        self.pxrf_command_pub.publish("start")
+        self._pxrf_command_pub.publish("start")
         
     def stop_scan(self):
-        self.pxrf_command_pub.publish("stop")
+        self._pxrf_command_pub.publish("stop")
         self.scanning = False
 
     def pxrf_response_callback(self, data):
