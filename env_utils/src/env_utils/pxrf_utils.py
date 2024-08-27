@@ -60,8 +60,10 @@ class PXRF(object):
         # rospy.loginfo("Test complete")
         self.scan_completed = (data.data == "201")
         
-        if self.data_response_callback:
+        if self.data_response_callback and self.scan_completed:
             self.data_response_callback(data)
+            self.scan_completed = False
+        
 
 
 if __name__ == '__main__':

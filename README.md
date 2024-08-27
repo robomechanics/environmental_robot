@@ -2,28 +2,29 @@
 ## Run Info
 ### Start ROS services (on patrick)
 ```bash
-# roscore
-sudo systemctl start roscore.service 
+# roscore (NOT NEEDED ANYMORE)
+# sudo systemctl start roscore.service 
 
 # Basic Services for robot:
 #   Load all ROS Params
-#   joystick -> cmd_vel
+#   joystick event publisher if joystick is connected
+#   joystick event -> cmd_vel
 #   tf for base_link->gq7_link
 roslaunch autonomy_manager basic.launch
 
 # Rover robotics
 ## Open Loop to drive around using the controller
-roslaunch rr_openrover_driver starterkit_bringup.launch rover_closed_loop_controller:=false
+roslaunch autonomy_manager rover_open_loop.launch
 
 ## Closed Loop for move_base
-roslaunch rr_openrover_driver starterkit_bringup.launch
+roslaunch autonomy_manager rover_closed_loop.launch
 
 # GPS
 ## Params file Info: https://github.com/LORD-MicroStrain/microstrain_inertial_driver_common/blob/6d62789b0492e28a0e4b86be8b4dc0e562d08a5e/config/params.yml
 ## Start gq7_odom.launch and gps_navigation_service.py
 roslaunch robo_nav localization.launch
 
-# All other robot nodes
+# All other robot nodes (arm_control, move_base, arm_camera, pxrf_comm)
 mon launch autonomy_manager bringup.launch --log="/home/patrick/catkin_ws/src/logs/$(date '+%Y-%m-%d-%H:%M:%S').log" --stop-timeout=10
 
 
