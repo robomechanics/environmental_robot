@@ -14,10 +14,10 @@ roslaunch autonomy_manager basic.launch
 
 # Rover robotics
 ## Open Loop to drive around using the controller
-roslaunch autonomy_manager rover_open_loop.launch
+roslaunch robo_nav rover_open_loop.launch
 
 ## Closed Loop for move_base
-roslaunch autonomy_manager rover_closed_loop.launch
+roslaunch robo_nav rover_closed_loop.launch
 
 # GPS
 ## Params file Info: https://github.com/LORD-MicroStrain/microstrain_inertial_driver_common/blob/6d62789b0492e28a0e4b86be8b4dc0e562d08a5e/config/params.yml
