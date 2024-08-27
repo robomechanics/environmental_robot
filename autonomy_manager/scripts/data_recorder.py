@@ -149,14 +149,17 @@ class DataRecorder(object):
             writer.writerow(error)
 
         # Publish results to manager and GUI
-        i = element.index(self.element_of_interest)
-        completed_scan_data_msg = CompletedScanData()
-        completed_scan_data_msg.status = True
-        completed_scan_data_msg.element = self.element_of_interest
-        completed_scan_data_msg.mean = concentration[i]
-        completed_scan_data_msg.error = error[i]
-        completed_scan_data_msg.file_name = self.data_file
-        self.scan_recorded_to_disk_pub.publish(completed_scan_data_msg)
+        try:
+            i = element.index(self.element_of_interest)
+            completed_scan_data_msg = CompletedScanData()
+            completed_scan_data_msg.status = True
+            completed_scan_data_msg.element = self.element_of_interest
+            completed_scan_data_msg.mean = concentration[i]
+            completed_scan_data_msg.error = error[i]
+            completed_scan_data_msg.file_name = self.data_file
+            self.scan_recorded_to_disk_pub.publish(completed_scan_data_msg)
+        except:
+            rospy.logwarn(f'{self.element_of_interest} is not in scan!')
 
 if __name__ == "__main__":
     DataRecorder()
