@@ -33,6 +33,7 @@ import rosnode
 from gps_gui.srv import SetString
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
+from roverrobotics_description.srv import PointsToCoords
 
 qss = """
 QPushButton {
@@ -192,6 +193,7 @@ class GpsNavigationGui:
         if self._sim_mode:
             self.clickedPointSub = rospy.Subscriber("/clicked_point", PointStamped, self.onRvizClickedPoint)
             self.rvizMarkerPub = rospy.Publisher("/exploration_polygon_marker", Marker, queue_size=10)
+            self.points2coordsSrv = rospy.ServiceProxy('/fake_gps/points_to_coords', PointsToCoords)
 
     def loadROSParams(self):
         # Load topic names into params
@@ -515,6 +517,12 @@ class GpsNavigationGui:
         except rospy.ServiceException:
             rospy.logerr("Waypoints were not sent successfully")
         
+    def _list_to_points(self, list):
+        return [Point(x=x, y=y) for (x, y) in list]
+
+    def _points_to_list(self, points):
+        return [[p.x, p.y] for p in points]
+
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
         if self.editPathMode:
@@ -538,15 +546,22 @@ class GpsNavigationGui:
             self.pathPlotPoints = []
             if self._sim_mode:
                 self.pathPlotPoints = self.rvizPoints
+                # Append the first point to the end to close the boundary
+                self.pathPlotPoints.append(self.pathPlotPoints[0])
+                
+                # Call the pixel to gps service with the prepared request data
+                resp = self.points2coordsSrv(self._list_to_points(self.pathPlotPoints))
+                self.boundaryPath = self._points_to_list(resp.coords)
             else:
                 for handle in self.pathRoi.handles:
                     pos = handle['pos']
                     self.pathPlotPoints.append([pos.x(), pos.y()])
             
-            # Append the first point to the end to close the boundary
-            self.pathPlotPoints.append(self.pathPlotPoints[0])
+                # Append the first point to the end to close the boundary
+                self.pathPlotPoints.append(self.pathPlotPoints[0])
 
-            self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
+                self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
+
             x, y = zip(*self.pathPlotPoints)
             self.boundaryPlot.setData(x=list(x), y=list(y))
             if self._sim_mode:
@@ -554,6 +569,7 @@ class GpsNavigationGui:
 
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
+            self.rvizPoints = []
             self.sendBoundary(self.boundaryPath)
 
 

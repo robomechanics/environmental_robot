@@ -10,10 +10,12 @@ import rospkg
 from std_msgs.msg import String
 from pxrf.msg import CompletedScanData
 from pxrf.srv import GetPxrf, GetPxrfResponse
+from pxrf.msg import CompletedScanData
 import sys
 import os
 import datetime, random, copy
-
+from autonomy_manager.srv import Complete, CompleteResponse
+from sensor_msgs.msg import NavSatFix
 
 # add pxrf's plot script to lookup path
 sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robot/pxrf/scripts") #test to see if this is needed
@@ -32,10 +34,14 @@ class FakePXRFHandler:
                                                      queue_size=1)
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
-        self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name, 
-                                                      GetPxrf, self.fake_scan_start_callback)
+        self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
+                                                      Complete, self.fake_scan_start_callback)
         #above service is the one to call to generate fake pxrf data
 
+        rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
+
+        self.latitude = 0.0
+        self.longitude = 0.0
         self.fileContainingFakeData = 'fake_chemistry.csv'
         self.scan = []
         self.measuredElements = ['Mg','Al','Si','P','S','Cl','Ca','Ti','V','Cr','Mn',
@@ -47,7 +53,9 @@ class FakePXRFHandler:
     def load_fake_ros_params(self): 
         #see constants.yaml for the names of topics, services and nodes when calling in terminal
         self._fake_pxrf_cmd_topic = rospy.get_param("fake_pxrf_cmd_topic")
+        self._fake_pxrf_response_topic = rospy.get_param("fake_pxrf_response_topic")
         self._fake_pxrf_data_topic = rospy.get_param("fake_pxrf_data_topic")
+        self._gps_topic = rospy.get_param("gq7_ekf_llh_topic") 
         self._fake_scan_completed_topic = rospy.get_param("fake_scan_completed_topic")
         self._fake_start_scan_service_name = rospy.get_param("fake_start_scan_service_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
@@ -130,13 +138,6 @@ class FakePXRFHandler:
     def fake_scan_start_callback(self, req):
         self.fake_data_file = os.path.join(self.fake_root_data_dir, "fake_scan_results_" + self.algorithm_type + ".csv")
         
-        if not req.data: #invalid request
-            return GetPxrfResponse(False, self.fake_element_of_interest,
-                            0.0, 0.0, self.fake_data_file)
-        
-        self.longitude = req.longitude #expects latitude and longitude in the service request
-        self.latitude = req.latitude
-        
         self.fake_pxrf_command_pub.publish("start fake scan")
         
         # generate and process fake data
@@ -166,13 +167,12 @@ class FakePXRFHandler:
         self.fake_scan_completed_pub.publish(completed_scan_data_msg)
 
         self.fake_pxrf_command_pub.publish("Stop Fake Scan")
-        
-        #returns the response, for specifications see GetPxrf.srv
-        return GetPxrfResponse(completed_scan_data_msg.status,
-                            completed_scan_data_msg.element,
-                            completed_scan_data_msg.mean,
-                            completed_scan_data_msg.error,
-                            completed_scan_data_msg.file_name)
+    
+        return CompleteResponse(success=True)
+
+    def gps_callback(self, data):
+        self.latitude = data.latitude
+        self.longitude = data.longitude
 
 if __name__ == '__main__':
     FakePXRFHandler()
