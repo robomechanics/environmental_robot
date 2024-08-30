@@ -9,7 +9,7 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 from std_msgs.msg import String, Bool, Int32
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseStamped, PointStamped
+from geometry_msgs.msg import PoseStamped, PointStamped, Point
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import NavSatFix
 from autonomy_manager.msg import ManagerStatus
@@ -32,7 +32,6 @@ from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Point
 from roverrobotics_description.srv import PointsToCoords
 
 qss = """
@@ -552,6 +551,7 @@ class GpsNavigationGui:
                 # Call the pixel to gps service with the prepared request data
                 resp = self.points2coordsSrv(self._list_to_points(self.pathPlotPoints))
                 self.boundaryPath = self._points_to_list(resp.coords)
+                self.drawRvizPolygon(self.pathPlotPoints)
             else:
                 for handle in self.pathRoi.handles:
                     pos = handle['pos']
@@ -564,8 +564,6 @@ class GpsNavigationGui:
 
             x, y = zip(*self.pathPlotPoints)
             self.boundaryPlot.setData(x=list(x), y=list(y))
-            if self._sim_mode:
-                self.drawRvizPolygon(self.pathPlotPoints)
 
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
