@@ -26,7 +26,10 @@ import os
 from pathlib import Path
 import random
 from sklearn.preprocessing import StandardScaler
+import rospkg
 
+def get_ros_pkg_path(pgk_name):
+    return rospkg.RosPack().get_path(pgk_name)
 
 def is_standardized(arr):
     return np.std(arr) == 1.0
