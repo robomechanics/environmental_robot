@@ -1,3 +1,8 @@
+# Status
+arm_ready_param_name: ready_arm
+pxrf_ready_param_name: ready_pxrf
+rover_ready_param_name: ready_rover
+
 # Autonomy Manager (autonomy_teleop.py)
 status_topic: '/autonomy_manager/status'
 sensor_prep_status_topic: '/sensor_prep_status'
@@ -82,3 +87,6 @@ data_dir: "~/data/pxrf_results"
 pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/chemistry.csv'
 rotate_scan_log_file_service_name: rotate_scan_log_file
 autonomy_params_service_name: 'autonomy_params'
+
+# Adaptive Algorithm
+cells_per_meter: 25

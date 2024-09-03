@@ -67,7 +67,7 @@ class Manager(object):
         # intialize adaptive sampling class and conversion class
         self.adaptiveROS = None
         self.gridROS = None
-        self.conversion = Conversion()
+        self.conversion = Conversion(cells_per_meter=self._cells_per_meter)
         self.searchBoundary = []
         self.waypoints = []
 
@@ -249,6 +249,7 @@ class Manager(object):
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
         self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
         self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
+        self._cells_per_meter = rospy.get_param("cells_per_meter")
 
     def scan(self):
         self.update_status(SCANNING)
@@ -295,6 +296,7 @@ class Manager(object):
         self.conversion.get_zone(self.lat, self.lon)
         
         boundary_utm_offset = self.conversion.boundary_conversion(self.searchBoundary)
+        startx, starty = self.conversion.gps2map(self.lat, self.lon)
         
         # print("Data: \n", data)
         # print("boundary_utm_offset: \n", boundary_utm_offset)
@@ -303,22 +305,34 @@ class Manager(object):
         # When you receive the search area, define the robot position as the starting point, make sure to drive the
         # the robot into the boundary first
         
-        startx, starty = self.conversion.gps2map(self.lat, self.lon)
-        rospy.loginfo(f'Width: {self.conversion.width} | Height: {self.conversion.height}')
-        rospy.loginfo(f'Start: ({startx}, {starty})')
-        rospy.loginfo(f'Boundary Offset: {boundary_utm_offset}')
+        width_in_grid = self.conversion.width * self.conversion.cells_per_meter
+        height_in_grid = self.conversion.height * self.conversion.cells_per_meter
+        boundary_in_grid = [self.conversion.map2grid(p[0], p[1]) for p in boundary_utm_offset]
+        startx_in_grid, starty_in_grid = self.conversion.map2grid(startx, starty)
+        
+        
+        rospy.loginfo(f'Width: {self.conversion.width} m | {width_in_grid} cells')
+        rospy.loginfo(f'Height: {self.conversion.height} m | : {height_in_grid} cells')
+        rospy.loginfo(f'Start: ({startx}, {starty}) m | ({startx_in_grid}, {starty_in_grid}) cells')
+        rospy.loginfo(f'Boundary Offset (MAP): {boundary_utm_offset}')
+        rospy.loginfo(f'Boundary Offset (GRID): {boundary_in_grid}')
         
         self.adaptiveROS = adaptiveROS(
-            self.conversion.width,
-            self.conversion.height,
-            [startx, starty],
-            self.algorithm_total_samples,
+            size_x=width_in_grid,
+            size_y=height_in_grid,
+            startpoint=[startx_in_grid, starty_in_grid],
+            total_number=self.algorithm_total_samples,
             boundary = []
         )
-        self.adaptiveROS.update_boundary(boundary_utm_offset)
+        self.adaptiveROS.update_boundary(boundary_in_grid)
         self.gridROS = gridROS(
             self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
         )
+        
+        rospy.loginfo(f'lengths of x1, x2, x1x2: {len(self.adaptiveROS.x1)} 
+                      {len(self.adaptiveROS.x2)} 
+                      {self.adaptiveROS.x1x2.shape}')
+        
         
         # self.gridROS.updateBoundary(boundary_utm_offset)
         # Call ros service to pass all the grid points
