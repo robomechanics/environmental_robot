@@ -89,7 +89,7 @@ rotate_scan_log_file_service_name: rotate_scan_log_file
 autonomy_params_service_name: 'autonomy_params'
 
 # Adaptive Algorithm
-cells_per_meter: 25
+cells_per_meter: 4 
 
 # Cosntant Velocity Publisher
 /constant_velocity/time: 2 # secs
