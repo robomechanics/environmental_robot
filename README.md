@@ -99,6 +99,10 @@ OLD IMU -> BACK_ANTENNA         (-0.1108, -0.0347, -0.0074)
 /gq7/ekf/status: dual_antenna_fix_type = "Dual Antenna Fixed" and status_flags has only 'Stable'
 /gq7/ekf/odometry_map   : Odometry Map Position
 ```
+## Requirements
+### Python
+jupyter matplotlib pandas ipympl shapely scikit-learnm tqdm libpysal esda pyqtdarktheme jupyter-matplotlib colorama
+
 # Manager 
 ## OLD State Machine
 ```mermaid
