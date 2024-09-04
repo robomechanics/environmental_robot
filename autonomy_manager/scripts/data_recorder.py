@@ -12,7 +12,7 @@ import time
 from tf.transformations import euler_from_quaternion
 import numpy as np
 from datetime import datetime
-from std_srvs.srv import Empty
+from std_srvs.srv import Empty, EmptyResponse
 from autonomy_manager.srv import AutonomyParams
 import yaml
 
@@ -93,7 +93,7 @@ class DataRecorder(object):
     
     def rotate_log_files_callback(self, data):
         self.create_logging_files()
-        return True
+        return EmptyResponse() 
     
     def autonomy_params_data_callback(self, data: AutonomyParams):
         data_info = {
