@@ -90,3 +90,11 @@ autonomy_params_service_name: 'autonomy_params'
 
 # Adaptive Algorithm
 cells_per_meter: 25
+
+# Cosntant Velocity Publisher
+/constant_velocity/time: 2 # secs
+/constant_velocity/cmd_vel: {
+                                "linear": {"x": -0.2, "y": 0.0, "z": 0.0},
+                                "angular": {"x": 0.0, "y": 0.0, "z": 0.0},
+                            }
+            
