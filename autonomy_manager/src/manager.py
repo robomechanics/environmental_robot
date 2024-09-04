@@ -28,6 +28,7 @@ from autonomy_manager.srv import AutonomyParams
 from gps_gui.srv import SetString, SetStringResponse
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
+from colorama import Fore, Back, Style
 
 DEBUG_FLAG = False 
 
@@ -153,8 +154,7 @@ class Manager(object):
         
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         
-        rospy.loginfo(f"----------- Manager Loop: {self.algorithm_type} -----------")
-        
+        rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK}----------- Manager Loop: {self.algorithm_type} -----------{Style.RESET_ALL}")
         if self.status == RECEIVED_SEARCH_AREA or self.status == ARM_RETURNED or self.status == READY:
             if self.algorithm_type == ALGO_ADAPTIVE:
                 self.run_adaptive_search_algo()
@@ -329,9 +329,7 @@ class Manager(object):
             self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
         )
         
-        rospy.loginfo(f'lengths of x1, x2, x1x2: {len(self.adaptiveROS.x1)} 
-                      {len(self.adaptiveROS.x2)} 
-                      {self.adaptiveROS.x1x2.shape}')
+        rospy.loginfo(f'{Back.BLUE}lengths of x1 | x2 | x1x2: {len(self.adaptiveROS.x1)} | {len(self.adaptiveROS.x2)} | {self.adaptiveROS.x1x2.shape} {Style.RESET_ALL}')
         
         
         # self.gridROS.updateBoundary(boundary_utm_offset)
@@ -477,11 +475,12 @@ class Manager(object):
             print("| Reset ")
             self.adaptiveROS = None
             self.gridROS = None
-            self.conversion = Conversion()
+            self.conversion = Conversion(cells_per_meter=self._cells_per_meter)
             self.searchBoundary = []
 
         return True
 
+    # TODO:Might need to convert to GPS coordinates
     def run_waypoint_algo(self):
         self.update_status(RUNNING_WAYPOINT_ALGO)
         self.pxrf_complete = False
@@ -498,14 +497,18 @@ class Manager(object):
         self.update_status(RUNNING_SEARCH_ALGO)
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)
-            self.adaptiveROS.update(pos[0], pos[1], self.pxrf_mean_value)
+            r,c = self.conversion.map2grid(pos[0], pos[1])
+            rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {self.pos} | {(r,c)} {Style.RESET_ALL}")
+            self.adaptiveROS.update(r, c, self.pxrf_mean_value)
         # reset
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         
         self.nextScanLoc = self.adaptiveROS.predict()
-        self.nav_goal_gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
-        rospy.loginfo(f" | Sending Adaptive Algorithm Location: {self.nav_goal_gps}")
+        self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
+        self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
+        
+        rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (GPS|Map|Grid): {self.nav_goal_gps} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")
         self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
@@ -514,7 +517,8 @@ class Manager(object):
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         self.nextScanLoc = self.gridROS.next()
-        self.nav_goal_gps = self.conversion.map2gps(self.nextScanLoc[0], self.nextScanLoc[1])
+        self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
+        self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
         self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
