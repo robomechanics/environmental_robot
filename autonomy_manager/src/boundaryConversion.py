@@ -141,10 +141,10 @@ class Conversion:
         return x, y
 
     def map2grid(self, x, y):
-        return max(0,(x*self.cells_per_meter)-1), max(0, (y*self.cells_per_meter)-1)
+        return max(0, math.floor(x*self.cells_per_meter)-1), max(0, math.floor(y*self.cells_per_meter)-1)
     
     def grid2map(self, r, c):
-        return (r/self.cells_per_meter) + self.half_cell_size, (c/self.cells_per_meter) + self.half_cell_size
+        return (r*self.cell_size) + self.half_cell_size, (c*self.cell_size) + self.half_cell_size
     
     def map2gps(self, x, y): # distance in meters
         if self.origin_utm == (0,0):
