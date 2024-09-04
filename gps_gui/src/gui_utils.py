@@ -3,6 +3,7 @@ import sys
 import os
 import csv
 import pyqtgraph as pg
+import yaml
 
 # add pxrf's plot script to lookup path
 import rospkg
@@ -10,7 +11,7 @@ rospack = rospkg.RosPack()
 work_dir_path = os.path.join(rospack.get_path('gps_gui'), 'src')
 sys.path.insert(0, work_dir_path)
 
-def read_location(map_option=3):
+def read_location(map_option=3, location_index=None):
     print("Please ensure that the robot is connected to the wifi.")
     data = []
     num = 0
@@ -21,7 +22,6 @@ def read_location(map_option=3):
             if row:
                 num += 1
                 data.append(row)
-        print("Current Map: " + data[-1][0] + "\n")
         
     # while(True):
         # map_option = input(" \n Select the following options: \n 1.change map \n 2.new map \n 3.continue \n")
@@ -50,7 +50,8 @@ def read_location(map_option=3):
             return [filename, lat, lon, zoom, width, height]
         elif map_option == 3:
             # print("Launching GUI")
-            return data[-1]
+            print("Current Map: " + data[location_index][0] + "\n")
+            return data[location_index]
 
 
 class PlotWithClick(pg.PlotItem):
