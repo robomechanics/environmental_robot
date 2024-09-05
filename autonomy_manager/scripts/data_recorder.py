@@ -33,7 +33,7 @@ class DataRecorder(object):
         self._pxrf_data_sub = rospy.Subscriber(self._pxrf_data_topic, PxrfMsg, self.pxrf_data_callback)
         self._autonomy_params_service = rospy.Service(self._autonomy_params_service_name, AutonomyParams, self.autonomy_params_data_callback)
         
-        self.scan_recorded_to_disk_pub = rospy.Publisher(self._scan_recorded_to_disk_topic, CompletedScanData, queue_size=10, latch=True)
+        self.scan_recorded_to_disk_pub = rospy.Publisher(self._scan_recorded_to_disk_topic, CompletedScanData, queue_size=1)
         
         self.gps_location = [0, 0]
         self.gps_odom_location = [0, 0]
