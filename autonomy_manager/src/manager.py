@@ -11,15 +11,11 @@ from autonomy_manager.srv import (
 from pxrf.msg import CompletedScanData
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
 from adaptiveROS import adaptiveROS
 from gridROS import gridROS
 from boundaryConversion import Conversion
 from sensor_msgs.msg import Joy
-from std_srvs.srv import Trigger, TriggerResponse
-from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
-from actionlib_msgs.msg import GoalStatus
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 from pyproj import Transformer
@@ -34,8 +30,10 @@ DEBUG_FLAG = False
 
 class Manager(object):
     def __init__(self):
+        
         rospy.init_node("manager", anonymous=True)
         rospy.sleep(1)
+        
         self.load_ros_params()
 
         self.statusPub = rospy.Publisher(
@@ -59,6 +57,7 @@ class Manager(object):
         self.sensorPrep = rospy.ServiceProxy(
             self._sensor_prep_service_name, RunSensorPrep
         )
+        
 
         # Check if Full Nav achieved
         self.odom_sub = rospy.Subscriber(
@@ -348,13 +347,14 @@ class Manager(object):
                                   data.boundary_lon,
                                   self.conversion.width, 
                                   self.conversion.height)
-       
-        try:
-            grid_points = rospy.ServiceProxy(self._grid_points_service_name, Waypoints)
-            res = grid_points(lat, lon)
-        except rospy.ServiceException as e:
-            rospy.logerr(e)
-            rospy.logerr("Grid points display failed")
+
+        # TODO: Display grid points in GUI
+        # try:
+        #     grid_points = rospy.ServiceProxy(self._grid_points_service_name, Waypoints)
+        #     res = grid_points(lat, lon)
+        # except rospy.ServiceException as e:
+        #     rospy.logerr(e)
+        #     rospy.logerr("Grid points display failed")
             
         
 
@@ -498,7 +498,7 @@ class Manager(object):
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)
             r,c = self.conversion.map2grid(pos[0], pos[1])
-            rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {self.pos} | {(r,c)} {Style.RESET_ALL}")
+            rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {pos} | {(r,c)} {Style.RESET_ALL}")
             self.adaptiveROS.update(r, c, self.pxrf_mean_value)
         # reset
         self.pxrf_complete = False
@@ -523,6 +523,6 @@ class Manager(object):
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     manager = Manager()
     manager.run()
