@@ -84,7 +84,7 @@ void VantaCommunicator::messageResponse(std::string response)
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
                 if (systemStatus == "Ready")
                 {
-                    ROS_INFO_ONCE(30, "Ready");
+                    ROS_INFO_ONCE("Ready");
                 }
                 else{
                     ROS_INFO_ONCE("Status:  %s", systemStatus.c_str());
