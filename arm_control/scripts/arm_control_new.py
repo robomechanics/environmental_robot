@@ -368,9 +368,9 @@ class EndEffectorTrajectory:
     def check_if_robot_in_home_pose(self):
         current_joint_angles = self.robot_controller.get_joint_angles()
         pose_diff = abs(np.max(current_joint_angles-np.array(self.home_pose)))
-        rospy.loginfo(f"Home Pose Diff: {pose_diff}")
+        rospy.logdebug(f"Home Pose Diff: {pose_diff}")
         if pose_diff > 0.1:
-            rospy.loginfo("Arm is not in home pose")
+            rospy.logdebug("Arm is not in home pose")
             return False
         else:
             return True
