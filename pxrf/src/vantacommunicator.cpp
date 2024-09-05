@@ -84,14 +84,14 @@ void VantaCommunicator::messageResponse(std::string response)
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
                 if (systemStatus == "Ready")
                 {
-                    ROS_INFO_THROTTLE(30, "Ready");
+                    ROS_INFO_ONCE(30, "Ready");
                 }
                 else{
-                    ROS_INFO("Status Msg :  %s", systemStatus.c_str());
+                    ROS_INFO_ONCE("Status:  %s", systemStatus.c_str());
                 }
                 
                 if (info.length() > 0)
-                    ROS_INFO("Status Info: %s", info.c_str());;
+                    ROS_INFO_THROTTLE(5, "%s", info.c_str());;
                 break;
             }
             case MessageFactory::ResultReceived: {
