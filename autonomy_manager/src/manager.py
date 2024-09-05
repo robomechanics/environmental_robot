@@ -347,13 +347,14 @@ class Manager(object):
                                   data.boundary_lon,
                                   self.conversion.width, 
                                   self.conversion.height)
-       
-        try:
-            grid_points = rospy.ServiceProxy(self._grid_points_service_name, Waypoints)
-            res = grid_points(lat, lon)
-        except rospy.ServiceException as e:
-            rospy.logerr(e)
-            rospy.logerr("Grid points display failed")
+
+        # TODO: Display grid points in GUI
+        # try:
+        #     grid_points = rospy.ServiceProxy(self._grid_points_service_name, Waypoints)
+        #     res = grid_points(lat, lon)
+        # except rospy.ServiceException as e:
+        #     rospy.logerr(e)
+        #     rospy.logerr("Grid points display failed")
             
         
 
