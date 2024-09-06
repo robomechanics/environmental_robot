@@ -203,7 +203,7 @@ class GpsNavigationGui:
         self._status_sub_topic = rospy.get_param('status_topic')
         self._manager_run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
         self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
-        self._rover_battery_percentage_topic = rospy.get_param("rover_battery_voltage_topic")
+        self._rover_battery_percentage_topic = rospy.get_param("rover_battery_percentage_topic")
         self._lipo_battery_percentage_topic = rospy.get_param("lipo_battery_percentage_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
