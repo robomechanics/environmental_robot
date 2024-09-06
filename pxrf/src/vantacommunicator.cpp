@@ -1,11 +1,29 @@
 #include "vantacommunicator.h"
 #include <unistd.h>
 
+
+bool isPingReceived(const std::string& ipAddress) {
+    std::string command = "ping -c 1 " + ipAddress + " > /dev/null 2>&1";
+    int result = system(command.c_str());
+    return (result == 0);
+}
+
 VantaCommunicator::VantaCommunicator(int argc, char** argv)
 {
     ros::init(argc, argv, "pxrf");
     ros::NodeHandle n;
     isRunning = false;
+
+    n.getParam("vanta_ip", vanta_ip);
+
+    while (!ros::isShuttingDown() ) {
+        if(isPingReceived(vanta_ip))
+            break;
+        else {
+            ROS_INFO_THROTTLE(2, "PXRF is not switched on. Cannot ping %s", vanta_ip.c_str());
+        }
+    }
+
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(petWatchdog()));
     timer->start(1000);
@@ -14,7 +32,6 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
     n.getParam("pxrf_cmd_topic", pxrf_cmd_topic);
     n.getParam("pxrf_data_topic", pxrf_data_topic);
     n.getParam("pxrf_response_topic", pxrf_response_topic);
-    n.getParam("vanta_ip", vanta_ip);
     
     ctrl_sub = n.subscribe(pxrf_cmd_topic, 1000, &VantaCommunicator::callback, this);
     chemistry_pub = n.advertise<pxrf::PxrfMsg>(pxrf_data_topic, 1000);
@@ -84,14 +101,14 @@ void VantaCommunicator::messageResponse(std::string response)
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
                 if (systemStatus == "Ready")
                 {
-                    ROS_INFO_THROTTLE(30, "Ready");
+                    ROS_INFO_ONCE("Ready");
                 }
                 else{
-                    ROS_INFO("Status Msg :  %s", systemStatus.c_str());
+                    ROS_INFO_ONCE("Status:  %s", systemStatus.c_str());
                 }
                 
                 if (info.length() > 0)
-                    ROS_INFO("Status Info: %s", info.c_str());;
+                    ROS_INFO_THROTTLE(5, "%s", info.c_str());;
                 break;
             }
             case MessageFactory::ResultReceived: {

@@ -16,13 +16,17 @@ from boundaryCheck import *
 #[40.442054721646244, -79.9459456555756, 1]
 
 class Conversion:
-    def __init__(self):
+    def __init__(self, cells_per_meter):
         self.utm = 'EPSG:32617' #default to pittsburgh
         self.height = 0
         self.width = 0
         self.origin_utm = (0,0)
         self.new_boundary = []
         self.inner_boundary_offset = []
+        self.cells_per_meter = cells_per_meter
+        self.cell_size = 1/cells_per_meter
+        self.half_cell_size = self.cell_size/2
+    
 
     #this function is not used. only for testing purpose
     def gps_to_meters(lat1, lon1, lat2, lon2):
@@ -76,14 +80,16 @@ class Conversion:
         self.width = math.ceil(x_coord_utm[max_index] - self.origin_utm[0])
 
         #this is the new boundary (rectangle) and each point is the boundary of the map
-        self.new_boundary = [self.origin_utm, [self.origin_utm[0] + self.width, self.origin_utm[1]], [self.origin_utm[0] + self.width, self.origin_utm[1] + self.height], [self.origin_utm[0], self.origin_utm[1] + self.height]]
+        self.new_boundary = [self.origin_utm, 
+                             [self.origin_utm[0] + self.width, self.origin_utm[1]], 
+                             [self.origin_utm[0] + self.width, self.origin_utm[1] + self.height], 
+                             [self.origin_utm[0], self.origin_utm[1] + self.height]]
 
         return boundary_offset
     
     def build_obs_map(self):
         if self.new_boundary == []:
-            print("Please run boundary_conversion first")
-            return
+            raise("Please run boundary_conversion first")
         
         map = np.full((self.width,self.height), 0)
         for i_row in range(len(map)):
@@ -127,20 +133,23 @@ class Conversion:
     
     def gps2map(self, posx, posy):
         if self.origin_utm == (0,0):
-            print("Please run boundary_conversion first")
-            return
+            raise("Please run boundary_conversion first")
 
         x, y = self.get_utm(posx, posy)
         x = x - self.origin_utm[0]
         y = y - self.origin_utm[1]
         return x, y
 
+    def map2grid(self, x, y):
+        return max(0, math.floor(x*self.cells_per_meter)-1), max(0, math.floor(y*self.cells_per_meter)-1)
+    
+    def grid2map(self, r, c):
+        return (r*self.cell_size) + self.half_cell_size, (c*self.cell_size) + self.half_cell_size
+    
     def map2gps(self, x, y): # distance in meters
         if self.origin_utm == (0,0):
-            print("Please run boundary_conversion first")
-            return
+            raise("Please run boundary_conversion first")
         
         posx = self.origin_utm[0] + x
         posy = self.origin_utm[1] + y
         return self.get_gps(posx, posy)
-

@@ -1,3 +1,8 @@
+# Status
+arm_ready_param_name: ready_arm
+pxrf_ready_param_name: ready_pxrf
+rover_ready_param_name: ready_rover
+
 # Autonomy Manager (autonomy_teleop.py)
 status_topic: '/autonomy_manager/status'
 sensor_prep_status_topic: '/sensor_prep_status'
@@ -45,7 +50,7 @@ cmd_vel_topic: '/cmd_vel'
 cmd_vel_managed_topic: '/cmd_vel'
 
 # Arm
-lipo_battery_voltage_topic: 'arm/lipo_battery_voltage'
+lipo_battery_percentage_topic: 'arm/lipo_battery_percentage'
 lipo_current_topic: 'arm/lipo_motor_current'
 lipo_battery_refresh_interval: 30  # In secs
 lower_arm_service_name: 'arm/lower'
@@ -70,11 +75,11 @@ vanta_ip: "192.168.7.2"
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
-rover_battery_voltage_topic: /rr_openrover_driver/battery_state_of_charge
+rover_battery_percentage_topic: /rr_openrover_driver/battery_state_of_charge
 
 # PXRF
 start_scan_service_name: 'scan_start'
-scan_completed_topic: 'scan_completed'
+scan_recorded_to_disk_topic: 'scan_recorded_to_disk'
 pxrf_cmd_topic: 'pxrf_cmd'
 pxrf_response_topic: 'pxrf_response'
 pxrf_data_topic: 'pxrf_data'
@@ -94,3 +99,14 @@ fake_data_dir: "~/data/fake_pxrf_results"
 
 fake_pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/fake_pxrf/fake_chemistry.csv' 
 #needs to be used in GUI, currently unintegrated
+
+# Adaptive Algorithm
+cells_per_meter: 4 
+
+# Cosntant Velocity Publisher
+/constant_velocity/time: 2 # secs
+/constant_velocity/cmd_vel: {
+                                "linear": {"x": -0.2, "y": 0.0, "z": 0.0},
+                                "angular": {"x": 0.0, "y": 0.0, "z": 0.0},
+                            }
+            

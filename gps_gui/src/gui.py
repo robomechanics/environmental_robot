@@ -34,17 +34,15 @@ from gps_gui.srv import SetString
 from visualization_msgs.msg import Marker, MarkerArray
 from roverrobotics_description.srv import PointsToCoords
 
+from env_utils.algo_constants import *
+from env_utils.pxrf_utils import PXRF
+
 qss = """
 QPushButton {
     font-size: 11pt; 
     font-weight: 400;  
 }"""
 
-ALGO_ADAPTIVE = 'adaptive'
-ALGO_GRID = 'grid'
-ALGO_WAYPOINT = 'waypoint'
-ALGO_NONE = 'algo_none'
-ALGO_MANUAL = 'manual'
 
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height):
@@ -61,6 +59,8 @@ class GpsNavigationGui:
             ALGO_WAYPOINT: 0,
             ALGO_MANUAL: 0,
         }
+        
+        self.pxrf = PXRF(self.scanCompletedCallback)
         
         # Set variables
         self.quaternion = tf.transformations.random_quaternion()
@@ -130,7 +130,6 @@ class GpsNavigationGui:
 
         self.setupROS()
         
-
     # This function converts the current path from gps coordinates to pixels
     def gpsToPixels(self):
         self.pathPlotPoints = []
@@ -180,13 +179,13 @@ class GpsNavigationGui:
         self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.onGpsUpdate) # Use GPS moving avg llh position
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
         
-        self.scanCompletedSub = rospy.Subscriber(self._scan_completed_topic, CompletedScanData, self.scanCompletedCallback)
+        # self.scanCompletedSub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.scanCompletedCallback)
         self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
         
-        self.roverBatterySub = rospy.Subscriber(self._rover_battery_voltage_topic, Int32, self.roverBatteryCallback)
-        self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_voltage_topic, String, self.lipoBatteryCallback)
+        self.roverBatterySub = rospy.Subscriber(self._rover_battery_percentage_topic, Int32, self.roverBatteryCallback)
+        self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_percentage_topic, String, self.lipoBatteryCallback)
     
         self.rvizPoints = []
         if self._sim_mode:
@@ -203,9 +202,9 @@ class GpsNavigationGui:
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
         self._manager_run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
-        self._scan_completed_topic = rospy.get_param("scan_completed_topic")
-        self._rover_battery_voltage_topic = rospy.get_param("rover_battery_voltage_topic")
-        self._lipo_battery_voltage_topic = rospy.get_param("lipo_battery_voltage_topic")
+        self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
+        self._rover_battery_percentage_topic = rospy.get_param("rover_battery_voltage_topic")
+        self._lipo_battery_percentage_topic = rospy.get_param("lipo_battery_percentage_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
         
@@ -383,41 +382,40 @@ class GpsNavigationGui:
         self.statusRoverBattery.setText(f"Rover: {data.data} %")
     
     def lipoBatteryCallback(self, data: String):
-        voltage = float(data.data)
-        if voltage:
-            battery_level = 100*(voltage - 25.6)/8
-            self.statusLIPOBattery.setText(f"LIPO: {battery_level:.1} % ({data.data} V)")
+        battery_level = float(data.data)
+        if battery_level:
+            voltage = (0.08*battery_level) + 25.6
+            self.statusLIPOBattery.setText(f"LIPO: {battery_level} ({voltage:.1} V) %")
         
     def showPXRFResults(self):
         generate_plot(self.scanData.file_name)
         
     def scanCompletedCallback(self, data):
-        if data.status == True:
-            self.scanData = deepcopy(data)
-            
-            algorithm_type = rospy.get_param(self._algorithm_type_param_name)
-            self.numMeasurements[algorithm_type] += 1
-            self.sampleBtn.setText('Sample')
-            self.statusDetailed.setText(f"{self.scanData.element}: {self.scanData.mean:.2}")
-            
-            if self.pxrfManualSampleRunning:
-                self.pxrfManualSampleRunning = False
-                
-                self.addMarkerAt(self.prev_lat, self.prev_lon, f"#M{self.numMeasurements[algorithm_type]}: {self.scanData.mean:.2}")
-                
-                # Rest algorithm type
-                rospy.set_param(self._algorithm_type_param_name, self.algorithm_type_before_manual_sample)
-                rospy.sleep(1.0)
-                
-                # Raise Arm
-                try:
-                    lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                    lower_arm_service(False)
-                except rospy.ServiceException as e:
-                    rospy.logerr("Service call failed: %s", e)
-            else:
-                self.addMarkerAt(self.prev_lat, self.prev_lon, f"#{self.numMeasurements[algorithm_type]}: {self.scanData.mean:.2}")
+        self.scanData = deepcopy(data)
         
+        algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+        self.numMeasurements[algorithm_type] += 1
+        self.sampleBtn.setText('Sample')
+        self.statusDetailed.setText(f"{self.scanData.element}: {self.scanData.mean:.2}")
+        
+        if self.pxrfManualSampleRunning:
+            self.pxrfManualSampleRunning = False
+            
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#M{self.numMeasurements[algorithm_type]}: {self.scanData.mean:.2}")
+            
+            # Rest algorithm type
+            rospy.set_param(self._algorithm_type_param_name, self.algorithm_type_before_manual_sample)
+            rospy.sleep(1.0)
+            
+            # Raise Arm
+            try:
+                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+                lower_arm_service(False)
+            except rospy.ServiceException as e:
+                rospy.logerr("Service call failed: %s", e)
+        else:
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#{self.numMeasurements[algorithm_type]}: {self.scanData.mean:.2}")
+    
         return True
     
     def managerStatusUpdate(self, data:ManagerStatus):
@@ -682,7 +680,6 @@ class GpsNavigationGui:
             rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
             self.gridBtn.setText('Start Grid')
 
-
     #CHECK
     # This function starts/ pauses the navigation
     def startPause(self):
@@ -816,8 +813,7 @@ class GpsNavigationGui:
             rospy.sleep(1.0)
             rospy.loginfo(f"Algo Type: {rospy.get_param(self._algorithm_type_param_name)}")
             
-            start_scan_service = rospy.ServiceProxy(self._start_scan_service_name, Complete)
-            start_scan_service(True)
+            self.pxrf.start_scan()
             
             self.pxrfManualSampleRunning = True
             self.sampleBtn.setText("Collecting")
