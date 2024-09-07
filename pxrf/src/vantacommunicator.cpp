@@ -1,29 +1,11 @@
 #include "vantacommunicator.h"
 #include <unistd.h>
 
-
-bool isPingReceived(const std::string& ipAddress) {
-    std::string command = "ping -c 1 " + ipAddress + " > /dev/null 2>&1";
-    int result = system(command.c_str());
-    return (result == 0);
-}
-
 VantaCommunicator::VantaCommunicator(int argc, char** argv)
 {
     ros::init(argc, argv, "pxrf");
     ros::NodeHandle n;
     isRunning = false;
-
-    n.getParam("vanta_ip", vanta_ip);
-
-    while (!ros::isShuttingDown() ) {
-        if(isPingReceived(vanta_ip))
-            break;
-        else {
-            ROS_INFO_THROTTLE(2, "PXRF is not switched on. Cannot ping %s", vanta_ip.c_str());
-        }
-    }
-
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(petWatchdog()));
     timer->start(1000);
@@ -32,6 +14,7 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
     n.getParam("pxrf_cmd_topic", pxrf_cmd_topic);
     n.getParam("pxrf_data_topic", pxrf_data_topic);
     n.getParam("pxrf_response_topic", pxrf_response_topic);
+    n.getParam("vanta_ip", vanta_ip);
     
     ctrl_sub = n.subscribe(pxrf_cmd_topic, 1000, &VantaCommunicator::callback, this);
     chemistry_pub = n.advertise<pxrf::PxrfMsg>(pxrf_data_topic, 1000);
