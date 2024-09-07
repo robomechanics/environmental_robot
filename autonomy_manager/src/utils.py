@@ -26,10 +26,7 @@ import os
 from pathlib import Path
 import random
 from sklearn.preprocessing import StandardScaler
-import rospkg
 
-def get_ros_pkg_path(pgk_name):
-    return rospkg.RosPack().get_path(pgk_name)
 
 def is_standardized(arr):
     return np.std(arr) == 1.0
@@ -115,9 +112,10 @@ def morans_i(map, threshold = 0.5, print_stats = False):
     return areal_extent, moran.I, moran.p_sim, moran_loc.Is
  
 def normalization(x):
-    max = np.max(x)
-    min = np.min(x)
-    x = (x - min) / (max - min)
+    np_max = np.max(x)
+    np_min = np.min(x)
+    if np_min != np_max:
+        x = (x - np_min) / (np_max - np_min)
     return x
 
 def standardization(x):
@@ -346,3 +344,10 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total: 
         print()
+
+# Numpy Utils
+def is_all_zero(arr):
+    return not np.any(arr)
+
+def any_nan(arr):
+    return np.isnan(arr).any()

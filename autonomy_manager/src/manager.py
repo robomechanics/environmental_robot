@@ -25,6 +25,7 @@ from gps_gui.srv import SetString, SetStringResponse
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
 from colorama import Fore, Back, Style
+from utils import visualizer_recreate
 
 DEBUG_FLAG = False 
 
@@ -147,7 +148,7 @@ class Manager(object):
     
     def gps_odom_callback(self, data: Odometry):
         self.is_full_nav_achieved = True
-        
+     
     def run_once(self):
         self.run_once_flag = False
         
@@ -521,6 +522,30 @@ class Manager(object):
         self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
         self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
+
+    
+    def show(self, save_to_disk=False, filename="plot.png"):
+        # self.env_map = normalization(self.env_map)
+        # self.surface_mu = normalization(self.surface_mu)
+        
+        # self.env_map = standardization(self.env_map)
+        # self.surface_mu = standardization(self.surface_mu)
+        
+        visualizer_recreate(
+            self.env_map,
+            self.sampled,
+            self.surface_mu,
+            self.surface_mu,
+            self.points,
+            self.adaptiveROS,
+            self.predicted_mapsize,
+            wspace=1,
+            save_to_disk=save_to_disk,
+            filename=filename
+        )
+        
+        print(f"Sampled at {self.adaptiveROS.sampled[-1]} with value = {self.adaptiveROS.sampled_val[-1]}")
+        print(f"Adaptive Norm Range: {self.adaptiveROS.norm_range:.4f}")
 
 
 if __name__ == "__main__":    
