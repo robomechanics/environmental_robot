@@ -32,8 +32,8 @@ DEBUG_FLAG = False
 class Manager(object):
     def __init__(self):
         
-        rospy.init_node("manager", anonymous=True)
-        rospy.sleep(1)
+        rospy.init_node("manager", anonymous=False)
+        rospy.sleep(0.1)
         
         self.load_ros_params()
 
@@ -106,14 +106,18 @@ class Manager(object):
         self.pxrf = PXRF()
 
         # Reset and Get rosparam
-        rospy.loginfo(" | Waiting to start (Choose a sampling algorithm)")
-        rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
-        self.algorithm_type = ALGO_NONE
-        rospy.sleep(1)
-        while self.algorithm_type == ALGO_NONE:
-            self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
-            self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
-            rospy.sleep(1)
+        self.reset_algo_type = False
+        if self.reset_algo_type:
+            rospy.loginfo(" | Waiting to start (Choose a sampling algorithm)")
+            rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
+            self.algorithm_type = ALGO_NONE
+            rospy.sleep(0.5)
+            while self.algorithm_type == ALGO_NONE:
+                self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
+                self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
+                rospy.sleep(1)
+        else:
+            self.algorithm_type = ALGO_ADAPTIVE
             
         if self.algorithm_type == ALGO_ADAPTIVE:
             rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = {self.algorithm_total_samples}")
@@ -334,15 +338,16 @@ class Manager(object):
         
         # self.gridROS.updateBoundary(boundary_utm_offset)
         # Call ros service to pass all the grid points
-        lat = []
-        lon = []
-        for i in range(len(self.gridROS.grid_points)):
-            gps = self.conversion.map2gps(
-                self.gridROS.grid_points[i][0], self.gridROS.grid_points[i][1]
-            )
-            lat.append(gps[0])
-            lon.append(gps[1])
-        rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
+        #TODO: Uncomment grid points
+        # lat = []
+        # lon = []
+        # for i in range(len(self.gridROS.grid_points)):
+        #     gps = self.conversion.map2gps(
+        #         self.gridROS.grid_points[i][0], self.gridROS.grid_points[i][1]
+        #     )
+        #     lat.append(gps[0])
+        #     lon.append(gps[1])
+        # rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
         
         self.send_autonomy_params(data.boundary_lat, 
                                   data.boundary_lon,
