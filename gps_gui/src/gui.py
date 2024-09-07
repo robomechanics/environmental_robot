@@ -9,7 +9,7 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 from std_msgs.msg import String, Bool, Int32
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PointStamped, Point
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import NavSatFix
 from autonomy_manager.msg import ManagerStatus
@@ -31,6 +31,8 @@ import qdarktheme
 from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
+from visualization_msgs.msg import Marker, MarkerArray
+from roverrobotics_description.srv import PointsToCoords
 
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
@@ -185,6 +187,12 @@ class GpsNavigationGui:
         self.roverBatterySub = rospy.Subscriber(self._rover_battery_percentage_topic, Int32, self.roverBatteryCallback)
         self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_percentage_topic, String, self.lipoBatteryCallback)
     
+        self.rvizPoints = []
+        if self._sim_mode:
+            self.clickedPointSub = rospy.Subscriber("/clicked_point", PointStamped, self.onRvizClickedPoint)
+            self.rvizMarkerPub = rospy.Publisher("/exploration_polygon_marker", Marker, queue_size=10)
+            self.points2coordsSrv = rospy.ServiceProxy('/fake_gps/points_to_coords', PointsToCoords)
+
     def loadROSParams(self):
         # Load topic names into params
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
@@ -195,7 +203,7 @@ class GpsNavigationGui:
         self._status_sub_topic = rospy.get_param('status_topic')
         self._manager_run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
         self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
-        self._rover_battery_percentage_topic = rospy.get_param("rover_battery_voltage_topic")
+        self._rover_battery_percentage_topic = rospy.get_param("rover_battery_percentage_topic")
         self._lipo_battery_percentage_topic = rospy.get_param("lipo_battery_percentage_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
@@ -207,6 +215,7 @@ class GpsNavigationGui:
         self._set_search_boundary_name = rospy.get_param('set_search_boundary_name')
         self._lower_arm_service_name = rospy.get_param('lower_arm_service_name')
         self._start_scan_service_name = rospy.get_param('start_scan_service_name')
+        self._fake_start_scan_service_name = rospy.get_param('fake_start_scan_service_name')
         self._clear_service_name = rospy.get_param('clear_service_name')
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
@@ -216,7 +225,9 @@ class GpsNavigationGui:
         self._estop_enable_topic = rospy.get_param("estop_enable_topic")
         self._estop_reset_topic = rospy.get_param("estop_reset_topic")
         
+        # Load constants
         self._pxrf_test_results_file = rospy.get_param('pxrf_test_results_file')
+        self._sim_mode = rospy.get_param('sim_mode')
 
     def setupWidgets(self):
         def clearHistory():
@@ -264,6 +275,10 @@ class GpsNavigationGui:
         self.sampleBtn = QtWidgets.QPushButton('Sample')
         self.sampleBtn.setStyleSheet("color: lightblue")
         self.sampleBtn.clicked.connect(self.togglePxrfCollection)
+
+        self.fakeSampleBtn = QtWidgets.QPushButton('Fake Sample')
+        self.fakeSampleBtn.setStyleSheet("color: lightblue")
+        self.fakeSampleBtn.clicked.connect(self.toggleFakePxrfCollection)
         
         self.ArmBtn = QtWidgets.QPushButton('Toggle Arm')
         self.ArmBtn.setStyleSheet("color: lightblue")
@@ -349,7 +364,8 @@ class GpsNavigationGui:
         self.widget.addWidget(self.managerComboBox,    row=3, col=7, colspan=1)
 
         # self.widget.addWidget(self.parkBtn,          row=4, col=6, colspan=2)
-        self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=2)
+        self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=1)
+        self.widget.addWidget(self.fakeSampleBtn,      row=4, col=1, colspan=1)
         self.widget.addWidget(self.ArmBtn,             row=4, col=2, colspan=2)
         self.widget.addWidget(self.showPxrfBtn,        row=4, col=4, colspan=2)
         self.widget.addWidget(self.eStopBtn,           row=4, col=6, colspan=1)
@@ -498,12 +514,18 @@ class GpsNavigationGui:
         except rospy.ServiceException:
             rospy.logerr("Waypoints were not sent successfully")
         
+    def _list_to_points(self, list):
+        return [Point(x=x, y=y) for (x, y) in list]
+
+    def _points_to_list(self, points):
+        return [[p.x, p.y] for p in points]
+
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
         if self.editPathMode:
             rospy.logwarn("Warning: Please finish editing the path first")
             return
-        elif self.editBoundaryMode and self.pathRoi.handles == []:
+        elif self.editBoundaryMode and self.pathRoi.handles == [] and self.rvizPoints == []:
             rospy.logwarn('Warning: No boundary to edit, please draw a boundary first')
             return
 
@@ -519,20 +541,88 @@ class GpsNavigationGui:
             # When boundary is confirmed
             self.addBoundaryBtn.setText('Edit Bound')
             self.pathPlotPoints = []
-            for handle in self.pathRoi.handles:
-                pos = handle['pos']
-                self.pathPlotPoints.append([pos.x(), pos.y()])
+            if self._sim_mode:
+                self.pathPlotPoints = self.rvizPoints
+                # Append the first point to the end to close the boundary
+                self.pathPlotPoints.append(self.pathPlotPoints[0])
+                
+                # Call the pixel to gps service with the prepared request data
+                resp = self.points2coordsSrv(self._list_to_points(self.pathPlotPoints))
+                self.boundaryPath = self._points_to_list(resp.coords)
+                self.drawRvizPolygon(self.pathPlotPoints)
+            else:
+                for handle in self.pathRoi.handles:
+                    pos = handle['pos']
+                    self.pathPlotPoints.append([pos.x(), pos.y()])
             
-            # Append the first point to the end to close the boundary
-            self.pathPlotPoints.append(self.pathPlotPoints[0])
+                # Append the first point to the end to close the boundary
+                self.pathPlotPoints.append(self.pathPlotPoints[0])
 
-            self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
+                self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
+
             x, y = zip(*self.pathPlotPoints)
             self.boundaryPlot.setData(x=list(x), y=list(y))
-            
+
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
+            self.rvizPoints = []
             self.sendBoundary(self.boundaryPath)
+
+
+    def onRvizClickedPoint(self, msg):
+        if not self.editBoundaryMode:
+            rospy.logwarn("Received rviz /clicked_point but not in edit boundary mode! Aborting!")
+            return
+        p = msg.point
+        point = [float(p.x), float(p.y)]
+        self.rvizPoints.append(point)
+        rospy.loginfo(f'Received rviz point: {point}')
+
+    def drawRvizPolygon(self, points):
+        points = np.array(points)
+        # Create a Marker message
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "boundary"
+        marker.id = 0
+        marker.type = Marker.LINE_STRIP  # Use LINE_STRIP to draw a polygon
+        marker.action = Marker.ADD
+        marker.pose.orientation.w = 1.0
+
+        # Define the color and scale
+        marker.scale.x = 0.1 
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        # Publish
+        marker.points = [Point(x, y, 0) for (x,y) in points]
+        self.rvizMarkerPub.publish(marker)
+
+        # Draw the dimensions of square containing it
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "boundary_square"
+        marker.id = 1
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        marker.color.a = 0.5
+        min_x, max_x = min(points[:,0]), max(points[:,0])
+        min_y, max_y = min(points[:,1]), max(points[:,1])
+        width = max(max_x-min_x, max_y-min_y)
+        square_points = [[min_x, min_y], # bottom left
+                         [min_x+width, min_y], # bottom right
+                         [min_x+width, min_y+width], # top right
+                         [min_x, min_y+width]] # top left
+        # Append the first point to the end to close the boundary
+        square_points.append(square_points[0])
+
+        # Publish
+        marker.points = [Point(x, y, 0) for (x,y) in square_points]
+        self.rvizMarkerPub.publish(marker)
+
 
     # This function turns on/off editing mode
     def toggleEditPathMode(self):
@@ -727,6 +817,23 @@ class GpsNavigationGui:
             
             self.pxrfManualSampleRunning = True
             self.sampleBtn.setText("Collecting")
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service call failed: %s", e)
+    
+    def toggleFakePxrfCollection(self):
+        try:   
+            self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
+            rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
+            rospy.sleep(1.0)
+            rospy.loginfo(f"Algo Type: {rospy.get_param(self._algorithm_type_param_name)}")
+            
+            fake_start_scan_service = rospy.ServiceProxy(self._fake_start_scan_service_name, Complete)
+            fake_start_scan_service(True)
+
+            
+            self.fakeSampleBtn.setText("Collecting")
+            rospy.sleep(1.0)
+            self.fakeSampleBtn.setText("Fake Sample")
         except rospy.ServiceException as e:
             rospy.loginfo("Service call failed: %s", e)
     
