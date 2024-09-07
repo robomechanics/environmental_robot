@@ -16,4 +16,7 @@
   <!-- Static TF: base_link -> gq7_link -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="tf_base_to_gq7_link"
         args="-0.0162 -0.09528 0 0 0 0 1 base_link gq7_link" />
+    
+  
+  <include file="$(find robo_nav)/launch/rover_basic.launch">
 </launch>
