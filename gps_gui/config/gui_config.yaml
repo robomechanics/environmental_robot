@@ -1,0 +1,13 @@
+# Starts at 0
+location_index: 6
+
+# load boundary_points
+load_boundary_points: 1
+
+# boundary points in GPS coordinates
+# last point and first point should be same
+boundary_points: [[40.442140643736415, -79.94606044508967], 
+                  [40.44219776706503, -79.9460399396953], 
+                  [40.442183927912566, -79.94598345313716], 
+                  [40.44213298802888, -79.94602446392595], 
+                  [40.442140643736415, -79.94606044508967]]
