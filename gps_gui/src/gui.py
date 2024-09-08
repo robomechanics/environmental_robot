@@ -134,8 +134,10 @@ class GpsNavigationGui:
     
     def loadGUIConfig(self):
         if self.gui_config['load_boundary_points']:
-            # for p in self.gui_config['boundary_points']:
-            #     self.pathRoi.setPoints(p)
+            print(f'{Fore.GREEN} Loading Boundary points {Style.RESET_ALL}')
+             
+            for p in self.gui_config['boundary_points']:
+                self.pathRoi.setPoints(p)
             
             self.pathPlotPoints = []
             for gpsPoint in self.gui_config['boundary_points']:
@@ -706,7 +708,7 @@ class GpsNavigationGui:
     # This function updates the goal and displays it on the map
     def onNextGoalUpdate(self, req: NavigateGPS):
         if self.adaptive:
-            rospy.loginfo("| Adaptive mode")
+            # rospy.loginfo("| Adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
             self.pathPlotPoints.append(self.satMap.coord2Pixel(req.goal_lat, req.goal_lon))
             #self.pathPlot.setData(x = x_loc, y = y_loc)
@@ -718,7 +720,7 @@ class GpsNavigationGui:
             print(f'{Fore.RED} Next Goal (GPS|Pixels): {req.goal_lat, req.goal_lon} | {point} {Style.RESET_ALL}')
             self.updateGoalMarker(point)
         else:
-            rospy.loginfo("| Next point")
+            # rospy.loginfo("| Next point")
             point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
             print(f'{Fore.RED} Next Goal (GPS|Pixels): {req.goal_lat, req.goal_lon} | {point} {Style.RESET_ALL}')
             self.updateGoalMarker(point)

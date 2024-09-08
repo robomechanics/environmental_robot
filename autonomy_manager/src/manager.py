@@ -328,6 +328,7 @@ class Manager(object):
             total_number=self.algorithm_total_samples,
             boundary = []
         )
+        # TODO: Check width and height
         self.adaptiveROS.update_boundary(boundary_in_grid)
         self.gridROS = gridROS(
             self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
@@ -351,8 +352,8 @@ class Manager(object):
         
         self.send_autonomy_params(data.boundary_lat, 
                                   data.boundary_lon,
-                                  self.conversion.width, 
-                                  self.conversion.height)
+                                  width_in_grid, 
+                                  height_in_grid)
 
         # TODO: Display grid points in GUI
         # try:
