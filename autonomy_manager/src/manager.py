@@ -25,7 +25,7 @@ from gps_gui.srv import SetString, SetStringResponse
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
 from colorama import Fore, Back, Style
-from utils import visualizer_recreate
+from utils import visualizer_recreate_real
 
 UPDATE_DEBUG_FLAG = False 
 
@@ -104,8 +104,8 @@ class Manager(object):
         self.update_status(READY)
         
         # Fake Hardware Mode
-        self.fake_hardware_mode = len(self.fake_hardware_flags) > 1
         self.fake_hardware_flags = fake_hardware_flags
+        self.fake_hardware_mode = len(self.fake_hardware_flags) > 1
         
         rospy.logwarn('>>> USING FAKE HARDWARE <<<<')
         rospy.logwarn(f'Fake Hardware Flags: {fake_hardware_flags}')
@@ -432,20 +432,21 @@ class Manager(object):
             next_goal_to_GUI = rospy.ServiceProxy(self._next_goal_to_GUI_service_name, NavigateGPS)
             res = next_goal_to_GUI(x, y)
         except rospy.ServiceException as e:
-            print("location failed")
+            print("Sending location to GUI failed")
 
     def publish_move_base_goal(self, lat, lon):
-        while '/arm_control' not in rosnode.get_node_names():
-            rospy.loginfo("Waiting for Arm Control Node")
-            rospy.sleep(1) 
-        self.is_arm_in_home_pose = rospy.get_param(
-                self._is_arm_in_home_pose_param_name
-                ) # Arm pose flag that persists across restarts
-            
-        if not self.is_arm_in_home_pose:
-            rospy.logerr("Arm is not in home pose, will not publish move_base goal!")
-            self.update_status(ERROR)
-            return
+        if FAKE_ARM not in self.fake_hardware_flags:
+            while '/arm_control' not in rosnode.get_node_names():
+                rospy.loginfo("Waiting for Arm Control Node")
+                rospy.sleep(1)
+            self.is_arm_in_home_pose = rospy.get_param(
+                    self._is_arm_in_home_pose_param_name
+                    ) # Arm pose flag that persists across restarts
+                
+            if not self.is_arm_in_home_pose:
+                rospy.logerr("Arm is not in home pose, will not publish move_base goal!")
+                self.update_status(ERROR)
+                return
         
         #TODO: Orientation for goal
         self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
@@ -559,16 +560,12 @@ class Manager(object):
         
         # self.env_map = standardization(self.env_map)
         # self.surface_mu = standardization(self.surface_mu)
-        
-        visualizer_recreate(
-            self.env_map,
-            self.sampled,
-            self.surface_mu,
-            self.surface_mu,
-            self.points,
-            self.adaptiveROS,
-            self.predicted_mapsize,
-            wspace=1,
+
+        visualizer_recreate_real(
+            sampled=self.adaptiveROS.sampled,
+            surface_mu=self.adaptiveROS.mu,
+            adaptive=self.adaptiveROS,
+            predicted_mapsize=(self.adaptiveROS.size_x, self.adaptiveROS.size_y),
             save_to_disk=save_to_disk,
             filename=filename
         )
