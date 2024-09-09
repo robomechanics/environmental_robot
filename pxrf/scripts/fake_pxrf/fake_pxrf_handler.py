@@ -7,15 +7,18 @@
 import csv
 import rospy
 import rospkg
-from std_msgs.msg import String
+from std_msgs.msg import String, Float32, Header
 from pxrf.msg import CompletedScanData
 from pxrf.srv import GetPxrf, GetPxrfResponse
 from pxrf.msg import CompletedScanData
 import sys
 import os
+import cv2
+import numpy as np
 import datetime, random, copy
 from autonomy_manager.srv import Complete, CompleteResponse
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, Image
+from cv_bridge import CvBridge
 
 # add pxrf's plot script to lookup path
 sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robot/pxrf/scripts") #test to see if this is needed
@@ -30,16 +33,24 @@ class FakePXRFHandler:
         rospy.init_node("fake_pxrf_handler", anonymous=True) 
         self.load_fake_ros_params() 
 
+        # Publishers
         self.fake_pxrf_command_pub = rospy.Publisher(self._fake_pxrf_cmd_topic, String,
                                                      queue_size=1)
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
+        self.image_pub = rospy.Publisher(self._fake_pxrf_img_topic, Image, queue_size=10)
+
+        # Services
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
                                                       Complete, self.fake_scan_start_callback)
         #above service is the one to call to generate fake pxrf data
 
+        # Subscribers
         rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
+        rospy.Subscriber(self._fake_pxrf_img_width_topic, Float32, self.width_callback)
 
+        self.bridge = CvBridge()
+        self.width = None
         self.latitude = 0.0
         self.longitude = 0.0
         self.fileContainingFakeData = 'fake_chemistry.csv'
@@ -48,6 +59,8 @@ class FakePXRFHandler:
                                  'Fe','Co','Ni','Cu','Zn','As','Se','Rb','Sr','Y','Zr',
                                  'Nb','Mo','Ag','Cd','Sn','Sb','Ba','La','Ce','Pr','Nd',
                                  'W','Hg','Pb','Bi','Th','U','LE'] #referenced from the chemistry.csv file
+
+        rospy.loginfo("Init fake pxrf handler")
         rospy.spin()
     
     def load_fake_ros_params(self): 
@@ -59,6 +72,8 @@ class FakePXRFHandler:
         self._fake_scan_completed_topic = rospy.get_param("fake_scan_completed_topic")
         self._fake_start_scan_service_name = rospy.get_param("fake_start_scan_service_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
+        self._fake_pxrf_img_topic = rospy.get_param("fake_pxrf_img_topic")
+        self._fake_pxrf_img_width_topic = rospy.get_param("fake_pxrf_img_width_topic")
 
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.fake_root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
@@ -173,6 +188,53 @@ class FakePXRFHandler:
     def gps_callback(self, data):
         self.latitude = data.latitude
         self.longitude = data.longitude
+
+    def width_callback(self, msg):
+        self.width = int(msg.data)
+        rospy.loginfo("Fake pxrf received width: %d", self.width)
+        self.pub_pxrf_img()
+
+    def pub_pxrf_img(self, ):
+        if self.width is None:
+            rospy.logwarn("Width not received yet.")
+            return
+
+        # Gaussian function
+        def gaussian(x, y, cx, cy, sigma):
+            return np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * sigma ** 2))
+
+        # Create a heatmap image
+        image = np.zeros((self.width, self.width), dtype=np.float32)
+
+        # Define Gaussian parameters for the heatmap
+        center1 = (self.width // 3, self.width // 3)
+        center2 = (2 * self.width // 3, 2 * self.width // 3)
+        sigma = self.width // 6
+
+        # Fill the image with Gaussian distributions
+        for x in range(self.width):
+            for y in range(self.width):
+                image[x, y] = (gaussian(x, y, *center1, sigma) +
+                               gaussian(x, y, *center2, sigma))
+
+        # Normalize image to 0-255
+        image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
+        image = np.uint8(image)
+
+        # Apply a colormap to the image
+        color_image = cv2.applyColorMap(image, cv2.COLORMAP_JET)
+
+        # Convert to ROS Image message
+        ros_image = self.bridge.cv2_to_imgmsg(color_image, encoding="bgr8")
+        # Assign header with frame_id
+        ros_image.header = Header()
+        ros_image.header.stamp = rospy.Time.now()
+        ros_image.header.frame_id = "base_link"
+
+        # Publish image
+        self.image_pub.publish(ros_image)
+        rospy.loginfo("Published pxrf image.")
+
 
 if __name__ == '__main__':
     FakePXRFHandler()
