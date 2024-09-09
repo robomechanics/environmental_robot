@@ -1,0 +1,8 @@
+float64[] boundary_x
+float64[] boundary_y
+uint8 boundary_type
+# boundary_type:
+#   0 - gps, lat/lon
+#   1 - map, x/y
+---
+bool success

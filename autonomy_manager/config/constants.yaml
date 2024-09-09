@@ -8,7 +8,7 @@ status_topic: '/autonomy_manager/status'
 sensor_prep_status_topic: '/sensor_prep_status'
 joy_topic: '/joy'
 sensor_prep_service_name: '/run_sensor_prep'
-set_search_boundary_name: '/autonomy_manager/deploy_autonomy'
+set_search_boundary_name: '/autonomy_manager/set_search_boundary'
 clear_service_name: 'clear'
 waypoints_service_name: 'waypoints'
 grid_points_service_name: 'grid_points'
@@ -96,7 +96,6 @@ fake_pxrf_cmd_topic: 'fake_pxrf_cmd'
 fake_pxrf_data_topic: 'fake_pxrf_data'
 fake_element_of_interest: 'Cl' #
 fake_data_dir: "~/data/fake_pxrf_results"
-
 fake_pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/fake_pxrf/fake_chemistry.csv' 
 #needs to be used in GUI, currently unintegrated
 

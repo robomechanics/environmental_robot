@@ -21,7 +21,7 @@ rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
 from plot import generate_plot
-from autonomy_manager.srv import NavigateGPS, DeployAutonomy, Complete, Waypoints
+from autonomy_manager.srv import NavigateGPS, SetSearchBoundary, Complete, Waypoints
 from tf.transformations import euler_from_quaternion
 import tf
 import argparse
@@ -493,12 +493,13 @@ class GpsNavigationGui:
     def sendBoundary(self, boundary):
         rospy.loginfo(f" Sending Boundary Points:\n {boundary} \n----------------")
         try:
-            sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, DeployAutonomy)
+            sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, SetSearchBoundary)
             if len(boundary) > 0:
                 boundary.pop()
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
-            res = sendBoundaryClient(lat,lon)
+            boundary_type = 1 if self._sim_mode else 0 # Use map 1 (map) if in sim_mode else 0 (gps)
+            res = sendBoundaryClient(lat,lon, boundary_type) 
             rospy.loginfo("Boundary Sent")
         except rospy.ServiceException as e:
             rospy.logerr("Boundary was not sent successfully: %s", e)
@@ -513,12 +514,6 @@ class GpsNavigationGui:
             rospy.loginfo("Waypoints sent!")
         except rospy.ServiceException:
             rospy.logerr("Waypoints were not sent successfully")
-        
-    def _list_to_points(self, list):
-        return [Point(x=x, y=y) for (x, y) in list]
-
-    def _points_to_list(self, points):
-        return [[p.x, p.y] for p in points]
 
     # this function turns on/off editing mode for the boundary
     def toggleEditBoundaryMode(self):
@@ -545,11 +540,8 @@ class GpsNavigationGui:
                 self.pathPlotPoints = self.rvizPoints
                 # Append the first point to the end to close the boundary
                 self.pathPlotPoints.append(self.pathPlotPoints[0])
-                
-                # Call the pixel to gps service with the prepared request data
-                resp = self.points2coordsSrv(self._list_to_points(self.pathPlotPoints))
-                self.boundaryPath = self._points_to_list(resp.coords)
-                self.drawRvizPolygon(self.pathPlotPoints)
+                self.boundaryPath = self.pathPlotPoints
+                self.drawRvizPolygon(self.boundaryPath)
             else:
                 for handle in self.pathRoi.handles:
                     pos = handle['pos']

@@ -138,7 +138,7 @@ flowchart TD;
     
 ```
 ## Code Logic
-- DeployAutonomy is a list of (lat, lan) and returns success if path was successfully followed
+- SetSearchBoundary is a list of (lat, lon) for gps or (x,y) for map and returns success if path was successfully followed
 
 ---
 # Scripts in Autonomy Manager
