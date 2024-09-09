@@ -2,7 +2,7 @@
 <launch>
   <arg name="useArm" default="true"/>
   <arg name="usePXRF" default="true"/>
-  <arg name="useManager" default="true"/>
+  <arg name="useManager" default="false"/>
   <arg name="useArmCamera" default="false"/>
   <arg name="useRTK" default="false"/>
   <arg name="useMoveBase" default="true"/>

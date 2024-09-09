@@ -389,7 +389,7 @@ void OpenRover::fanSpeedCB(const std_msgs::Int32::ConstPtr& msg)
 
 void OpenRover::cmdVelCB(const geometry_msgs::Twist::ConstPtr& msg)
 {  // converts from cmd_vel (m/s and radians/s) into motor speed commands
-  ROS_INFO("Rover velocity commanded");
+  // ROS_INFO("Rover velocity commanded");
   cmd_vel_commanded_ = *msg;
   float left_motor_speed, right_motor_speed;
   int flipper_motor_speed;
