@@ -272,6 +272,58 @@ def visualizer_recreate(
         plt.show()
 
 
+
+def visualizer_recreate_real(
+    sampled,
+    surface_mu,
+    adaptive,
+    predicted_mapsize,
+    save_to_disk=False,
+    filename="plot.png"
+):
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    
+    
+    vmin = surface_mu.min()
+    vmax = surface_mu.max()
+    # print(f'Min: {vmin} | Max: {vmax}')
+
+    A_plot = ax.imshow(surface_mu, cmap="YlGn", vmin=vmin, vmax=vmax, interpolation="nearest")
+    # cbar2 = fig.colorbar(A_plot, ax=ax)
+    cax = inset_axes(
+        ax,
+        width="5%",
+        height="100%",
+        loc="lower left",
+        bbox_to_anchor=(1.05, 0.0, 1, 1),
+        bbox_transform=ax.transAxes,
+        borderpad=0,
+    )
+    cbar2 = fig.colorbar(A_plot, cax=cax)
+    # cbar2.set_ticks(np.linspace(vmin, vmax, 4))
+    
+    ax.set_title("Adaptive - Reconstructed")
+    ax.plot(adaptive.x_bound, adaptive.y_bound, linewidth=2, color=line_color)
+    sampled = np.asarray(sampled, np.dtype("int", "int"))
+    ax.plot(sampled[:, 1], sampled[:, 0], ".", color=marker_color, markersize=10)
+    ax.set_xlim(0, predicted_mapsize[0])
+    ax.set_ylim(0, predicted_mapsize[1])
+    
+    # Annotations
+    for i in range(sampled.shape[0]):
+        ax.annotate(str(i), (sampled[i][1], sampled[i][0]), 
+                    textcoords="offset points", xytext=(0,-3), 
+                    ha='center', fontsize=6, color=annotation_color)
+
+    fig.subplots_adjust(wspace=0.5)
+    # fig.tight_layout()
+    
+    if save_to_disk:
+        plt.savefig(filename, format='png', dpi=300)
+    else:
+        plt.show()
+
+
 def score(env_map, surface_mu, tolerance):
     # check the difference between each cell
     # if the difference is within tolerance, then count it as correct
