@@ -27,10 +27,11 @@ from env_utils.pxrf_utils import PXRF
 from colorama import Fore, Back, Style
 from utils import visualizer_recreate
 
-DEBUG_FLAG = False 
+UPDATE_DEBUG_FLAG = False 
+
 
 class Manager(object):
-    def __init__(self):
+    def __init__(self, fake_hardware_flags=[]):
         
         rospy.init_node("manager", anonymous=False)
         rospy.sleep(0.1)
@@ -53,7 +54,6 @@ class Manager(object):
         self.run_once_flag = False
         self.is_arm_in_home_pose = None
         self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
-        self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.pxrf_scan_completed_callback)
         
         self.sensorPrep = rospy.ServiceProxy(
             self._sensor_prep_service_name, RunSensorPrep
@@ -103,8 +103,19 @@ class Manager(object):
         
         self.update_status(READY)
         
-        self.pxrf = PXRF()
-
+        # Fake Hardware Mode
+        self.fake_hardware_mode = len(self.fake_hardware_flags) > 1
+        self.fake_hardware_flags = fake_hardware_flags
+        
+        rospy.logwarn('>>> USING FAKE HARDWARE <<<<')
+        rospy.logwarn(f'Fake Hardware Flags: {fake_hardware_flags}')
+        
+        if FAKE_PXRF in self.fake_hardware_flags:
+            self.fake_pxrf_values = []
+        else:
+            self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.pxrf_scan_completed_callback)
+            self.pxrf = PXRF()
+        
         # Reset and Get rosparam
         self.reset_algo_type = False
         if self.reset_algo_type:
@@ -127,7 +138,6 @@ class Manager(object):
             rospy.loginfo(f" | Algorithm Set to GRID")
         
         rospy.loginfo("----------- READY -----------")
-        
         
     def _unused(self):
         rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
@@ -152,7 +162,7 @@ class Manager(object):
     
     def gps_odom_callback(self, data: Odometry):
         self.is_full_nav_achieved = True
-     
+    
     def run_once(self):
         self.run_once_flag = False
         
@@ -171,11 +181,24 @@ class Manager(object):
         elif self.status == RECEIVED_NEXT_SCAN_LOC:
             self.navigate_to_scan_loc()
         elif self.status == ARRIVED_AT_SCAN_LOC:
-            self.arm_touchdown()
+            if self.fake_hardware_mode:
+                if FAKE_ARM in self.fake_hardware_flags:
+                    if FAKE_PXRF in self.fake_hardware_flags:
+                        self.fake_arm_and_pxrf()
+                    else:
+                        self.update_status(ARM_LOWERED)
+            else:
+                self.arm_touchdown()
         elif self.status == ARM_LOWERED or self.status == FINISHED_RAKING:
-            self.scan()
+            if FAKE_PXRF in self.fake_hardware_flags:
+                self.fake_pxrf()
+            else:
+                self.scan()
         elif self.status == FINISHED_SCAN:
-            self.arm_return()
+            if FAKE_ARM in self.fake_hardware_flags:
+                self.update_status(ARM_RETURNED)
+            else:
+                self.arm_return()
         elif self.status == ERROR:
             manual_status = rospy.get_param(self._manager_set_status_after_error_param_name, ERROR)
             rospy.logwarn(f"Set Status to: {manual_status}")
@@ -389,7 +412,7 @@ class Manager(object):
         # TODO: Perform Sensor Prep
         self.update_status(RAKING)
 
-    def update_status(self, newStatus, debug_flag=DEBUG_FLAG):
+    def update_status(self, newStatus, debug_flag=UPDATE_DEBUG_FLAG):
         self.status = newStatus
         msg = ManagerStatus()
         msg.status = self.status
@@ -553,6 +576,19 @@ class Manager(object):
         print(f"Sampled at {self.adaptiveROS.sampled[-1]} with value = {self.adaptiveROS.sampled_val[-1]}")
         print(f"Adaptive Norm Range: {self.adaptiveROS.norm_range:.4f}")
 
+    def fake_arm_and_pxrf(self):
+        self.pxrf_complete = True
+        self.pxrf_mean_value = self.fake_pxrf_values.pop(0)
+        print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+        
+        self.update_status(ARM_RETURNED)
+    
+    def fake_pxrf(self):
+        self.pxrf_complete = True
+        self.pxrf_mean_value = self.fake_pxrf_values.pop(0)
+        print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+        self.update_status(FINISHED_SCAN)
+        
 
 if __name__ == "__main__":    
     manager = Manager()
