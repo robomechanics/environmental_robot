@@ -27,11 +27,8 @@ from env_utils.pxrf_utils import PXRF
 from colorama import Fore, Back, Style
 from utils import visualizer_recreate_real
 
-UPDATE_DEBUG_FLAG = False 
-
-
 class Manager(object):
-    def __init__(self, fake_hardware_flags=[]):
+    def __init__(self, skip_checks = False, debug_flag = False, fake_hardware_flags=[]):
         
         rospy.init_node("manager", anonymous=False)
         rospy.sleep(0.1)
@@ -44,6 +41,7 @@ class Manager(object):
         self.update_status(INIT)
         
         # Flags
+        self.debug_flag = debug_flag
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         self.is_full_nav_achieved = False
@@ -89,16 +87,17 @@ class Manager(object):
 
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
-        print(" | Waiting for move_base server")
-        self.mb_client.wait_for_server()
-        
-        # wait until GPS Full Nav is achieved
-        while not self.is_full_nav_achieved:
-            self.update_status(WAITING_FOR_GPS_INIT)
-            rospy.loginfo_throttle(3,"Waiting for GPS Initialization...")
-            rospy.sleep(1)
+        if skip_checks:
+            print(" | Waiting for move_base server")
+            self.mb_client.wait_for_server()
             
-        rospy.loginfo("GPS Full Navigation Achieved!") 
+            # Wait until GPS Full Nav is achieved
+            while not self.is_full_nav_achieved:
+                self.update_status(WAITING_FOR_GPS_INIT)
+                rospy.loginfo_throttle(3,"Waiting for GPS Initialization...")
+                rospy.sleep(1)
+            
+            rospy.loginfo("GPS Full Navigation Achieved!") 
         self.odom_sub.unregister()
         
         self.update_status(READY)
@@ -412,15 +411,15 @@ class Manager(object):
         # TODO: Perform Sensor Prep
         self.update_status(RAKING)
 
-    def update_status(self, newStatus, debug_flag=UPDATE_DEBUG_FLAG):
+    def update_status(self, newStatus):
         self.status = newStatus
         msg = ManagerStatus()
         msg.status = self.status
         msg.header.stamp = rospy.Time.now()
         self.statusPub.publish(msg)
-        if debug_flag:
-            print ("Status: ", self.status)
-            input("Press Enter to Continue")
+        if self.debug_flag:
+            print (f'{Back.BLUE}{Fore.WHITE} < Status: {self.status} > {Style.RESET_ALL}')
+            # input("Press Enter to Continue")
 
     def gps_callback(self, data: NavSatFix):
         self.lat = data.latitude
