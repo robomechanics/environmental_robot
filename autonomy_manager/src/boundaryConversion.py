@@ -15,6 +15,9 @@ from boundaryCheck import *
 #[40.44233453704325, -79.94584400702514, 1]
 #[40.442054721646244, -79.9459456555756, 1]
 
+# GPS: lat and lon
+# UTM: easting and nothing
+# Map: UTM coordinates with reference to initial (origin) UTM coordinates
 class Conversion:
     def __init__(self, cells_per_meter):
         self.utm = 'EPSG:32617' #default to pittsburgh
@@ -27,32 +30,6 @@ class Conversion:
         self.cell_size = 1/cells_per_meter
         self.half_cell_size = self.cell_size/2
     
-
-    #this function is not used. only for testing purpose
-    def gps_to_meters(lat1, lon1, lat2, lon2):
-        point1 = (lat1, lon1)
-        point2 = (lat2, lon2)
-        #getting the distance
-        R = 6371000  # Earth's radius in meters
-        dLat = math.radians(lat2 - lat1)
-        dLon = math.radians(lon2 - lon1)
-        a = math.sin(dLat / 2) * math.sin(dLat / 2) + \
-            math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * \
-            math.sin(dLon / 2) * math.sin(dLon / 2)
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        d = R * c
-
-        lat1 = math.radians(lat1)
-        long1 = math.radians(lon1)
-        lat2 = math.radians(lat2)
-        long2 = math.radians(lon1)
-        bearing = math.atan2( \
-        math.sin(long2 - long1) * math.cos(lat2), \
-        math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(long2 - long1) \
-        )
-        
-        return d
-
     def boundary_conversion(self, boundaryPoints):
         x_coord = []
         y_coord = []
@@ -100,42 +77,44 @@ class Conversion:
                 if not result:
                     map[i_row][j_col] = 1
 
+    # Get UTM from GPS
     # x - Easting, y - Northing
-    def get_utm(self, posx, posy):
+    def get_utm(self, lat, lon):
         wgs84 = pyproj.CRS('EPSG:4326') 
-        utm17n = pyproj.CRS(self.get_zone(posx, posy)) 
+        utm17n = pyproj.CRS(self.get_zone(lat, lon)) 
         self.utm = utm17n
         transformer = pyproj.Transformer.from_crs(wgs84, utm17n)
         # print(self.utm,' 3')
-        return transformer.transform(posx, posy)
+        return transformer.transform(lat, lon)
 
-    #get the utm zone
-    def get_zone(self, posx, posy):
+    # Get the utm zone
+    def get_zone(self, lat, lon):
         utm_crs_list = query_utm_crs_info( 
         datum_name="WGS 84", 
         area_of_interest=AreaOfInterest( 
-            west_lon_degree=posy, 
-            south_lat_degree=posx, 
-            east_lon_degree=posy, 
-            north_lat_degree=posx, 
+            west_lon_degree=lon, 
+            south_lat_degree=lat, 
+            east_lon_degree=lon, 
+            north_lat_degree=lat, 
             ), 
         )
         utm_crs = CRS.from_epsg(utm_crs_list[0].code)
         self.utm_zone = utm_crs
         return utm_crs
 
-    #get the gps coordinate
-    def get_gps(self, posx, posy):
+    # Get GPS from UTM
+    def get_gps(self, utm_E, utm_N):
         utm_zone = self.utm
         wgs84 = pyproj.CRS('EPSG:4326') # WGS 84
         transformer = pyproj.Transformer.from_crs(utm_zone, wgs84)
-        return transformer.transform(posx, posy)
+        return transformer.transform(utm_E, utm_N)
     
-    def gps2map(self, posx, posy):
+    # Get Map from GPS
+    def gps2map(self, lat, lon):
         if self.origin_utm == (0,0):
             raise("Please run boundary_conversion first")
 
-        x, y = self.get_utm(posx, posy)
+        x, y = self.get_utm(lat, lon)
         x = x - self.origin_utm[0]
         y = y - self.origin_utm[1]
         return x, y
@@ -153,3 +132,28 @@ class Conversion:
         posx = self.origin_utm[0] + x
         posy = self.origin_utm[1] + y
         return self.get_gps(posx, posy)
+
+    # this function is not used. only for testing purpose
+    def UNUSED_gps_to_meters(lat1, lon1, lat2, lon2):
+        point1 = (lat1, lon1)
+        point2 = (lat2, lon2)
+        #getting the distance
+        R = 6371000  # Earth's radius in meters
+        dLat = math.radians(lat2 - lat1)
+        dLon = math.radians(lon2 - lon1)
+        a = math.sin(dLat / 2) * math.sin(dLat / 2) + \
+            math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * \
+            math.sin(dLon / 2) * math.sin(dLon / 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        d = R * c
+
+        lat1 = math.radians(lat1)
+        long1 = math.radians(lon1)
+        lat2 = math.radians(lat2)
+        long2 = math.radians(lon1)
+        bearing = math.atan2( \
+        math.sin(long2 - long1) * math.cos(lat2), \
+        math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(long2 - long1) \
+        )
+        
+        return d
