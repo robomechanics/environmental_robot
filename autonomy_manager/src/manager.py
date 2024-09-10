@@ -88,7 +88,7 @@ class Manager(object):
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
         if skip_checks:
-            print(" | Waiting for move_base server")
+            rospy.loginfo(" | Waiting for move_base server")
             self.mb_client.wait_for_server()
             
             # Wait until GPS Full Nav is achieved
@@ -136,7 +136,7 @@ class Manager(object):
         elif self.algorithm_type == ALGO_GRID:
             rospy.loginfo(f" | Algorithm Set to GRID")
         
-        rospy.loginfo("----------- READY -----------")
+        rospy.loginfo(f"{Fore.GREEN}{Back.BLACK} ----------- READY ----------- {Style.RESET_ALL}")
         
     def _unused(self):
         rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
@@ -285,7 +285,8 @@ class Manager(object):
         if data.status == True:
             self.pxrf_complete = True
             self.pxrf_mean_value = data.mean
-            print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+            rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
+            
             self.update_status(FINISHED_SCAN)
         return True
 
@@ -324,9 +325,9 @@ class Manager(object):
         boundary_utm_offset = self.conversion.boundary_conversion(self.searchBoundary)
         startx, starty = self.conversion.gps2map(self.lat, self.lon)
         
-        # print("Data: \n", data)
-        # print("boundary_utm_offset: \n", boundary_utm_offset)
-        # print("conversion width and height: ", self.conversion.width, self.conversion.height)
+        # rospy.loginfo(f'Data: \n {data}')
+        # rospy.loginfo(f'boundary_utm_offset: \n {boundary_utm_offset}')
+        # rospy.loginfo(f'conversion width and height: {self.conversion.width} {self.conversion.height}')
 
         # When you receive the search area, define the robot position as the starting point, make sure to drive the
         # the robot into the boundary first
@@ -388,8 +389,15 @@ class Manager(object):
         
 
         # self.gridROS.updateBoundary(boundary_utm_offset)
-        # print(boundary_utm_offset)
+        # rospy.loginfo(boundary_utm_offset)
         self.update_status(RECEIVED_SEARCH_AREA)
+
+        self.init_pos_gps = (self.lat, self.lon)
+        self.init_pos_map = self.conversion.gps2map(self.init_pos_gps[0], self.init_pos_gps[1])
+        self.init_pos_grid = self.conversion.map2grid(self.init_pos_map[0], self.init_pos_map[1])
+        
+        rospy.loginfo(f'{Back.YELLOW}{Fore.BLACK} | Inital Robot Location (GPS|Map|Grid): {self.init_pos_gps} | {self.init_pos_map} | {self.init_pos_grid} {Style.RESET_ALL}')
+        
         return True
 
     def set_waypoints(self, data):
@@ -397,7 +405,7 @@ class Manager(object):
         for i in range(len(data.waypoints_lat)):
             self.waypoints.append([data.waypoints_lat[i], data.waypoints_lon[i]])
         # fake search area to faciliate the state machine
-        print(f"-----------------\n Received Waypoints:\n {self.waypoints} \n-----------------")
+        rospy.loginfo(f"-----------------\n Received Waypoints:\n {self.waypoints} \n-----------------")
         self.update_status(RECEIVED_SEARCH_AREA)
         return True
 
@@ -418,7 +426,7 @@ class Manager(object):
         msg.header.stamp = rospy.Time.now()
         self.statusPub.publish(msg)
         if self.debug_flag:
-            print (f'{Back.BLUE}{Fore.WHITE} < Status: {self.status} > {Style.RESET_ALL}')
+            rospy.loginfo(f'{Back.BLUE}{Fore.WHITE} < Status: {self.status} > {Style.RESET_ALL}')
             # input("Press Enter to Continue")
 
     def gps_callback(self, data: NavSatFix):
@@ -431,7 +439,7 @@ class Manager(object):
             next_goal_to_GUI = rospy.ServiceProxy(self._next_goal_to_GUI_service_name, NavigateGPS)
             res = next_goal_to_GUI(x, y)
         except rospy.ServiceException as e:
-            print("Sending location to GUI failed")
+            rospy.logwarn("Sending location to GUI failed")
 
     def publish_move_base_goal(self, lat, lon):
         if FAKE_ARM not in self.fake_hardware_flags:
@@ -486,7 +494,7 @@ class Manager(object):
             lower_arm = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
             res = lower_arm(False)
         except rospy.ServiceException as e:
-            print("Arm Return Failed")
+            rospy.logwarn("Arm Return Failed")
         
         self.update_status(ARM_RETURNED)
 
@@ -496,13 +504,13 @@ class Manager(object):
             lower_arm = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
             res = lower_arm(True)
         except rospy.ServiceException as e:
-            print("Arm Touchdown Failed")
+            rospy.logwarn("Arm Touchdown Failed")
         
         self.update_status(ARM_LOWERED)
         
     def reset_callback(self, data):
         if data.status == True:
-            print("| Reset ")
+            rospy.logwarn("| Reset ")
             self.adaptiveROS = None
             self.gridROS = None
             self.conversion = Conversion(cells_per_meter=self._cells_per_meter)
@@ -569,20 +577,20 @@ class Manager(object):
             filename=filename
         )
         
-        print(f"Sampled at {self.adaptiveROS.sampled[-1]} with value = {self.adaptiveROS.sampled_val[-1]}")
-        print(f"Adaptive Norm Range: {self.adaptiveROS.norm_range:.4f}")
+        rospy.loginfo(f"Sampled at {self.adaptiveROS.sampled[-1]} with value = {self.adaptiveROS.sampled_val[-1]}")
+        rospy.loginfo(f"Adaptive Norm Range: {self.adaptiveROS.norm_range:.4f}")
 
     def fake_arm_and_pxrf(self):
         self.pxrf_complete = True
         self.pxrf_mean_value = self.fake_pxrf_values.pop(0)
-        print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+        rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
         
         self.update_status(ARM_RETURNED)
     
     def fake_pxrf(self):
         self.pxrf_complete = True
         self.pxrf_mean_value = self.fake_pxrf_values.pop(0)
-        print("PXRF Mean Value: " + str(self.pxrf_mean_value))
+        rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
         self.update_status(FINISHED_SCAN)
         
 
