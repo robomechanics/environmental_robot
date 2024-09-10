@@ -137,8 +137,8 @@ class adaptiveROS:
             display(bin_entropy_constraint, self.x_bound, self.y_bound, "bin_entropy constraint", self.sampled)
 
         # include boundary constraint
-        for i_row in range(len(bin_entropy_constraint)):
-            for j_col in range(len(bin_entropy_constraint[i_row])):
+        for i_row in range(bin_entropy_constraint.shape[0]):
+            for j_col in range(bin_entropy_constraint.shape[1]):
                 # Call the function on the current coordinate
                 result = boundary_check(self.boundary, [i_row, j_col])
                 # Set the value of the current coordinate to the result of the function
