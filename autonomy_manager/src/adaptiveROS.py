@@ -47,6 +47,8 @@ class adaptiveROS:
         self.x1 = np.linspace(0, self.size_x - 1, self.size_x)
         self.x2 = np.linspace(0, self.size_y - 1, self.size_y)
         self.x1x2 = np.array([(a, b) for a in self.x1 for b in self.x2])
+        
+        print(f'len(x1): {len(self.x1)}, len(x2): {len(self.x2)}, len(x1x2): {self.x1x2.shape}')
 
         self.norm_range = 0
         self.norm_min = 0
@@ -70,8 +72,10 @@ class adaptiveROS:
         self.mu = []
         self.std_var = []
         self.bin_entropy = []
+        print(f'Initial sampled_val_std: {sampled_val_std}')
         self.gp = GaussianProcessRegressor(kernel=self.kernel, alpha=0, n_restarts_optimizer=50)
         sampled_val_std = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
+        print(f'Initial sampled_val_std: {sampled_val_std}')
         self.gp.fit(self.sampled, sampled_val_std) #todo: Should we re-init self.gp?
         self.first_run = True
          
@@ -79,14 +83,11 @@ class adaptiveROS:
     def update(self, x, y, val):
         self.sampled.append([x, y])
         self.sampled_val.append(val)
+        
         self.min = np.min(self.sampled_val)
         self.max = np.max(self.sampled_val)
         self.norm_range = np.max(self.sampled_val) - np.min(self.sampled_val)
-        self.norm_min = np.min(self.sampled_val)
-        # print(f"Sampled_n mu: {np.mean(self.sampled_val)} std: {np.std(self.sampled_val)}")
-        sampled_val_n = list(
-            np.array(self.sampled_val - self.norm_min) / self.norm_range
-        )
+        
         self.path_len += 1
         self.beta = self.path_len / self.total_number * self.delta
         
@@ -102,7 +103,7 @@ class adaptiveROS:
         self.std_var = np.reshape(self.std_var, (self.size_x, self.size_y))
         
         self.mu = self.scaler.inverse_transform(self.mu)
-
+        
         # self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
         if self.first_run:
             self.first_run = False
@@ -212,7 +213,7 @@ class adaptiveROS:
             # new_bin = bin_entropy_constraint / (dist_to_location * coefficient)
             new_bin = bin_entropy_constraint - total_dist_to_location * coefficient
             
-            
+            self.temp_new_bin = new_bin
             # r2 = np.unravel_index(new_bin.argmax(), bin_entropy_constraint.shape)
             # Random value from all max values
             all_max_indices = np.where(new_bin == np.amax(new_bin))
