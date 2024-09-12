@@ -731,13 +731,14 @@ void OpenRover::serialManager()
       param2 = serial_medium_buffer_.back();
       serial_medium_buffer_.pop_back();
       ROS_DEBUG("Its medium data's turn to be sent: %i", param2);
-    }
-    else if (serial_slow_buffer_.size() > 0)
-    {
-      param1 = 10;
-      param2 = serial_slow_buffer_.back();
-      serial_slow_buffer_.pop_back();
-      ROS_DEBUG("Its slow data's turn to be sent: %i", param2);
+
+      if (serial_slow_buffer_.size() > 0)
+      {
+        param1 = 10;
+        param2 = serial_slow_buffer_.back();
+        serial_slow_buffer_.pop_back();
+        ROS_DEBUG("Its slow data's turn to be sent: %i", param2);
+      }
     }
     else
     {
