@@ -1,10 +1,10 @@
-pc-closed-loop() {
+pc-open-loop() {
     rosnode-kill "/rr_openrover_driver_closed_loop"; 
     sleep 1; 
     roslaunch robo_nav rover_open_loop.launch
 }
 
-pc-open-loop() {
+pc-closed-loop() {
     rosnode-kill "/rr_openrover_driver_open_loop"; 
     sleep 1; 
     roslaunch robo_nav rover_closed_loop.launch
