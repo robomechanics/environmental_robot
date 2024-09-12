@@ -19,6 +19,8 @@
         <param name="fast_data_rate" value="30.0"/>
         <param name="medium_data_rate" value="2.0"/>
         <param name="slow_data_rate" value="1.0"/>
+
+        <remap from="/rr_openrover_driver_closed_loop/battery_state_of_charge" to="/rover/battery_percentage"/>
     </node>
 
 </launch>

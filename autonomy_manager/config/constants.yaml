@@ -23,7 +23,7 @@ start_utm_lat_param: 'start_utm_lat'
 start_utm_lon_param: 'start_utm_lon'
 algorithm_type_param_name: algorithm_type
 algorithm_type: algo_none
-algorithm_total_samples: 9 
+algorithm_total_samples: 12 
 
 odometry_topic: 'odometry'
 cancel_goal_topic: 'cancel_goal'
@@ -74,7 +74,7 @@ vanta_ip: "192.168.7.2"
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
-rover_battery_percentage_topic: /rr_openrover_driver/battery_state_of_charge
+rover_battery_percentage_topic: /rover/battery_percentage
 
 # PXRF
 start_scan_service_name: 'scan_start'
