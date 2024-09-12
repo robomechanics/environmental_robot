@@ -26,12 +26,15 @@ from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
 from colorama import Fore, Back, Style
 from utils import visualizer_recreate_real
+from sklearn.gaussian_process.kernels import RBF
 
 class Manager(object):
     def __init__(self, skip_checks = False, debug_flag = False, fake_hardware_flags=[]):
         
         rospy.init_node("manager", anonymous=False)
         rospy.sleep(0.1)
+        
+        self.debug_flag = debug_flag
         
         self.load_ros_params()
 
@@ -41,7 +44,6 @@ class Manager(object):
         self.update_status(INIT)
         
         # Flags
-        self.debug_flag = debug_flag
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         self.is_full_nav_achieved = False
@@ -87,7 +89,7 @@ class Manager(object):
 
         # Action Services
         self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
-        if skip_checks:
+        if not skip_checks:
             rospy.loginfo(" | Waiting for move_base server")
             self.mb_client.wait_for_server()
             
@@ -175,8 +177,6 @@ class Manager(object):
                 self.run_waypoint_algo()
             elif self.algorithm_type == ALGO_GRID:
                 self.run_grid_algo()
-
-            rospy.loginfo(f" Next Scan Location: {self.nextScanLoc}")
         elif self.status == RECEIVED_NEXT_SCAN_LOC:
             self.navigate_to_scan_loc()
         elif self.status == ARRIVED_AT_SCAN_LOC:
@@ -349,7 +349,8 @@ class Manager(object):
             size_y=height_in_grid,
             startpoint=[startx_in_grid, starty_in_grid],
             total_number=self.algorithm_total_samples,
-            boundary = []
+            boundary = [],
+            kernel=RBF(length_scale=100, length_scale_bounds=(1e-01, 1e06))
         )
         # TODO: Check width and height
         self.adaptiveROS.update_boundary(boundary_in_grid)
@@ -542,7 +543,7 @@ class Manager(object):
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         
-        self.nextScanLoc = self.adaptiveROS.predict()
+        self.nextScanLoc = self.adaptiveROS.predict(True)
         self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
         self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
         
