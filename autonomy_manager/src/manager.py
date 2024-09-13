@@ -8,6 +8,7 @@ from autonomy_manager.srv import (
     Complete,
     Waypoints,
 )
+from std_srvs.srv import Empty, EmptyResponse
 from pxrf.msg import CompletedScanData
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
@@ -87,12 +88,7 @@ class Manager(object):
             self._run_loop_service_name, SetString, self.run_loop_callback
         )
 
-        # Action Services
-        self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
         if not skip_checks:
-            rospy.loginfo(" | Waiting for move_base server")
-            self.mb_client.wait_for_server()
-            
             # Wait until GPS Full Nav is achieved
             while not self.is_full_nav_achieved:
                 self.update_status(WAITING_FOR_GPS_INIT)
@@ -104,18 +100,8 @@ class Manager(object):
         
         self.update_status(READY)
         
-        # Fake Hardware Mode
-        self.fake_hardware_flags = fake_hardware_flags
-        self.fake_hardware_mode = len(self.fake_hardware_flags) > 1
+        self.setup_hardware(fake_hardware_flags, skip_checks)
         
-        rospy.logwarn('>>> USING FAKE HARDWARE <<<<')
-        rospy.logwarn(f'Fake Hardware Flags: {fake_hardware_flags}')
-        
-        if FAKE_PXRF in self.fake_hardware_flags:
-            self.fake_pxrf_values = []
-        else:
-            self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.pxrf_scan_completed_callback)
-            self.pxrf = PXRF()
         
         # Reset and Get rosparam
         self.reset_algo_type = False
@@ -140,6 +126,28 @@ class Manager(object):
         
         rospy.loginfo(f"{Fore.GREEN}{Back.BLACK} ----------- READY ----------- {Style.RESET_ALL}")
         
+    def setup_hardware(self, fake_hardware_flags, skip_checks):
+        self.fake_hardware_flags = fake_hardware_flags
+        self.skip_checks = skip_checks
+        self.fake_hardware_mode = len(self.fake_hardware_flags) > 1
+        
+        if self.fake_hardware_mode:
+            rospy.logwarn('>>> USING FAKE HARDWARE <<<<')
+            rospy.logwarn(f'Fake Hardware Flags: {fake_hardware_flags}')
+            
+        if FAKE_MOVE_BASE not in self.fake_hardware_flags:
+            self.mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
+            if skip_checks:
+                rospy.loginfo(" | Waiting for move_base server")
+                self.mb_client.wait_for_server()
+        
+        if FAKE_PXRF in self.fake_hardware_flags:
+            self.fake_pxrf_values = []
+        else:
+            self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.pxrf_scan_completed_callback)
+            self.pxrf = PXRF()
+            rospy.logwarn("Started PXRF")    
+    
     def _unused(self):
         rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
         self.isOverride = False
@@ -276,6 +284,7 @@ class Manager(object):
         self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
         self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
         self._cells_per_meter = rospy.get_param("cells_per_meter")
+        self._constant_velocity_commander_service_name = rospy.get_param("constant_velocity_commander_service_name")
 
     def scan(self):
         self.update_status(SCANNING)
@@ -373,11 +382,11 @@ class Manager(object):
         #     lat.append(gps[0])
         #     lon.append(gps[1])
         # rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
-        
-        self.send_autonomy_params(data.boundary_lat, 
-                                  data.boundary_lon,
-                                  width_in_grid, 
-                                  height_in_grid)
+        if FAKE_ARM not in self.fake_hardware_flags: 
+            self.send_autonomy_params(data.boundary_lat, 
+                                    data.boundary_lon,
+                                    width_in_grid, 
+                                    height_in_grid)
 
         # TODO: Display grid points in GUI
         # try:
@@ -456,38 +465,48 @@ class Manager(object):
                 self.update_status(ERROR)
                 return
         
-        #TODO: Orientation for goal
-        self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
-        
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = self._tf_utm_odom_frame
-        goal.target_pose.header.stamp = rospy.Time.now()
-        
-        self.x_UTM_start = rospy.get_param(self._start_utm_x_param)
-        self.y_UTM_start = rospy.get_param(self._start_utm_y_param)
-        
-        goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
-        goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
-        goal.target_pose.pose.position.z = 0.0
-        goal.target_pose.pose.orientation.x = 0
-        goal.target_pose.pose.orientation.y = 0
-        goal.target_pose.pose.orientation.z = 0
-        goal.target_pose.pose.orientation.w = 1 
+        if FAKE_MOVE_BASE not in self.fake_hardware_flags: 
+            #TODO: Orientation for goal
+            self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
+            
+            goal = MoveBaseGoal()
+            goal.target_pose.header.frame_id = self._tf_utm_odom_frame
+            goal.target_pose.header.stamp = rospy.Time.now()
+            
+            self.x_UTM_start = rospy.get_param(self._start_utm_x_param)
+            self.y_UTM_start = rospy.get_param(self._start_utm_y_param)
+            
+            goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
+            goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
+            goal.target_pose.pose.position.z = 0.0
+            goal.target_pose.pose.orientation.x = 0
+            goal.target_pose.pose.orientation.y = 0
+            goal.target_pose.pose.orientation.z = 0
+            goal.target_pose.pose.orientation.w = 1 
 
-        self.mb_client.send_goal(goal)
-        rospy.loginfo(" | Goal Sent to movebase...")
-        wait = self.mb_client.wait_for_result()
-        rospy.loginfo(" | Movebase Goal Reached")
+            self.mb_client.send_goal(goal)
+            rospy.loginfo(" | Goal Sent to movebase...")
+            wait = self.mb_client.wait_for_result()
+            rospy.loginfo(" | Movebase Goal Reached, Backing up...")
+            
+            # Backup
+            try:
+                constant_vel_cmder_client = rospy.ServiceProxy(self._constant_velocity_commander_service_name, Empty)
+                res = constant_vel_cmder_client()
+            except rospy.ServiceException as e:
+                rospy.logerr(e)
+                rospy.logerr("Backup Service Failed!")
         
-        self.nav_goal_complete = True
+            
+            if not wait:
+                rospy.logerr("Action server not available!")
+                rospy.signal_shutdown("Action server not available!")
+                self.update_status(ERROR)
+            else:
+                return self.mb_client.get_result()
+            
         self.update_status(ARRIVED_AT_SCAN_LOC)
         
-        if not wait:
-            rospy.logerr("Action server not available!")
-            rospy.signal_shutdown("Action server not available!")
-            self.update_status(ERROR)
-        else:
-            return self.mb_client.get_result()
 
     def arm_return(self):
         self.update_status(ARM_RETURNING)
