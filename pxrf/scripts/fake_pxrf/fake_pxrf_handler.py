@@ -61,7 +61,17 @@ class FakePXRFHandler:
                                  'W','Hg','Pb','Bi','Th','U','LE'] #referenced from the chemistry.csv file
 
         rospy.loginfo("Init fake pxrf handler")
-        rospy.spin()
+
+
+        self.width = 600
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            self.pub_pxrf_img()
+
+            rate.sleep()
+
+
+        # rospy.spin()
     
     def load_fake_ros_params(self): 
         #see constants.yaml for the names of topics, services and nodes when calling in terminal
@@ -194,7 +204,31 @@ class FakePXRFHandler:
         rospy.loginfo("Fake pxrf received width: %d", self.width)
         self.pub_pxrf_img()
 
-    def pub_pxrf_img(self, ):
+    def pub_pxrf_img(self):
+        # if self.width is None:
+        #     rospy.logwarn("Width not set.")
+        #     return
+
+        # # Create a red image
+        # # Note: OpenCV uses BGR format, so red is [0, 0, 255]
+        # red_image = np.zeros((self.width, self.width, 3), dtype=np.uint8)
+        # red_image[:, :] = [0, 0, 255]  # Set all pixels to red
+
+        # # Convert to ROS Image message
+        # ros_image = self.bridge.cv2_to_imgmsg(red_image, encoding="bgr8")
+        # # Assign header with frame_id
+        # ros_image.header = Header()
+        # ros_image.header.stamp = rospy.Time.now()
+        # # ros_image.header.frame_id = "map"
+        # ros_image.width = self.width
+        # ros_image.height = self.width
+        # # ros_image.encoding = "bgr8"
+        # # Publish the image
+        # self.image_pub.publish(ros_image)
+        # rospy.loginfo("Published red image.")
+
+
+
         if self.width is None:
             rospy.logwarn("Width not received yet.")
             return
@@ -229,7 +263,6 @@ class FakePXRFHandler:
         # Assign header with frame_id
         ros_image.header = Header()
         ros_image.header.stamp = rospy.Time.now()
-        ros_image.header.frame_id = "base_link"
 
         # Publish image
         self.image_pub.publish(ros_image)
