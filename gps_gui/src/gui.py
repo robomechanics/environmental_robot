@@ -32,8 +32,6 @@ from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
 from visualization_msgs.msg import Marker, MarkerArray
-from roverrobotics_description.srv import PointsToCoords
-
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
 
@@ -191,7 +189,7 @@ class GpsNavigationGui:
         if self._sim_mode:
             self.clickedPointSub = rospy.Subscriber("/clicked_point", PointStamped, self.onRvizClickedPoint)
             self.rvizMarkerPub = rospy.Publisher("/exploration_polygon_marker", Marker, queue_size=10)
-            self.points2coordsSrv = rospy.ServiceProxy('/fake_gps/points_to_coords', PointsToCoords)
+            self.pubPxrfImg = rospy.ServiceProxy(self._fake_pxrf_img_create_service_name, SetSearchBoundary)
 
     def loadROSParams(self):
         # Load topic names into params
@@ -207,7 +205,7 @@ class GpsNavigationGui:
         self._lipo_battery_percentage_topic = rospy.get_param("lipo_battery_percentage_topic")
         self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
-        
+
         # Load service names into params
         # self._parking_brake_service = rospy.get_param('parking_break_service_name')
         self._next_point_service = rospy.get_param('next_goal_to_GUI_service_name')
@@ -219,6 +217,7 @@ class GpsNavigationGui:
         self._clear_service_name = rospy.get_param('clear_service_name')
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
+        self._fake_pxrf_img_create_service_name = rospy.get_param("fake_pxrf_img_create_service_name")
         
         # Load action client topic names
         self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
@@ -571,6 +570,12 @@ class GpsNavigationGui:
         rospy.loginfo(f'Received rviz point: {point}')
 
     def drawRvizPolygon(self, points):
+        """
+        Rviz visualization:
+            - Draw polygon connecting clicked points
+            - Draw square around polygon
+            - Overlay image of gradient
+        """
         points = np.array(points)
         # Create a Marker message
         marker = Marker()
@@ -608,12 +613,17 @@ class GpsNavigationGui:
                          [min_x+width, min_y], # bottom right
                          [min_x+width, min_y+width], # top right
                          [min_x, min_y+width]] # top left
+        square_x = [float(x[0]) for x in square_points]
+        square_y = [float(y[0]) for y in square_points]
         # Append the first point to the end to close the boundary
         square_points.append(square_points[0])
 
         # Publish
         marker.points = [Point(x, y, 0) for (x,y) in square_points]
         self.rvizMarkerPub.publish(marker)
+
+        # Publish pxrf map image
+        self.pubPxrfImg(square_x, square_y, int(1))
 
 
     # This function turns on/off editing mode

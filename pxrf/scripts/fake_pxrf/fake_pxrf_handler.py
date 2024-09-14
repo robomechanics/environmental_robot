@@ -7,17 +7,18 @@
 import csv
 import rospy
 import rospkg
-from std_msgs.msg import String, Float32, Header
+from std_msgs.msg import String, Header
 from pxrf.msg import CompletedScanData
-from pxrf.srv import GetPxrf, GetPxrfResponse
 from pxrf.msg import CompletedScanData
 import sys
 import os
 import cv2
+import tf2_ros
 import numpy as np
 import datetime, random, copy
-from autonomy_manager.srv import Complete, CompleteResponse
+from autonomy_manager.srv import Complete, CompleteResponse, SetSearchBoundary
 from sensor_msgs.msg import NavSatFix, Image
+from geometry_msgs.msg import TransformStamped
 from cv_bridge import CvBridge
 
 # add pxrf's plot script to lookup path
@@ -39,18 +40,18 @@ class FakePXRFHandler:
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
         self.image_pub = rospy.Publisher(self._fake_pxrf_img_topic, Image, queue_size=10)
+        self.tf_broadcaster = tf2_ros.StaticTransformBroadcaster()
 
         # Services
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
                                                       Complete, self.fake_scan_start_callback)
         #above service is the one to call to generate fake pxrf data
+        rospy.Service(self._fake_pxrf_img_create_service_name, SetSearchBoundary, self.pub_pxrf_img)
 
         # Subscribers
         rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
-        rospy.Subscriber(self._fake_pxrf_img_width_topic, Float32, self.width_callback)
 
         self.bridge = CvBridge()
-        self.width = None
         self.latitude = 0.0
         self.longitude = 0.0
         self.fileContainingFakeData = 'fake_chemistry.csv'
@@ -62,6 +63,7 @@ class FakePXRFHandler:
 
         rospy.loginfo("Init fake pxrf handler")
 
+        rospy.spin()
 
     
     def load_fake_ros_params(self): 
@@ -74,7 +76,7 @@ class FakePXRFHandler:
         self._fake_start_scan_service_name = rospy.get_param("fake_start_scan_service_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
         self._fake_pxrf_img_topic = rospy.get_param("fake_pxrf_img_topic")
-        self._fake_pxrf_img_width_topic = rospy.get_param("fake_pxrf_img_width_topic")
+        self._fake_pxrf_img_create_service_name = rospy.get_param("fake_pxrf_img_create_service_name")
 
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.fake_root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
@@ -190,32 +192,32 @@ class FakePXRFHandler:
         self.latitude = data.latitude
         self.longitude = data.longitude
 
-    def width_callback(self, msg):
-        self.width = int(msg.data)
-        rospy.loginfo("Fake pxrf received width: %d", self.width)
-        self.pub_pxrf_img()
-
-    def pub_pxrf_img(self):
-
-        if self.width is None:
-            rospy.logwarn("Width not received yet.")
-            return
+    def pub_pxrf_img(self, data):
+        # Process the message data
+        boundary_x = data.boundary_x
+        boundary_y = data.boundary_y 
+        rospy.loginfo("pub_pxrf_img received: " + str(data))
+        # Calculate the width and center
+        min_x, max_y = min(boundary_x), max(boundary_y)
+        min_y, max_x = min(boundary_y), max(boundary_x)
+        width = max(max_x - min_x, max_y - min_y)
+        center = [min_x + width / 2, min_y + width / 2]
 
         # Gaussian function
         def gaussian(x, y, cx, cy, sigma):
             return np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * sigma ** 2))
 
         # Create a heatmap image
-        image = np.zeros((self.width, self.width), dtype=np.float32)
+        image = np.zeros((width, width), dtype=np.float32)
 
         # Define Gaussian parameters for the heatmap
-        center1 = (self.width // 3, self.width // 3)
-        center2 = (2 * self.width // 3, 2 * self.width // 3)
-        sigma = self.width // 6
+        center1 = (width // 3, width // 3)
+        center2 = (2 * width // 3, 2 * width // 3)
+        sigma = width // 6
 
         # Fill the image with Gaussian distributions
-        for x in range(self.width):
-            for y in range(self.width):
+        for x in range(width):
+            for y in range(width):
                 image[x, y] = (gaussian(x, y, *center1, sigma) +
                                gaussian(x, y, *center2, sigma))
 
@@ -235,6 +237,19 @@ class FakePXRFHandler:
         # Publish image
         self.image_pub.publish(ros_image)
         rospy.loginfo("Published pxrf image.")
+
+        # Publish transform of image to center it in the map frame
+        static_transformStamped = TransformStamped()
+
+        static_transformStamped.header.stamp = rospy.Time.now()
+        static_transformStamped.header.frame_id = "map"
+        static_transformStamped.child_frame_id = "pxrf_map"
+
+        static_transformStamped.transform.translation.x = center[0]
+        static_transformStamped.transform.translation.y = center[1]
+        static_transformStamped.transform.rotation.w = 1.0
+
+        self.tf_broadcaster.sendTransform(static_transformStamped)
 
 
 if __name__ == '__main__':

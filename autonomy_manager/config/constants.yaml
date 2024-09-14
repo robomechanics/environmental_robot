@@ -98,7 +98,7 @@ fake_element_of_interest: 'Cl' #
 fake_data_dir: "~/data/fake_pxrf_results"
 fake_pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/fake_pxrf/fake_chemistry.csv' # needs to be used in GUI, currently unintegrated
 fake_pxrf_img_topic: '/fake_pxrf/img'
-fake_pxrf_img_width_topic: '/fake_pxrf/img/width'
+fake_pxrf_img_create_service_name: '/fake_pxrf/img/create'
 
 # Adaptive Algorithm
 cells_per_meter: 4 
