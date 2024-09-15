@@ -10,13 +10,14 @@ import rospkg
 from std_msgs.msg import String, Header
 from pxrf.msg import CompletedScanData
 from pxrf.msg import CompletedScanData
+import math
 import sys
 import os
 import cv2
 import tf2_ros
 import numpy as np
 import datetime, random, copy
-from autonomy_manager.srv import Complete, CompleteResponse, SetSearchBoundary
+from autonomy_manager.srv import Complete, CompleteResponse, SetSearchBoundary, SetSearchBoundaryResponse
 from sensor_msgs.msg import NavSatFix, Image
 from geometry_msgs.msg import TransformStamped
 from cv_bridge import CvBridge
@@ -198,10 +199,10 @@ class FakePXRFHandler:
         boundary_y = data.boundary_y 
         rospy.loginfo("pub_pxrf_img received: " + str(data))
         # Calculate the width and center
-        min_x, max_y = min(boundary_x), max(boundary_y)
-        min_y, max_x = min(boundary_y), max(boundary_x)
-        width = max(max_x - min_x, max_y - min_y)
-        center = [min_x + width / 2, min_y + width / 2]
+        min_x, max_x = min(boundary_x), max(boundary_x)
+        min_y, max_y = min(boundary_y), max(boundary_y)
+        width = math.ceil(max(max_x - min_x, max_y - min_y))
+        img_pos = [min_x + (width/2), min_y + (width/2)]
 
         # Gaussian function
         def gaussian(x, y, cx, cy, sigma):
@@ -213,7 +214,7 @@ class FakePXRFHandler:
         # Define Gaussian parameters for the heatmap
         center1 = (width // 3, width // 3)
         center2 = (2 * width // 3, 2 * width // 3)
-        sigma = width // 6
+        sigma = max(width // 6, 1) # Must be non-zero to avoid division by zero error
 
         # Fill the image with Gaussian distributions
         for x in range(width):
@@ -245,11 +246,13 @@ class FakePXRFHandler:
         static_transformStamped.header.frame_id = "map"
         static_transformStamped.child_frame_id = "pxrf_map"
 
-        static_transformStamped.transform.translation.x = center[0]
-        static_transformStamped.transform.translation.y = center[1]
+        static_transformStamped.transform.translation.x = img_pos[0]
+        static_transformStamped.transform.translation.y = img_pos[1]
         static_transformStamped.transform.rotation.w = 1.0
 
         self.tf_broadcaster.sendTransform(static_transformStamped)
+
+        return SetSearchBoundaryResponse(success=True)
 
 
 if __name__ == '__main__':
