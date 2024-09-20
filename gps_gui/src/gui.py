@@ -768,20 +768,22 @@ class GpsNavigationGui:
     #CHECK
     # This function updates the goal and displays it on the map
     def onNextGoalUpdate(self, req: NavigateGPS):
+        # No conversion needed if in sim mode
+        coord2Pixel_func = lambda a, b: (a, b) if self._sim_mode else self.satMap.coord2Pixel
         if self.adaptive:
             rospy.loginfo("adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
-            self.pathPlotPoints.append(self.satMap.coord2Pixel(req.goal_lat, req.goal_lon))
+            self.pathPlotPoints.append(coord2Pixel_func(req.goal_lat, req.goal_lon))
             #self.pathPlot.setData(x = x_loc, y = y_loc)
             x, y = zip(*self.pathPlotPoints)
             self.pathPlot.setData(x=list(x), y=list(y))
             self.pathRoi.setPoints([])
             #self.pathPlotPoints = []
-            point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
+            point = coord2Pixel_func(req.goal_lat, req.goal_lon)
             self.updateGoalMarker(point)
         else:
             rospy.loginfo("Next point")
-            point = self.satMap.coord2Pixel(req.goal_lat, req.goal_lon)
+            point = coord2Pixel_func(req.goal_lat, req.goal_lon)
             self.updateGoalMarker(point)
 
         return True

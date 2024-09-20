@@ -251,6 +251,7 @@ class Manager(object):
         self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
         self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
         self._cells_per_meter = rospy.get_param("cells_per_meter")
+        self._sim_mode = rospy.get_param("sim_mode")
 
     def scan(self):
         self.update_status(SCANNING)
@@ -296,7 +297,7 @@ class Manager(object):
             self.searchBoundary.append([data.boundary_x[i], data.boundary_y[i]])
         
         if is_gps_type:
-            # [GPS] Convert gps coordinates into map coords
+            # Mode #1: [GPS] Convert gps coordinates into map coords
             # Initialize the zone, define boundary in utm coordinates
             self.conversion.get_zone(self.lat, self.lon)
             
@@ -347,7 +348,7 @@ class Manager(object):
             rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
         
         else:
-            # [Map] type, used for simulation without need to convert between gps and map
+            # Mode #2: [Map] type, used for simulation without need to convert between gps and map
             min_x, max_x = min(data.boundary_x), max(data.boundary_x)
             min_y, max_y = min(data.boundary_y), max(data.boundary_y)
             width = math.ceil(max_x - min_x)
@@ -533,9 +534,13 @@ class Manager(object):
         self.pxrf_mean_value = None
         
         self.nextScanLoc = self.adaptiveROS.predict()
-        self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
-        self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
-        
+        if self._sim_mode:
+            # No conversion needed for simulation
+            self.nav_goal_map = None
+            self.nav_goal_gps = self.nextScanLoc
+        else:
+            self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
+            self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
         rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (GPS|Map|Grid): {self.nav_goal_gps} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")
         self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
