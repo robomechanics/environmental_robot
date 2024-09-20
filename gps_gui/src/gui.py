@@ -614,7 +614,7 @@ class GpsNavigationGui:
                          [min_x+width, min_y+width], # top right
                          [min_x, min_y+width]] # top left
         square_x = [float(x[0]) for x in square_points]
-        square_y = [float(y[0]) for y in square_points]
+        square_y = [float(y[1]) for y in square_points]
         # Append the first point to the end to close the boundary
         square_points.append(square_points[0])
 

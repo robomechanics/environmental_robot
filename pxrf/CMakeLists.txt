@@ -33,9 +33,9 @@ add_message_files(
     CompletedScanData.msg
 )
 
-add_service_files(
-  FILES
-)
+# add_service_files(
+#   FILES
+# )
 
 generate_messages(
     DEPENDENCIES
