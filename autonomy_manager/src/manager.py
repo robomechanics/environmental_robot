@@ -2,7 +2,7 @@
 import rospy
 from autonomy_manager.msg import ManagerStatus
 from autonomy_manager.srv import (
-    DeployAutonomy,
+    SetSearchBoundary,
     NavigateGPS,
     RunSensorPrep,
     Complete,
@@ -28,6 +28,7 @@ from env_utils.pxrf_utils import PXRF
 from colorama import Fore, Back, Style
 from utils import visualizer_recreate_real
 from sklearn.gaussian_process.kernels import RBF
+import math
 
 class Manager(object):
     def __init__(self, skip_checks = False, debug_flag = False, fake_hardware_flags=[]):
@@ -76,7 +77,7 @@ class Manager(object):
         self.transformer = Transformer.from_crs(self._crs_GPS, self._crs_UTM)
         
         self._set_search_boundary_service = rospy.Service(
-            self._set_search_boundary_name, DeployAutonomy, self.set_search_boundary_callback
+            self._set_search_boundary_name, SetSearchBoundary, self.set_search_boundary_callback
         )
         
         self._reset_service = rospy.Service(self._clear_service_name, Complete, self.reset_callback)
@@ -171,7 +172,7 @@ class Manager(object):
     
     def gps_odom_callback(self, data: Odometry):
         self.is_full_nav_achieved = True
-    
+
     def run_once(self):
         self.run_once_flag = False
         
@@ -285,6 +286,7 @@ class Manager(object):
         self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
         self._cells_per_meter = rospy.get_param("cells_per_meter")
         self._constant_velocity_commander_service_name = rospy.get_param("constant_velocity_commander_service_name")
+        self._sim_mode = rospy.get_param("sim_mode")
 
     def scan(self):
         self.update_status(SCANNING)
@@ -322,50 +324,99 @@ class Manager(object):
             
     
     def set_search_boundary_callback(self, data):
-        rospy.loginfo(f"----------------\n Boundary Points:\n {list(zip(data.boundary_lat, data.boundary_lon))}\n----------------")
+        rospy.loginfo(f"----------------\n Boundary Points:\n {list(zip(data.boundary_x, data.boundary_y))}\n----------------")
+        is_gps_type = data.boundary_type != 1 # Anything but 1 (map) will default to gps
+        rospy.loginfo(f"Boundary type: {data.boundary_type} ({'gps' if is_gps_type else 'map'})")
         
-        # data.boundary_lat and data.boundary_lon lists, put then in the format of [[lat1,lon1],[lat2,lon2],...]
-        for i in range(len(data.boundary_lat)):
-            self.searchBoundary.append([data.boundary_lat[i], data.boundary_lon[i]])
+        # data.boundary_x and data.boundary_y lists, put then in the format of [[lat1,lon1],[lat2,lon2],...]
+        for i in range(len(data.boundary_x)):
+            self.searchBoundary.append([data.boundary_x[i], data.boundary_y[i]])
         
-        # Initialize the zone, define boundary in utm coordinates
-        self.conversion.get_zone(self.lat, self.lon)
+        if is_gps_type:
+            # Mode #1: [GPS] Convert gps coordinates into map coords
+            # Initialize the zone, define boundary in utm coordinates
+            self.conversion.get_zone(self.lat, self.lon)
+            
+            boundary_utm_offset = self.conversion.boundary_conversion(self.searchBoundary)
+            startx, starty = self.conversion.gps2map(self.lat, self.lon)
         
-        boundary_utm_offset = self.conversion.boundary_conversion(self.searchBoundary)
-        startx, starty = self.conversion.gps2map(self.lat, self.lon)
-        
-        # rospy.loginfo(f'Data: \n {data}')
-        # rospy.loginfo(f'boundary_utm_offset: \n {boundary_utm_offset}')
-        # rospy.loginfo(f'conversion width and height: {self.conversion.width} {self.conversion.height}')
+            # rospy.loginfo(f'Data: \n {data}')
+            # rospy.loginfo(f'boundary_utm_offset: \n {boundary_utm_offset}')
+            # rospy.loginfo(f'conversion width and height: {self.conversion.width} {self.conversion.height}')
 
-        # When you receive the search area, define the robot position as the starting point, make sure to drive the
-        # the robot into the boundary first
+            # When you receive the search area, define the robot position as the starting point, make sure to drive the
+            # the robot into the boundary first
+            
+            width_in_grid = self.conversion.width * self.conversion.cells_per_meter
+            height_in_grid = self.conversion.height * self.conversion.cells_per_meter
+            boundary_in_grid = [self.conversion.map2grid(p[0], p[1]) for p in boundary_utm_offset]
+            startx_in_grid, starty_in_grid = self.conversion.map2grid(startx, starty)
+            
+            
+            rospy.loginfo(f'Width: {self.conversion.width} m | {width_in_grid} cells')
+            rospy.loginfo(f'Height: {self.conversion.height} m | : {height_in_grid} cells')
+            rospy.loginfo(f'Start: ({startx}, {starty}) m | ({startx_in_grid}, {starty_in_grid}) cells')
+            rospy.loginfo(f'Boundary Offset (MAP): {boundary_utm_offset}')
+            rospy.loginfo(f'Boundary Offset (GRID): {boundary_in_grid}')
+            
+            self.adaptiveROS = adaptiveROS(
+                size_x=width_in_grid,
+                size_y=height_in_grid,
+                startpoint=[startx_in_grid, starty_in_grid],
+                total_number=self.algorithm_total_samples,
+                boundary = []
+            )
+            self.adaptiveROS.update_boundary(boundary_in_grid)
+            self.gridROS = gridROS(
+                self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
+            )
+            
+            # self.gridROS.updateBoundary(boundary_utm_offset)
+            # Call ros service to pass all the grid points
+            lat = []
+            lon = []
+            for i in range(len(self.gridROS.grid_points)):
+                gps = self.conversion.map2gps(
+                    self.gridROS.grid_points[i][0], self.gridROS.grid_points[i][1]
+                )
+                lat.append(gps[0])
+                lon.append(gps[1])
+            rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
         
-        width_in_grid = self.conversion.width * self.conversion.cells_per_meter
-        height_in_grid = self.conversion.height * self.conversion.cells_per_meter
-        boundary_in_grid = [self.conversion.map2grid(p[0], p[1]) for p in boundary_utm_offset]
-        startx_in_grid, starty_in_grid = self.conversion.map2grid(startx, starty)
-        
-        
-        rospy.loginfo(f'Width: {self.conversion.width} m | {width_in_grid} cells')
-        rospy.loginfo(f'Height: {self.conversion.height} m | : {height_in_grid} cells')
-        rospy.loginfo(f'Start: ({startx}, {starty}) m | ({startx_in_grid}, {starty_in_grid}) cells')
-        rospy.loginfo(f'Boundary Offset (MAP): {boundary_utm_offset}')
-        rospy.loginfo(f'Boundary Offset (GRID): {boundary_in_grid}')
-        
-        self.adaptiveROS = adaptiveROS(
-            size_x=width_in_grid,
-            size_y=height_in_grid,
-            startpoint=[startx_in_grid, starty_in_grid],
-            total_number=self.algorithm_total_samples,
-            boundary = [],
-            kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
-        )
-        # TODO: Check width and height
-        self.adaptiveROS.update_boundary(boundary_in_grid)
-        self.gridROS = gridROS(
-            self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
-        )
+            self.adaptiveROS = adaptiveROS(
+                size_x=width_in_grid,
+                size_y=height_in_grid,
+                startpoint=[startx_in_grid, starty_in_grid],
+                total_number=self.algorithm_total_samples,
+                boundary = [],
+                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
+            )
+            # TODO: Check width and height
+            self.adaptiveROS.update_boundary(boundary_in_grid)
+            self.gridROS = gridROS(
+                self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
+            )
+        else:
+            # Mode #2: [Map] type, used for simulation without need to convert between gps and map
+            min_x, max_x = min(data.boundary_x), max(data.boundary_x)
+            min_y, max_y = min(data.boundary_y), max(data.boundary_y)
+            width = math.ceil(max_x - min_x)
+            height = math.ceil(max_y - min_y)
+            rospy.loginfo(f'Width: {width}')
+            rospy.loginfo(f'Height: {height}')
+
+            self.adaptiveROS = adaptiveROS(
+                size_x=width,
+                size_y=height,
+                startpoint=[0, 0],
+                total_number=self.algorithm_total_samples,
+                boundary=self.searchBoundary
+            )
+            self.gridROS = gridROS(
+                width, height, [0, 0], self.algorithm_total_samples
+            )
+            self.conversion.width = width
+            self.conversion.height = height
         
         rospy.loginfo(f'{Back.BLUE}lengths of x1 | x2 | x1x2: {len(self.adaptiveROS.x1)} | {len(self.adaptiveROS.x2)} | {self.adaptiveROS.x1x2.shape} {Style.RESET_ALL}')
         
@@ -563,9 +614,14 @@ class Manager(object):
         self.pxrf_mean_value = None
         
         self.nextScanLoc = self.adaptiveROS.predict(True)
-        self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
-        self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
-        
+        if self._sim_mode:
+            # No conversion needed for simulation
+            self.nav_goal_map = None
+            self.nav_goal_gps = self.nextScanLoc
+        else:
+            self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
+            self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
+
         rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (GPS|Map|Grid): {self.nav_goal_gps} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")
         self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
@@ -587,7 +643,6 @@ class Manager(object):
         
         # self.env_map = standardization(self.env_map)
         # self.surface_mu = standardization(self.surface_mu)
-
         visualizer_recreate_real(
             sampled=self.adaptiveROS.sampled,
             surface_mu=self.adaptiveROS.mu,

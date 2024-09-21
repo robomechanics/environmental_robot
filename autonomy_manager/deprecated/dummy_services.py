@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-from autonomy_manager.srv import DeployAutonomy,NavigateGPS, RunSensorPrep
+from autonomy_manager.srv import NavigateGPS, RunSensorPrep
 from std_srvs.srv import SetBool
 class dummy_search(object):
     def __init__(self,boundary):

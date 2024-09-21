@@ -8,7 +8,7 @@ status_topic: '/autonomy_manager/status'
 sensor_prep_status_topic: '/sensor_prep_status'
 joy_topic: '/joy'
 sensor_prep_service_name: '/run_sensor_prep'
-set_search_boundary_name: '/autonomy_manager/deploy_autonomy'
+set_search_boundary_name: '/autonomy_manager/set_search_boundary'
 clear_service_name: 'clear'
 waypoints_service_name: 'waypoints'
 grid_points_service_name: 'grid_points'
@@ -24,6 +24,7 @@ start_utm_lon_param: 'start_utm_lon'
 algorithm_type_param_name: algorithm_type
 algorithm_type: algo_none
 algorithm_total_samples: 16
+sim_mode: false
 
 odometry_topic: 'odometry'
 cancel_goal_topic: 'cancel_goal'
@@ -87,6 +88,17 @@ data_dir: "~/data/pxrf_results"
 pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/chemistry.csv'
 rotate_scan_log_file_service_name: rotate_scan_log_file
 autonomy_params_service_name: 'autonomy_params'
+
+#Fake PXRF
+fake_start_scan_service_name: 'fake_scan_start'
+fake_scan_completed_topic: 'fake_scan_completed'
+fake_pxrf_cmd_topic: 'fake_pxrf_cmd'
+fake_pxrf_data_topic: 'fake_pxrf_data'
+fake_element_of_interest: 'Cl'
+fake_data_dir: "~/data/fake_pxrf_results"
+fake_pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/fake_pxrf/fake_chemistry.csv' # needs to be used in GUI, currently unintegrated
+fake_pxrf_img_topic: '/fake_pxrf/img'
+fake_pxrf_img_create_service_name: '/fake_pxrf/img/create'
 
 # Adaptive Algorithm
 cells_per_meter: 4 
