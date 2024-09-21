@@ -396,6 +396,13 @@ class Manager(object):
             self.gridROS = gridROS(
                 self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
             )
+
+            self.init_pos_gps = (self.lat, self.lon)
+            self.init_pos_map = self.conversion.gps2map(self.init_pos_gps[0], self.init_pos_gps[1])
+            self.init_pos_grid = self.conversion.map2grid(self.init_pos_map[0], self.init_pos_map[1])
+            
+            rospy.loginfo(f'{Back.YELLOW}{Fore.BLACK} | Inital Robot Location (GPS|Map|Grid): {self.init_pos_gps} | {self.init_pos_map} | {self.init_pos_grid} {Style.RESET_ALL}')
+            
         else:
             # Mode #2: [Map] type, used for simulation without need to convert between gps and map
             min_x, max_x = min(data.boundary_x), max(data.boundary_x)
@@ -417,6 +424,8 @@ class Manager(object):
             )
             self.conversion.width = width
             self.conversion.height = height
+            width_in_grid = width
+            height_in_grid = height
         
         rospy.loginfo(f'{Back.BLUE}lengths of x1 | x2 | x1x2: {len(self.adaptiveROS.x1)} | {len(self.adaptiveROS.x2)} | {self.adaptiveROS.x1x2.shape} {Style.RESET_ALL}')
         
@@ -434,8 +443,8 @@ class Manager(object):
         #     lon.append(gps[1])
         # rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
         if FAKE_ARM not in self.fake_hardware_flags: 
-            self.send_autonomy_params(data.boundary_lat, 
-                                    data.boundary_lon,
+            self.send_autonomy_params(data.boundary_x, 
+                                    data.boundary_y,
                                     width_in_grid, 
                                     height_in_grid)
 
@@ -453,11 +462,6 @@ class Manager(object):
         # rospy.loginfo(boundary_utm_offset)
         self.update_status(RECEIVED_SEARCH_AREA)
 
-        self.init_pos_gps = (self.lat, self.lon)
-        self.init_pos_map = self.conversion.gps2map(self.init_pos_gps[0], self.init_pos_gps[1])
-        self.init_pos_grid = self.conversion.map2grid(self.init_pos_map[0], self.init_pos_map[1])
-        
-        rospy.loginfo(f'{Back.YELLOW}{Fore.BLACK} | Inital Robot Location (GPS|Map|Grid): {self.init_pos_gps} | {self.init_pos_map} | {self.init_pos_grid} {Style.RESET_ALL}')
         
         return True
 

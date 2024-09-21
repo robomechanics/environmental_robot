@@ -899,6 +899,9 @@ def load_config():
 
     with open(config_file_path, 'r') as file:
         gui_config = yaml.safe_load(file) 
+
+    gui_config['boundary_type'] = 1 if rospy.get_param('sim_mode') else 0 # Use map 1 (map) if in sim_mode else 0 (gps)
+
     
     return gui_config
 
