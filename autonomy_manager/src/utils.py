@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import math
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
+from scipy.ndimage import rotate
 
 import matplotlib.pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -63,8 +64,18 @@ def display(env_map,
             figsize = (3,3)):
     
     fig, (ax) = plt.subplots(1, 1, figsize=figsize)
-        
-    plot = ax.imshow(env_map, cmap="YlGn", interpolation='nearest')
+    
+    
+    
+    ax.set_xlim(0, env_map.shape[1])
+    ax.set_ylim(0, env_map.shape[0])
+    
+    env_map_display = np.copy(env_map)
+    # env_map_display = rotate(env_map, 90)
+    # env_map_display = np.fliplr(env_map_display)
+    # env_map_display = np.flipud(env_map_display)
+    
+    plot = ax.imshow(env_map_display, cmap="YlGn", interpolation='nearest')
     cax = inset_axes(
         ax,
         width="5%",
@@ -75,18 +86,19 @@ def display(env_map,
         borderpad=0,
     )
     cbar = fig.colorbar(plot, cax=cax)
-    ax.invert_yaxis()
+    # ax.invert_yaxis()
     if title:
         ax.set_title(title)
+    
         
     ax.plot(x_bound, y_bound, linewidth=2, color=(0, 0, 0.6))
     if sampled:
         sampled = np.asarray(sampled, np.dtype("int", "int"))
-        ax.plot(sampled[:, 1], sampled[:, 0], ".", color=marker_color, markersize=14)
+        ax.plot(sampled[:, 0], sampled[:, 1], ".", color=marker_color, markersize=14)
         
         # Annotations
         for i in range(sampled.shape[0]):
-            ax.annotate(str(i), (sampled[i][1], sampled[i][0]), textcoords="offset points", xytext=(0,-4), ha='center', fontsize=7, color=annotation_color)
+            ax.annotate(str(i), (sampled[i][0], sampled[i][1]), textcoords="offset points", xytext=(0,-4), ha='center', fontsize=7, color=annotation_color)
  
     plt.show()
 
@@ -253,7 +265,7 @@ def visualizer_recreate(
     )
     cbar3 = fig.colorbar(A_plot3, cax=cax3)
     grid_sampled = np.asarray(grid_sampled, np.dtype("int", "int"))
-    ax3.plot(grid_sampled[:, 1], grid_sampled[:, 0], ".", color=marker_color, markersize=10)
+    ax3.plot(grid_sampled[:, 0], grid_sampled[:, 0], ".", color=marker_color, markersize=10)
     ax3.plot(adaptive.x_bound, adaptive.y_bound, linewidth=2, color=line_color)
     ax3.set_title("Grid - Reconstructed")
     ax3.set_xlim(0, predicted_mapsize[0])
@@ -262,6 +274,59 @@ def visualizer_recreate(
     # for i in range(grid_sampled.shape[0]):
     #     ax3.annotate(str(i), (grid_sampled[i][1], grid_sampled[i][0]), textcoords="offset points", xytext=(1,1), ha='center', fontsize=5)
 
+
+    fig.subplots_adjust(wspace=0.5)
+    # fig.tight_layout()
+    
+    if save_to_disk:
+        plt.savefig(filename, format='png', dpi=300)
+    else:
+        plt.show()
+
+
+
+def visualizer_recreate_real(
+    sampled,
+    surface_mu,
+    adaptive,
+    predicted_mapsize,
+    save_to_disk=False,
+    filename="plot.png"
+):
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    
+    
+    vmin = surface_mu.min()
+    vmax = surface_mu.max()
+    # print(f'Min: {vmin} | Max: {vmax}')
+
+    A_plot = ax.imshow(surface_mu, cmap="YlGn", vmin=vmin, vmax=vmax, interpolation="nearest")
+    # cbar2 = fig.colorbar(A_plot, ax=ax)
+    cax = inset_axes(
+        ax,
+        width="5%",
+        height="100%",
+        loc="lower left",
+        bbox_to_anchor=(1.05, 0.0, 1, 1),
+        bbox_transform=ax.transAxes,
+        borderpad=0,
+    )
+    cbar2 = fig.colorbar(A_plot, cax=cax)
+    # cbar2.set_ticks(np.linspace(vmin, vmax, 4))
+    ax.invert_yaxis()
+    
+    ax.set_title("Adaptive - Reconstructed")
+    ax.plot(adaptive.x_bound, adaptive.y_bound, linewidth=2, color=line_color)
+    sampled = np.asarray(sampled, np.dtype("int", "int"))
+    ax.plot(sampled[:, 0], sampled[:, 1], ".", color=marker_color, markersize=25)
+    # ax.set_xlim(0, predicted_mapsize[0])
+    # ax.set_ylim(0, predicted_mapsize[1])
+    
+    # Annotations
+    for i in range(sampled.shape[0]):
+        ax.annotate(str(i), (sampled[i][0], sampled[i][1]), 
+                    textcoords="offset points", xytext=(0,-5), 
+                    ha='center', fontsize=12, color=annotation_color)
 
     fig.subplots_adjust(wspace=0.5)
     # fig.tight_layout()

@@ -1,5 +1,11 @@
 <?xml version="1.0"?>
 <launch>
+  <rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
+
+   <!-- Static TF: base_link -> gq7_link -->
+  <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="tf_base_to_gq7_link" -->
+        <!-- args="-0.0162 -0.09528 0 0 0 0 1 base_link gq7_link" /> -->
+        
   <!-- Static TF: base_link -> gq7_link -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_odom"
         args="0 0 0 0 0 0 1 base_link utm_odom" />
@@ -7,8 +13,8 @@
   <rosparam param="arm/is_arm_in_home_pose">true</rosparam>
   <rosparam param="start_utm_x">0</rosparam>
   <rosparam param="start_utm_y">0</rosparam>
-  <rosparam param="start_utm_lat">0</rosparam>
-  <rosparam param="start_utm_lon">0</rosparam>
+  <rosparam param="start_utm_lat">40.442171585082114</rosparam>
+  <rosparam param="start_utm_lon">-79.94604942914305</rosparam>
 
   <!-- <node name="arm_control" pkg="autonomy_manager" type="dummy_node.py" output="screen" /> -->
   
@@ -20,6 +26,7 @@
 
   <node name="pxrf_start_scan_dummy" pkg="autonomy_manager" type="dummy_scan_node.py" output="screen" />
 
-  <node name="pxrf_handler" pkg="pxrf" type="pxrf_handler.py" output="screen" />
+  <node name="data_recorder" pkg="autonomy_manager" type="data_recorder.py" output="screen"/>
 
+  
 </launch>

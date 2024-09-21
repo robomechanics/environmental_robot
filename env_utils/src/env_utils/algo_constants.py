@@ -6,6 +6,10 @@ ALGO_NONE = 'algo_none'
 
 VALID_ALGOS = [ALGO_ADAPTIVE, ALGO_GRID, ALGO_WAYPOINT, ALGO_MANUAL]
 
+FAKE_ARM = "fake_arm"
+FAKE_PXRF = "fake_pxrf"
+FAKE_MOVE_BASE = "fake_move_base"
+FAKE_HARDWARE_FLAGS = [FAKE_ARM, FAKE_PXRF, FAKE_MOVE_BASE]
 
 INIT = "Initialization"
 RECEIVED_SEARCH_AREA = "Received search area"

@@ -75,7 +75,7 @@ vanta_ip: "192.168.7.2"
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
-rover_battery_percentage_topic: /rr_openrover_driver/battery_state_of_charge
+rover_battery_percentage_topic: /rover/battery_percentage
 
 # PXRF
 start_scan_service_name: 'scan_start'
@@ -104,6 +104,7 @@ fake_pxrf_img_create_service_name: '/fake_pxrf/img/create'
 cells_per_meter: 4 
 
 # Cosntant Velocity Publisher
+constant_velocity_commander_service_name: '/rover/move_at_constant_velocity'
 /constant_velocity/time: 2 # secs
 /constant_velocity/cmd_vel: {
                                 "linear": {"x": -0.2, "y": 0.0, "z": 0.0},

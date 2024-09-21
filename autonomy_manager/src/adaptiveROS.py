@@ -40,13 +40,17 @@ class adaptiveROS:
         self.startpoint_val = startpoint_val
         self.min_dist = min_dist
         self.max_dist = max_dist
+        self.orginal_max_dist = max_dist
         self.mode = mode
         self.total_number = total_number
         self.update_boundary(boundary)
         self.kernel = kernel  # covariance function
-        self.x1 = np.linspace(0, self.size_x - 1, self.size_x)
-        self.x2 = np.linspace(0, self.size_y - 1, self.size_y)
-        self.x1x2 = np.array([(a, b) for a in self.x1 for b in self.x2])
+        self.x1 = np.linspace(0, self.size_y - 1, self.size_y)
+        self.x2 = np.linspace(0, self.size_x - 1, self.size_x)
+        self.x1x2 = np.array([(b,a) for a in self.x1 for b in self.x2])
+        
+        
+        print(f'len(x1): {len(self.x1)}, len(x2): {len(self.x2)}, len(x1x2): {self.x1x2.shape}')
 
         self.norm_range = 0
         self.norm_min = 0
@@ -70,7 +74,7 @@ class adaptiveROS:
         self.mu = []
         self.std_var = []
         self.bin_entropy = []
-        self.gp = GaussianProcessRegressor(kernel=self.kernel, alpha=0, n_restarts_optimizer=50)
+        self.gp = GaussianProcessRegressor(kernel=self.kernel, alpha=0.25, n_restarts_optimizer=50)
         sampled_val_std = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
         self.gp.fit(self.sampled, sampled_val_std) #todo: Should we re-init self.gp?
         self.first_run = True
@@ -79,14 +83,11 @@ class adaptiveROS:
     def update(self, x, y, val):
         self.sampled.append([x, y])
         self.sampled_val.append(val)
+        
         self.min = np.min(self.sampled_val)
         self.max = np.max(self.sampled_val)
         self.norm_range = np.max(self.sampled_val) - np.min(self.sampled_val)
-        self.norm_min = np.min(self.sampled_val)
-        # print(f"Sampled_n mu: {np.mean(self.sampled_val)} std: {np.std(self.sampled_val)}")
-        sampled_val_n = list(
-            np.array(self.sampled_val - self.norm_min) / self.norm_range
-        )
+        
         self.path_len += 1
         self.beta = self.path_len / self.total_number * self.delta
         
@@ -98,11 +99,11 @@ class adaptiveROS:
     def predict(self, display_plots=False):
         self.mu, self.std_var = self.gp.predict(self.x1x2, return_std=True)
         
-        self.mu = np.reshape(self.mu, (self.size_x, self.size_y))
-        self.std_var = np.reshape(self.std_var, (self.size_x, self.size_y))
+        self.mu = np.reshape(self.mu, (self.size_y, self.size_x))
+        self.std_var = np.reshape(self.std_var, (self.size_y, self.size_x))
         
         self.mu = self.scaler.inverse_transform(self.mu)
-
+        
         # self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
         if self.first_run:
             self.first_run = False
@@ -113,33 +114,36 @@ class adaptiveROS:
         if display_plots:
             # print(f"Bin Entropy for {self.path_len} with max(mu) = {np.max(self.mu)} max(sigma) = {np.max(self.std_var)} sqrt(self.beta) = {sqrt(self.beta)}")
             display(self.mu, self.x_bound, self.y_bound, 'mu', self.sampled)
-            display(normalization(self.mu), self.x_bound, self.y_bound, 'mu', self.sampled)
+            display(self.mu, self.x_bound, self.y_bound, 'mu_without_samples', [])
+            # display(normalization(self.mu), self.x_bound, self.y_bound, 'mu', self.sampled)
             display(self.std_var, self.x_bound, self.y_bound,'sigma', self.sampled)
-            display(self.bin_entropy, self.x_bound, self.y_bound, 'bin_entropy', self.sampled)
+            # display(self.bin_entropy, self.x_bound, self.y_bound, 'bin_entropy', self.sampled)
         
-        
+        # Params
+        self.max_dist = max(2+self.min_dist, 2*(self.path_len / self.total_number) * self.orginal_max_dist)
+        dist_coefficient = 0.05
         
         bin_entropy_constraint = copy.deepcopy(self.bin_entropy)
         
         curr_x = self.sampled[-1][0]
         curr_y = self.sampled[-1][1]
         dist = np.sqrt(
-            (np.arange(bin_entropy_constraint.shape[0])[:, np.newaxis] - curr_x) ** 2
-            + (np.arange(bin_entropy_constraint.shape[1]) - curr_y) ** 2
+            (np.arange(bin_entropy_constraint.shape[0])[:, np.newaxis] - curr_y) ** 2
+            + (np.arange(bin_entropy_constraint.shape[1]) - curr_x) ** 2
         )
         idx_min = np.where(dist < self.min_dist)
         idx_max = np.where(dist > self.max_dist)
         bin_entropy_constraint[idx_min] = -1
         bin_entropy_constraint[idx_max] = -1
         
-        if display_plots:
-            display(bin_entropy_constraint, self.x_bound, self.y_bound, "bin_entropy constraint", self.sampled)
+        # if display_plots:
+        #     display(bin_entropy_constraint, self.x_bound, self.y_bound, "bin_entropy constraint", self.sampled)
 
         # include boundary constraint
-        for i_row in range(len(bin_entropy_constraint)):
-            for j_col in range(len(bin_entropy_constraint[i_row])):
+        for i_row in range(bin_entropy_constraint.shape[0]):
+            for j_col in range(bin_entropy_constraint.shape[1]):
                 # Call the function on the current coordinate
-                result = boundary_check(self.boundary, [i_row, j_col])
+                result = boundary_check(self.boundary, [j_col, i_row])
                 # Set the value of the current coordinate to the result of the function
                 if not result:
                     bin_entropy_constraint[i_row][j_col] = -1
@@ -150,69 +154,52 @@ class adaptiveROS:
         
         # set the locations of sampled points to -1 in bin_entropy_constraint
         for i in range(len(self.sampled)):
-            locx = min(int(self.sampled[i][0]), self.size_x - 1) #todo:  is smaple point ever beyond limits?
-            locy = min(int(self.sampled[i][1]), self.size_y - 1)
+            locx = min(int(self.sampled[i][1]), self.size_x - 1) #todo:  is smaple point ever beyond limits?
+            locy = min(int(self.sampled[i][0]), self.size_y - 1)
             bin_entropy_constraint[locx][locy] = -1
         
         # if display_plots:
-        #     print("remove sampled locations")
-        #     display(bin_entropy_constraint)
-
+            # print("remove sampled locations")
+            # display(bin_entropy_constraint, self.x_bound, self.y_bound, "remove sampled locations", [[0,0]])
+            
         if self.mode == 1:  # taking distance into account
             c = 1
             
             ## TEST ##
-            total_dist_to_location = np.zeros((self.size_x, self.size_y))
-            for sample_location in self.sampled:
-                curr = [sample_location[0], sample_location[1]]
-                currDist = np.array([curr for i in range(self.x1x2.shape[0])])
-                dist_to_location = np.sqrt(
-                    (self.x1x2[:, 0] - currDist[:, 0]) ** 2
-                    + (self.x1x2[:, 1] - currDist[:, 1]) ** 2
-                )
-                dist_to_location += c
-                dist_to_location = dist_to_location.reshape((self.size_x, self.size_y))
-                dist_to_location = np.interp(
-                    dist_to_location,
-                    (dist_to_location.min(), dist_to_location.max()),
-                    (1, 3),
-                )
-                
+            total_dist_to_location = np.zeros((self.size_y, self.size_x))
+            x_indices, y_indices = np.indices((self.size_y, self.size_x))
+            
+            for i, sample_location in enumerate(self.sampled):
+                curr = [sample_location[1], sample_location[0]]
+    
+                # Calculate the distance from each cell to the point (a, b)
+                dist_to_location = np.sqrt((x_indices - curr[0])**2 + (y_indices - curr[1])**2)
+                            
                 total_dist_to_location+=dist_to_location
+                
+                # if display_plots:
+                #     display(1-normalization(np.copy(dist_to_location)), self.x_bound, self.y_bound, "dist_to_location: " + str(i), self.sampled)
             
             
-            curr = [curr_x, curr_y]
-            currDist = np.array([curr for i in range(self.x1x2.shape[0])])
-            dist_to_location = np.sqrt(
-                (self.x1x2[:, 0] - currDist[:, 0]) ** 2
-                + (self.x1x2[:, 1] - currDist[:, 1]) ** 2
-            )
+            total_dist_to_location = 1-normalization(total_dist_to_location)
+            self.total_dist_to_location = total_dist_to_location
             
-            dist_to_location += c
-            dist_to_location = dist_to_location.reshape((self.size_x, self.size_y))
-            dist_to_location = np.interp(
-                dist_to_location,
-                (dist_to_location.min(), dist_to_location.max()),
-                (1, 3),
-            )
-            dist_to_location = normalization(dist_to_location)
-            if display_plots:
-                display(dist_to_location, self.x_bound, self.y_bound, "dist_to_location", self.sampled)
-            
-            total_dist_to_location = dist_to_location
+            # total_dist_to_location = dist_to_location
             # total_dist_to_location = normalization(total_dist_to_location)
             
-            if display_plots:
-                display(total_dist_to_location, self.x_bound, self.y_bound, "total_dist_to_location", self.sampled)
+            # if display_plots:
+            #     display(total_dist_to_location, self.x_bound, self.y_bound, "total_dist_to_location", self.sampled)
             ## TEST ##
             
             
-            # coefficient = 0.005  # gamma
-            coefficient = 0.25  # gamma
-            # new_bin = bin_entropy_constraint / (dist_to_location * coefficient)
-            new_bin = bin_entropy_constraint - total_dist_to_location * coefficient
+            # dist_coefficient = 0.005  # gamma
+            # dist_coefficient = (self.path_len / self.total_number) * 0.01
             
-            
+            # new_bin = bin_entropy_constraint / (dist_to_location * dist_coefficient)
+            # new_bin = bin_entropy_constraint - total_dist_to_location * dist_coefficient
+            new_bin = bin_entropy_constraint
+            self.bin_entropy_constraint = bin_entropy_constraint
+            self.temp_new_bin = new_bin
             # r2 = np.unravel_index(new_bin.argmax(), bin_entropy_constraint.shape)
             # Random value from all max values
             all_max_indices = np.where(new_bin == np.amax(new_bin))
@@ -223,7 +210,7 @@ class adaptiveROS:
             r2 = (all_max_indices[0][max_index], all_max_indices[1][max_index])
             # check_distribution(new_bin)
             # print(r2)
-            next_x, next_y = r2[0], r2[1]
+            next_x, next_y = r2[1], r2[0]
             next = [next_x, next_y]
             
             if display_plots:
@@ -241,7 +228,7 @@ class adaptiveROS:
             # )
             
             
-            next_x, next_y = r1[0], r1[1]
+            next_x, next_y = r1[1], r1[0]
             next = [next_x, next_y]
         
 

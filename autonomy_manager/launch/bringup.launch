@@ -2,10 +2,11 @@
 <launch>
   <arg name="useArm" default="true"/>
   <arg name="usePXRF" default="true"/>
-  <arg name="useManager" default="true"/>
+  <arg name="useManager" default="false"/>
   <arg name="useArmCamera" default="false"/>
   <arg name="useRTK" default="false"/>
   <arg name="useMoveBase" default="true"/>
+  <arg name="useVelCommander" default="true"/>
 
   <!-- ROS Params, TF and Vel Pub -->
   <!-- <include file = "$(find autonomy_manager)/launch/basic.launch"/> -->
@@ -40,6 +41,11 @@
    <!-- Movebase -->
   <group if="$(arg useMoveBase)">
     <include file = "$(find robo_nav)/launch/move_base.launch"/>
+  </group>
+
+  <!-- Constant Velocity Commander (For Backing up) -->
+  <group if="$(arg useVelCommander)">
+    <node name="constant_velocity_commander" pkg="robo_nav" type="constant_velocity_commander.py" output="screen"/>
   </group>
 
 </launch>

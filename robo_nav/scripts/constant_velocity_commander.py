@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 from geometry_msgs.msg import Twist
 from std_srvs.srv import Empty, EmptyResponse
@@ -43,7 +43,9 @@ if __name__ == "__main__":
             },
         )
 
-        s = rospy.Service('publish_constant_cmd_vel', Empty, handle_publish_cmd_vel)
+        constant_velocity_commander_service_name = rospy.get_param("constant_velocity_commander_service_name")
+        
+        s = rospy.Service(constant_velocity_commander_service_name, Empty, handle_publish_cmd_vel)
         rospy.loginfo("Ready to publish cmd_vel...")
         rospy.spin()
     except rospy.ROSInterruptException:

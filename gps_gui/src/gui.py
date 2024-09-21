@@ -3,7 +3,7 @@ import rospy
 import sys
 import os
 import numpy as np
-
+import yaml
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
 from std_msgs.msg import String, Bool, Int32
@@ -25,15 +25,17 @@ from autonomy_manager.srv import NavigateGPS, SetSearchBoundary, Complete, Waypo
 from tf.transformations import euler_from_quaternion
 import tf
 import argparse
-from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from copy import deepcopy
 import qdarktheme
 from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
+from colorama import Fore, Back, Style
+from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from visualization_msgs.msg import Marker, MarkerArray
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
+from env_utils.ros_utils import get_ros_pkg_path
 
 qss = """
 QPushButton {
@@ -43,22 +45,23 @@ QPushButton {
 
 
 class GpsNavigationGui:
-    def __init__(self, lat, lon, zoom, width, height):
+    def __init__(self, lat, lon, zoom, width, height, gui_config):
         # Load ROS Params
         self.loadROSParams()
+        self.gui_config = gui_config
         
         # PXRF
-        self.scanData = CompletedScanData()
-        self.scanData.file_name = os.path.expanduser(self._pxrf_test_results_file) # test file if no sample was made yet
         self.pxrfManualSampleRunning = False
         self.numMeasurements = {
             ALGO_ADAPTIVE: 0,
             ALGO_GRID: 0,
             ALGO_WAYPOINT: 0,
             ALGO_MANUAL: 0,
+            ALGO_NONE: 0,
         }
         
-        self.pxrf = PXRF(self.scanCompletedCallback)
+        self.pxrf_data = None
+        self.pxrf = PXRF()
         
         # Set variables
         self.quaternion = tf.transformations.random_quaternion()
@@ -121,13 +124,38 @@ class GpsNavigationGui:
         self.lastRobotDrawTime = rospy.Time.now() - rospy.Duration(10)
         self.lastGPSUpdateTime = rospy.Time.now() - rospy.Duration(10)
         self.historyPoints: list[list[int]] = []
-        self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=2))
+        self.historyPlot = self.click_plot.plot(pen=pg.mkPen('g', width=3))
         self.setHistory()
         
         self.setupWidgets()
 
         self.setupROS()
         
+        self.loadGUIConfig()
+    
+    def loadGUIConfig(self):
+        if self.gui_config['load_boundary_points']:
+            print(f'{Fore.GREEN} Loading Boundary points {Style.RESET_ALL}')
+             
+            for p in self.gui_config['boundary_points']:
+                self.pathRoi.setPoints(p)
+            
+            self.pathPlotPoints = []
+            for gpsPoint in self.gui_config['boundary_points']:
+                lat = gpsPoint[0]
+                lon = gpsPoint[1]
+                point = list(self.satMap.coord2Pixel(lat, lon))
+                self.pathPlotPoints.append(point)
+            # print(f'Pixel Points: {self.pathPlotPoints}')
+            
+            for point in self.pathPlotPoints:
+                points = [[handle['pos'].x(),handle['pos'].y()] for handle in self.pathRoi.handles]
+                # rospy.loginfo(f'Added point: {point}')
+                points.append(point)
+                self.pathRoi.setPoints(points)
+            
+            self.sendBoundary(self.gui_config['boundary_points'])
+            
     # This function converts the current path from gps coordinates to pixels
     def gpsToPixels(self):
         self.pathPlotPoints = []
@@ -177,7 +205,7 @@ class GpsNavigationGui:
         self.locationSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.onGpsUpdate) # Use GPS moving avg llh position
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
         
-        # self.scanCompletedSub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.scanCompletedCallback)
+        self._scan_recorded_to_disk_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.scan_recorded_callback)
         self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
@@ -319,7 +347,7 @@ class GpsNavigationGui:
         self.gridBtn.clicked.connect(self.toggleGrid)
         
         self.managerComboBox = QtWidgets.QComboBox()
-        self.managerComboBox.addItems(['State Step', 'Sample Step', 'Continuous'])
+        self.managerComboBox.addItems(['Sample Step', 'State Step', 'Continuous'])
         self.managerComboBox.setStyleSheet("color: lightgreen")
         self.managerComboBox.currentTextChanged.connect(self.managerComboBoxChanged)
         
@@ -384,36 +412,38 @@ class GpsNavigationGui:
         battery_level = float(data.data)
         if battery_level:
             voltage = (0.08*battery_level) + 25.6
-            self.statusLIPOBattery.setText(f"LIPO: {battery_level} ({voltage:.1} V) %")
-        
+            self.statusLIPOBattery.setText(f"LIPO: {battery_level} % | {voltage:.1f} V)")
+    
     def showPXRFResults(self):
-        generate_plot(self.scanData.file_name)
+        if self.pxrf_data:
+            generate_plot(self.pxrf_data.file_name)
         
-    def scanCompletedCallback(self, data):
-        self.scanData = deepcopy(data)
+    def scan_recorded_callback(self, data: CompletedScanData):
+        self.pxrf_data = deepcopy(data)
         
         algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.numMeasurements[algorithm_type] += 1
         self.sampleBtn.setText('Sample')
-        self.statusDetailed.setText(f"{self.scanData.element}: {self.scanData.mean:.2}")
+        self.statusDetailed.setText(f"{self.pxrf_data.element}: {self.pxrf_data.mean:.2}")
         
         if self.pxrfManualSampleRunning:
             self.pxrfManualSampleRunning = False
             
-            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#M{self.numMeasurements[algorithm_type]}: {self.scanData.mean:.2}")
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#M{self.numMeasurements[algorithm_type]}: {self.pxrf_data.mean:.2}")
             
             # Rest algorithm type
             rospy.set_param(self._algorithm_type_param_name, self.algorithm_type_before_manual_sample)
             rospy.sleep(1.0)
             
             # Raise Arm
-            try:
-                lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-                lower_arm_service(False)
-            except rospy.ServiceException as e:
-                rospy.logerr("Service call failed: %s", e)
+            # rospy.loginfo("Raising Arm")
+            # try:
+            #     lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            #     lower_arm_service(False)
+            # except rospy.ServiceException as e:
+            #     rospy.logerr("Service call failed: %s", e)
         else:
-            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#{self.numMeasurements[algorithm_type]}: {self.scanData.mean:.2}")
+            self.addMarkerAt(self.prev_lat, self.prev_lon, f"#{self.numMeasurements[algorithm_type]}: {self.pxrf_data.mean:.2}")
     
         return True
     
@@ -528,7 +558,7 @@ class GpsNavigationGui:
         if self.editBoundaryMode:
             self.addBoundaryBtn.setText('Confirm')
             self.pathRoi.setPoints([])
-            #FIX: Below code might be unecessary
+            #FIX: Below codepathRoi might be unecessary
             for point in self.pathPlotPoints:
                 self.addROIPoint(point)
         else:
@@ -558,6 +588,8 @@ class GpsNavigationGui:
             self.pathPlotPoints = []
             self.rvizPoints = []
             self.sendBoundary(self.boundaryPath)
+            print('Set points')
+            
 
 
     def onRvizClickedPoint(self, msg):
@@ -771,7 +803,7 @@ class GpsNavigationGui:
         # No conversion needed if in sim mode
         coord2Pixel_func = lambda a, b: (a, b) if self._sim_mode else self.satMap.coord2Pixel
         if self.adaptive:
-            rospy.loginfo("adaptive mode")
+            # rospy.loginfo("| Adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
             self.pathPlotPoints.append(coord2Pixel_func(req.goal_lat, req.goal_lon))
             #self.pathPlot.setData(x = x_loc, y = y_loc)
@@ -780,11 +812,15 @@ class GpsNavigationGui:
             self.pathRoi.setPoints([])
             #self.pathPlotPoints = []
             point = coord2Pixel_func(req.goal_lat, req.goal_lon)
+            print(f'{Fore.RED} Next Goal (GPS|Pixels): {req.goal_lat, req.goal_lon} | {point} {Style.RESET_ALL}')
             self.updateGoalMarker(point)
         else:
-            rospy.loginfo("Next point")
+            # rospy.loginfo("| Next point")
             point = coord2Pixel_func(req.goal_lat, req.goal_lon)
+            print(f'{Fore.RED} Next Goal (GPS|Pixels): {req.goal_lat, req.goal_lon} | {point} {Style.RESET_ALL}')
             self.updateGoalMarker(point)
+        
+        rospy.loginfo("--------------------")
 
         return True
     
@@ -857,13 +893,24 @@ class GpsNavigationGui:
         except rospy.ServiceException as e:
             rospy.loginfo("Service call failed: %s", e)
 
+def load_config():
+    config_dir_path = os.path.join(get_ros_pkg_path('gps_gui'), 'config')
+    config_file_path = os.path.join(config_dir_path, 'gui_config.yaml')
+
+    with open(config_file_path, 'r') as file:
+        gui_config = yaml.safe_load(file) 
+    
+    return gui_config
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
     parser.add_argument("-o", "--option", type=int, default=3, 
-                        help='1: Change Map. 2: New Map. 3: Continue.')
+                        help='1: Change Map. 2: New Map. 3: Use Config File.')
 
     args = parser.parse_args()
-
+    gui_config = load_config()
+    
     rospy.init_node('gps_gui',anonymous=True)
     
     try:
@@ -873,8 +920,14 @@ if __name__ == '__main__':
        height = int(rospy.get_param('~height'))
        width = int(rospy.get_param('~width'))
     except:
-        # Sser can input the location manually
-        location_input = read_location(map_option=args.option)
+        # User can input the location manually
+        location_input = None
+        if args.option == 3: # Load from config file
+            location_input = read_location(map_option=3, 
+                                           location_index = gui_config['location_index'])
+        else:
+            location_input = read_location(map_option=args.option)
+        
         lat, lon = [float(n) for n in location_input[1:3]]
         zoom = int(location_input[3])
         width, height = [int(n) for n in location_input[4:6]]
@@ -886,7 +939,7 @@ if __name__ == '__main__':
     app.setStyleSheet(qdarktheme.load_stylesheet())
     qdarktheme.setup_theme(custom_colors={"primary": "#D0BCFF"}, additional_qss=qss)
     mw = QtWidgets.QMainWindow()
-    gps_node = GpsNavigationGui(lat, lon, zoom, width, height)
+    gps_node = GpsNavigationGui(lat, lon, zoom, width, height, gui_config)
     mw.setCentralWidget(gps_node.widget)
     mw.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
