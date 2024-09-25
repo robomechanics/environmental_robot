@@ -587,9 +587,7 @@ class GpsNavigationGui:
             self.pathRoi.setPoints([])
             self.pathPlotPoints = []
             self.rvizPoints = []
-            self.sendBoundary(self.boundaryPath)
-            print('Set points')
-            
+            self.sendBoundary(self.boundaryPath)            
 
 
     def onRvizClickedPoint(self, msg):

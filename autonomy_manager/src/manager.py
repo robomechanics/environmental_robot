@@ -415,12 +415,8 @@ class Manager(object):
 
             rover_x, rover_y, rover_z = FakeGPSPublisher.get_rover_pos()
 
-            print("ARGS:",
-                "size_x="+width,
-                "size_y="+height,
-                "startpoint="+str([rover_x, rover_y]),
-                "total_number="+self.algorithm_total_samples,
-                "boundary="+str(self.searchBoundary), sep=" | ")
+
+            print(f"ARGS: size_x={width}, size_y={height}, startpoint={[rover_x, rover_y]}, total_number={self.algorithm_total_samples}, boundary={self.searchBoundary}")
 
             self.adaptiveROS = adaptiveROS(
                 size_x=width,
@@ -618,6 +614,8 @@ class Manager(object):
 
     def run_adaptive_search_algo(self):
         self.update_status(RUNNING_SEARCH_ALGO)
+        print (f"self.pxrf_complete = {self.pxrf_complete}, self.pxrf_mean_value={self.pxrf_mean_value}, sim_mode={self._sim_mode}")
+        
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)
             r,c = self.conversion.map2grid(pos[0], pos[1])
@@ -627,7 +625,7 @@ class Manager(object):
         self.pxrf_complete = False
         self.pxrf_mean_value = None
         
-        self.nextScanLoc = self.adaptiveROS.predict(True)
+        self.nextScanLoc = self.adaptiveROS.predict()
         if self._sim_mode:
             # No conversion needed for simulation
             self.nav_goal_map = None
@@ -684,5 +682,5 @@ class Manager(object):
         
 
 if __name__ == "__main__":    
-    manager = Manager()
+    manager = Manager(fake_hardware_flags=[FAKE_ARM])
     manager.run()
