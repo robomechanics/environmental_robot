@@ -29,6 +29,7 @@ from colorama import Fore, Back, Style
 from utils import visualizer_recreate_real
 from sklearn.gaussian_process.kernels import RBF
 import math
+from roverrobotics_navigation.fake_gps_publisher import FakeGPSPublisher
 
 class Manager(object):
     def __init__(self, skip_checks = False, debug_flag = False, fake_hardware_flags=[]):
@@ -412,10 +413,19 @@ class Manager(object):
             rospy.loginfo(f'Width: {width}')
             rospy.loginfo(f'Height: {height}')
 
+            rover_x, rover_y, rover_z = FakeGPSPublisher.get_rover_pos()
+
+            print("ARGS:",
+                "size_x="+width,
+                "size_y="+height,
+                "startpoint="+str([rover_x, rover_y]),
+                "total_number="+self.algorithm_total_samples,
+                "boundary="+str(self.searchBoundary), sep=" | ")
+
             self.adaptiveROS = adaptiveROS(
                 size_x=width,
                 size_y=height,
-                startpoint=[0, 0],
+                startpoint=[rover_x, rover_y],
                 total_number=self.algorithm_total_samples,
                 boundary=self.searchBoundary
             )
