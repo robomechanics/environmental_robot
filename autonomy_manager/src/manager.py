@@ -682,5 +682,5 @@ class Manager(object):
         
 
 if __name__ == "__main__":    
-    manager = Manager(fake_hardware_flags=[FAKE_ARM])
+    manager = Manager()
     manager.run()
