@@ -330,8 +330,7 @@ class Manager(object):
         rospy.loginfo(f"Boundary type: {data.boundary_type} ({'gps' if is_gps_type else 'map'})")
         
         # data.boundary_x and data.boundary_y lists, put then in the format of [[lat1,lon1],[lat2,lon2],...]
-        for i in range(len(data.boundary_x)):
-            self.searchBoundary.append([data.boundary_x[i], data.boundary_y[i]])
+        self.searchBoundary = [[x, y] for x,y in zip(data.boundary_x, data.boundary_y)]
         
         if is_gps_type:
             # Mode #1: [GPS] Convert gps coordinates into map coords
@@ -414,22 +413,20 @@ class Manager(object):
             rospy.loginfo(f'Height: {height}')
 
             rover_x, rover_y, rover_z = FakeGPSPublisher.get_rover_pos()
+            startpoint = [rover_x, rover_y]
 
-
-            print(f"ARGS: size_x={width}, size_y={height}, startpoint={[rover_x, rover_y]}, total_number={self.algorithm_total_samples}, boundary={self.searchBoundary}")
+            rospy.loginfo(f"adaptiveROS args: size_x={width}, size_y={height}, startpoint={[rover_x, rover_y]}, total_number={self.algorithm_total_samples}, boundary={self.searchBoundary}")
 
             self.adaptiveROS = adaptiveROS(
                 size_x=width,
                 size_y=height,
-                startpoint=[rover_x, rover_y],
+                startpoint=startpoint,
                 total_number=self.algorithm_total_samples,
                 boundary=self.searchBoundary
             )
             self.gridROS = gridROS(
-                width, height, [0, 0], self.algorithm_total_samples
+                width, height, startpoint, self.algorithm_total_samples
             )
-            self.conversion.width = width
-            self.conversion.height = height
             width_in_grid = width
             height_in_grid = height
         
@@ -528,17 +525,25 @@ class Manager(object):
         
         if FAKE_MOVE_BASE not in self.fake_hardware_flags: 
             #TODO: Orientation for goal
-            self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
+            if self._sim_mode:
+                # No UTM conversion needed for simulation
+                pos_x = lat
+                pos_y = lon
+            else:
+                # Convert GPS to UTM
+                self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
+                
+                self.x_UTM_start = rospy.get_param(self._start_utm_x_param)
+                self.y_UTM_start = rospy.get_param(self._start_utm_y_param)
+
+                pos_x = self.goal_x_UTM - self.x_UTM_start
+                pos_y = self.goal_y_UTM - self.y_UTM_start
             
             goal = MoveBaseGoal()
             goal.target_pose.header.frame_id = self._tf_utm_odom_frame
             goal.target_pose.header.stamp = rospy.Time.now()
-            
-            self.x_UTM_start = rospy.get_param(self._start_utm_x_param)
-            self.y_UTM_start = rospy.get_param(self._start_utm_y_param)
-            
-            goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
-            goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
+            goal.target_pose.pose.position.x = pos_x
+            goal.target_pose.pose.position.y = pos_y
             goal.target_pose.pose.position.z = 0.0
             goal.target_pose.pose.orientation.x = 0
             goal.target_pose.pose.orientation.y = 0
@@ -549,6 +554,7 @@ class Manager(object):
             rospy.loginfo(" | Goal Sent to movebase...")
             wait = self.mb_client.wait_for_result()
             rospy.loginfo(" | Movebase Goal Reached, Backing up...")
+            self.update_status(ARRIVED_AT_SCAN_LOC)
             
             # Backup
             try:
@@ -564,10 +570,7 @@ class Manager(object):
                 rospy.signal_shutdown("Action server not available!")
                 self.update_status(ERROR)
             else:
-                return self.mb_client.get_result()
-            
-        self.update_status(ARRIVED_AT_SCAN_LOC)
-        
+                return self.mb_client.get_result()       
 
     def arm_return(self):
         self.update_status(ARM_RETURNING)
@@ -617,8 +620,11 @@ class Manager(object):
         print (f"self.pxrf_complete = {self.pxrf_complete}, self.pxrf_mean_value={self.pxrf_mean_value}, sim_mode={self._sim_mode}")
         
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
-            pos = self.conversion.gps2map(self.lat, self.lon)
-            r,c = self.conversion.map2grid(pos[0], pos[1])
+            if self._sim_mode:
+                r, c, _ = FakeGPSPublisher.get_rover_pos()
+            else:
+                pos = self.conversion.gps2map(self.lat, self.lon)
+                r,c = self.conversion.map2grid(pos[0], pos[1])
             rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {pos} | {(r,c)} {Style.RESET_ALL}")
             self.adaptiveROS.update(r, c, self.pxrf_mean_value)
         # reset
