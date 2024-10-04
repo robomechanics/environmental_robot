@@ -32,12 +32,13 @@ import math
 from roverrobotics_navigation.fake_gps_publisher import FakeGPSPublisher
 
 class Manager(object):
-    def __init__(self, skip_checks = False, debug_flag = False, fake_hardware_flags=[]):
+    def __init__(self, skip_checks = False, debug_flag = False, show_plot = False, fake_hardware_flags=[]):
         
         rospy.init_node("manager", anonymous=False)
         rospy.sleep(0.1)
         
         self.debug_flag = debug_flag
+        self.show_plot = show_plot
         
         self.load_ros_params()
 
@@ -407,28 +408,36 @@ class Manager(object):
             # Mode #2: [Map] type, used for simulation without need to convert between gps and map
             min_x, max_x = min(data.boundary_x), max(data.boundary_x)
             min_y, max_y = min(data.boundary_y), max(data.boundary_y)
-            width = math.ceil(max_x - min_x)
-            height = math.ceil(max_y - min_y)
-            rospy.loginfo(f'Width: {width}')
-            rospy.loginfo(f'Height: {height}')
+            self.conversion.width = math.ceil(max_x - min_x)
+            self.conversion.height = math.ceil(max_y - min_y)
+            self.conversion.origin_tf = [min_x, min_y]
 
+            boundary_offset = [[data.boundary_x[i] - self.conversion.origin_tf[0], 
+                                data.boundary_y[i] - self.conversion.origin_tf[1]] 
+                                for i in range(len(data.boundary_x))]
+        
+            width_in_grid = self.conversion.width * self.conversion.cells_per_meter
+            height_in_grid = self.conversion.height * self.conversion.cells_per_meter
+            boundary_in_grid = [self.conversion.map2grid(p[0], p[1]) for p in boundary_offset]
             rover_x, rover_y, rover_z = FakeGPSPublisher.get_rover_pos()
-            startpoint = [rover_x, rover_y]
+            startx, starty = self.conversion.tf2map(rover_x, rover_y)
+            startx_in_grid, starty_in_grid = self.conversion.map2grid(startx, starty)
 
-            rospy.loginfo(f"adaptiveROS args: size_x={width}, size_y={height}, startpoint={[rover_x, rover_y]}, total_number={self.algorithm_total_samples}, boundary={self.searchBoundary}")
+            rospy.loginfo(f'Width: {self.conversion.width}')
+            rospy.loginfo(f'Height: {self.conversion.height}')
+            rospy.loginfo(f"adaptiveROS args: size_x={self.conversion.width}, size_y={self.conversion.height}, startpoint={[rover_x, rover_y]}, total_number={self.algorithm_total_samples}, boundary={self.searchBoundary}")
 
             self.adaptiveROS = adaptiveROS(
-                size_x=width,
-                size_y=height,
-                startpoint=startpoint,
+                size_x=width_in_grid,
+                size_y=height_in_grid,
+                startpoint=[startx_in_grid, starty_in_grid],
                 total_number=self.algorithm_total_samples,
-                boundary=self.searchBoundary
+                boundary=[],
+                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
             )
-            self.gridROS = gridROS(
-                width, height, startpoint, self.algorithm_total_samples
-            )
-            width_in_grid = width
-            height_in_grid = height
+            self.adaptiveROS.update_boundary(boundary_in_grid)
+            self.gridROS = gridROS(self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples)
+            
         
         rospy.loginfo(f'{Back.BLUE}lengths of x1 | x2 | x1x2: {len(self.adaptiveROS.x1)} | {len(self.adaptiveROS.x2)} | {self.adaptiveROS.x1x2.shape} {Style.RESET_ALL}')
         
@@ -621,10 +630,10 @@ class Manager(object):
         
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             if self._sim_mode:
-                r, c, _ = FakeGPSPublisher.get_rover_pos()
+                pos = self.conversion.tf2map(self.lat, self.lon)
             else:
                 pos = self.conversion.gps2map(self.lat, self.lon)
-                r,c = self.conversion.map2grid(pos[0], pos[1])
+            r,c = self.conversion.map2grid(pos[0], pos[1])
             rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {pos} | {(r,c)} {Style.RESET_ALL}")
             self.adaptiveROS.update(r, c, self.pxrf_mean_value)
         # reset
@@ -632,12 +641,14 @@ class Manager(object):
         self.pxrf_mean_value = None
         
         self.nextScanLoc = self.adaptiveROS.predict()
+
+        if self.show_plot:
+            self.adaptiveROS.plot()
+
+        self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
         if self._sim_mode:
-            # No conversion needed for simulation
-            self.nav_goal_map = None
-            self.nav_goal_gps = self.nextScanLoc
+            self.nav_goal_gps = self.conversion.map2tf(self.nav_goal_map[0], self.nav_goal_map[1])
         else:
-            self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
             self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
 
         rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (GPS|Map|Grid): {self.nav_goal_gps} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")

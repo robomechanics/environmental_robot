@@ -24,6 +24,7 @@ class Conversion:
         self.height = 0
         self.width = 0
         self.origin_utm = (0,0)
+        self.origin_tf = (0,0)
         self.new_boundary = []
         self.inner_boundary_offset = []
         self.cells_per_meter = cells_per_meter
@@ -132,6 +133,12 @@ class Conversion:
         posx = self.origin_utm[0] + x
         posy = self.origin_utm[1] + y
         return self.get_gps(posx, posy)
+
+    def map2tf(self, x, y):
+        return x + self.origin_tf[0], y + self.origin_tf[1]
+    
+    def tf2map(self, x, y):
+        return x - self.origin_tf[0], y - self.origin_tf[1]
 
     # this function is not used. only for testing purpose
     def UNUSED_gps_to_meters(lat1, lon1, lat2, lon2):
