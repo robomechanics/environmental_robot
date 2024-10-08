@@ -2,12 +2,12 @@
 location_index: 12
 
 # load boundary_points
-load_boundary_points: 1
+load_boundary_points: 0
 
 # Boundary Type 
 #   0 - gps, lat/lon
 #   1 - map, x/y
-boundary_type: 0
+boundary_type: 1
 
 # boundary points in GPS coordinates
 # last point and first point should be same

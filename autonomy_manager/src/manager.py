@@ -489,7 +489,10 @@ class Manager(object):
     def navigate_to_scan_loc(self):
         self.update_status(NAVIGATION_TO_SCAN_LOC)
         # self.navigation(self.nextScanLoc[0],self.nextScanLoc[1])
-        self.publish_move_base_goal(self.nav_goal_gps[0], self.nav_goal_gps[1])
+        if self._sim_mode:
+            self.publish_move_base_goal(self.nav_goal_tf_map[0], self.nav_goal_tf_map[1])
+        else:
+            self.publish_move_base_goal(self.nav_goal_gps[0], self.nav_goal_gps[1])
 
     def run_sensor_prep(self):
         self.sensorPrep(True)
@@ -630,11 +633,14 @@ class Manager(object):
         
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             if self._sim_mode:
-                pos = self.conversion.tf2map(self.lat, self.lon)
+                rover_x, rover_y, rover_z = FakeGPSPublisher.get_rover_pos()
+                pos = self.conversion.tf2map(rover_x, rover_y)
+                r,c = self.conversion.map2grid(pos[0], pos[1])
+                rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (TF Map|Map|Grid): {(rover_x, rover_y)} | {pos} | {(r,c)} {Style.RESET_ALL}")
             else:
                 pos = self.conversion.gps2map(self.lat, self.lon)
-            r,c = self.conversion.map2grid(pos[0], pos[1])
-            rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {pos} | {(r,c)} {Style.RESET_ALL}")
+                r,c = self.conversion.map2grid(pos[0], pos[1])
+                rospy.loginfo(f"{Back.YELLOW}{Fore.BLACK} | Updating GPR with value={self.pxrf_mean_value} at (GPS|Map|Grid): {(self.lat, self.lon)} | {pos} | {(r,c)} {Style.RESET_ALL}")
             self.adaptiveROS.update(r, c, self.pxrf_mean_value)
         # reset
         self.pxrf_complete = False
@@ -647,12 +653,14 @@ class Manager(object):
 
         self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
         if self._sim_mode:
-            self.nav_goal_gps = self.conversion.map2tf(self.nav_goal_map[0], self.nav_goal_map[1])
+            self.nav_goal_tf_map = self.conversion.map2tf(self.nav_goal_map[0], self.nav_goal_map[1])
+            rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (TF Map|Map|Grid): {self.nav_goal_tf_map} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")
         else:
             self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
+            self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
+            rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (GPS|Map|Grid): {self.nav_goal_gps} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")
+            
 
-        rospy.loginfo(f"{Back.GREEN}{Fore.BLACK} | Sending Adaptive Algorithm Location (GPS|Map|Grid): {self.nav_goal_gps} | {self.nav_goal_map} | {self.nextScanLoc} {Style.RESET_ALL}")
-        self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
     def run_grid_algo(self):
@@ -699,5 +707,6 @@ class Manager(object):
         
 
 if __name__ == "__main__":    
-    manager = Manager()
+    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF])
+    manager.fake_pxrf_values = [i for i in range(100)]
     manager.run()
