@@ -10,7 +10,7 @@ from autonomy_manager.srv import (
 )
 from std_srvs.srv import Empty, EmptyResponse
 from pxrf.msg import CompletedScanData
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, Image
 from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
 from adaptiveROS import adaptiveROS
@@ -30,6 +30,7 @@ from utils import visualizer_recreate_real
 from sklearn.gaussian_process.kernels import RBF
 import math
 from roverrobotics_navigation.fake_gps_publisher import FakeGPSPublisher
+import tf2_ros
 
 class Manager(object):
     def __init__(self, skip_checks = False, debug_flag = False, show_plot = False, fake_hardware_flags=[]):
@@ -90,6 +91,10 @@ class Manager(object):
         self._run_loop_service = rospy.Service(
             self._run_loop_service_name, SetString, self.run_loop_callback
         )
+
+        self.tf_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        if self._sim_mode:
+            self.image_pub = rospy.Publisher(self._fake_pxrf_img_topic, Image, queue_size=10)
 
         if not skip_checks:
             # Wait until GPS Full Nav is achieved
@@ -288,7 +293,12 @@ class Manager(object):
         self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
         self._cells_per_meter = rospy.get_param("cells_per_meter")
         self._constant_velocity_commander_service_name = rospy.get_param("constant_velocity_commander_service_name")
+        
+        # Sim params
         self._sim_mode = rospy.get_param("sim_mode")
+        if self._sim_mode:
+            self._fake_pxrf_img_topic = rospy.get_param("fake_pxrf_img_topic")
+
 
     def scan(self):
         self.update_status(SCANNING)
@@ -650,6 +660,8 @@ class Manager(object):
 
         if self.show_plot:
             self.adaptiveROS.plot()
+        if self._sim_mode:
+            self.adaptiveROS.pub_plot_img(self.conversion.origin_tf, self.image_pub, self.tf_broadcaster)
 
         self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
         if self._sim_mode:
@@ -707,6 +719,6 @@ class Manager(object):
         
 
 if __name__ == "__main__":    
-    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF])
+    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF], show_plot = False)
     manager.fake_pxrf_values = [i for i in range(100)]
     manager.run()

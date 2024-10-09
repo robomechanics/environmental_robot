@@ -7,20 +7,14 @@
 import csv
 import rospy
 import rospkg
-from std_msgs.msg import String, Header
+from std_msgs.msg import String
 from pxrf.msg import CompletedScanData
 from pxrf.msg import CompletedScanData
-import math
 import sys
 import os
-import cv2
-import tf2_ros
-import numpy as np
 import datetime, random, copy
-from autonomy_manager.srv import Complete, CompleteResponse, SetSearchBoundary, SetSearchBoundaryResponse
-from sensor_msgs.msg import NavSatFix, Image
-from geometry_msgs.msg import TransformStamped
-from cv_bridge import CvBridge
+from autonomy_manager.srv import Complete, CompleteResponse
+from sensor_msgs.msg import NavSatFix
 
 # add pxrf's plot script to lookup path
 sys.path.insert(0,"/home/hebi/catkin_ws/src/environmental_robot/pxrf/scripts") #test to see if this is needed
@@ -40,19 +34,14 @@ class FakePXRFHandler:
                                                      queue_size=1)
         self.fake_scan_completed_pub = rospy.Publisher(self._fake_scan_completed_topic,
                                                        CompletedScanData, queue_size=1)
-        self.image_pub = rospy.Publisher(self._fake_pxrf_img_topic, Image, queue_size=10)
-        self.tf_broadcaster = tf2_ros.StaticTransformBroadcaster()
 
         # Services
         self._fake_start_scan_service = rospy.Service(self._fake_start_scan_service_name,
                                                       Complete, self.fake_scan_start_callback)
-        #above service is the one to call to generate fake pxrf data
-        rospy.Service(self._fake_pxrf_img_create_service_name, SetSearchBoundary, self.pub_pxrf_img)
 
         # Subscribers
         rospy.Subscriber(self._gps_topic, NavSatFix, self.gps_callback)
 
-        self.bridge = CvBridge()
         self.latitude = 0.0
         self.longitude = 0.0
         self.fileContainingFakeData = 'fake_chemistry.csv'
@@ -76,8 +65,6 @@ class FakePXRFHandler:
         self._fake_scan_completed_topic = rospy.get_param("fake_scan_completed_topic")
         self._fake_start_scan_service_name = rospy.get_param("fake_start_scan_service_name")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
-        self._fake_pxrf_img_topic = rospy.get_param("fake_pxrf_img_topic")
-        self._fake_pxrf_img_create_service_name = rospy.get_param("fake_pxrf_img_create_service_name")
 
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.fake_root_data_dir = os.path.expanduser(rospy.get_param("data_dir"))
@@ -192,67 +179,6 @@ class FakePXRFHandler:
     def gps_callback(self, data):
         self.latitude = data.latitude
         self.longitude = data.longitude
-
-    def pub_pxrf_img(self, data):
-        # Process the message data
-        boundary_x = data.boundary_x
-        boundary_y = data.boundary_y 
-        rospy.loginfo("pub_pxrf_img received: " + str(data))
-        # Calculate the width and center
-        min_x, max_x = min(boundary_x), max(boundary_x)
-        min_y, max_y = min(boundary_y), max(boundary_y)
-        width = math.ceil(max(max_x - min_x, max_y - min_y))
-        img_pos = [min_x + (width/2), min_y + (width/2)]
-
-        # Gaussian function
-        def gaussian(x, y, cx, cy, sigma):
-            return np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * sigma ** 2))
-
-        # Create a heatmap image
-        image = np.zeros((width, width), dtype=np.float32)
-
-        # Define Gaussian parameters for the heatmap
-        center1 = (width // 3, width // 3)
-        center2 = (2 * width // 3, 2 * width // 3)
-        sigma = max(width // 6, 1) # Must be non-zero to avoid division by zero error
-
-        # Fill the image with Gaussian distributions
-        for x in range(width):
-            for y in range(width):
-                image[x, y] = (gaussian(x, y, *center1, sigma) +
-                               gaussian(x, y, *center2, sigma))
-
-        # Normalize image to 0-255
-        image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
-        image = np.uint8(image)
-
-        # Apply a colormap to the image
-        color_image = cv2.applyColorMap(image, cv2.COLORMAP_JET)
-
-        # Convert to ROS Image message
-        ros_image = self.bridge.cv2_to_imgmsg(color_image, encoding="bgr8")
-        # Assign header with frame_id
-        ros_image.header = Header()
-        ros_image.header.stamp = rospy.Time.now()
-
-        # Publish image
-        self.image_pub.publish(ros_image)
-        rospy.loginfo("Published pxrf image.")
-
-        # Publish transform of image to center it in the map frame
-        static_transformStamped = TransformStamped()
-
-        static_transformStamped.header.stamp = rospy.Time.now()
-        static_transformStamped.header.frame_id = "map"
-        static_transformStamped.child_frame_id = "pxrf_map"
-
-        static_transformStamped.transform.translation.x = img_pos[0]
-        static_transformStamped.transform.translation.y = img_pos[1]
-        static_transformStamped.transform.rotation.w = 1.0
-
-        self.tf_broadcaster.sendTransform(static_transformStamped)
-
-        return SetSearchBoundaryResponse(success=True)
 
 
 if __name__ == '__main__':

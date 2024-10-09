@@ -17,6 +17,7 @@ from scipy.spatial.distance import *
 from utils import *
 import random
 from sklearn.preprocessing import StandardScaler
+from geometry_msgs.msg import TransformStamped
 
 class adaptiveROS:
     # init 50,50, [0,0], [[1,0],[30,5],[35,40],[2,40]], 5, 15
@@ -278,4 +279,28 @@ class adaptiveROS:
 
             self.update(next_loc[0], next_loc[1], random.random() + 0.1)
 
+
+    def pub_plot_img(self, tf_pos, image_pub, tf_broadcaster):
+        """
+        Generate and publish mu image to ROS topic
+        """
+        # Generate image
+        ros_image = mu_to_img_msg(self.mu)
+        # Publish image
+        image_pub.publish(ros_image)
+
+        # Publish transform of image to center it in the map frame
+        static_transformStamped = TransformStamped()
+
+        static_transformStamped.header.stamp = rospy.Time.now()
+        static_transformStamped.header.frame_id = "map"
+        static_transformStamped.child_frame_id = "pxrf_map"
+
+        static_transformStamped.transform.translation.x = tf_pos[0]
+        static_transformStamped.transform.translation.y = tf_pos[1]
+        static_transformStamped.transform.rotation.w = 1.0
+
+        tf_broadcaster.sendTransform(static_transformStamped)
+
+        rospy.loginfo("Published pxrf image.")
 

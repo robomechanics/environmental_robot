@@ -1,27 +1,16 @@
 from copy import copy
-
-from itertools import product
-from mpl_toolkits.mplot3d import Axes3D
-
 import numpy as np
 import scipy as sp
-import scipy.ndimage
 from scipy.interpolate import griddata
-
-from sklearn import preprocessing
-
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
-from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
-
 import matplotlib.pyplot as plt
 import matplotlib
-import matplotlib.colors as colors
 import matplotlib.animation as animation
-from matplotlib.animation import FuncAnimation
-
-
-import time
+import rospy
+from std_msgs.msg import Header
+import cv2
+import numpy as np
+import io
+from cv_bridge import CvBridge
 
 def recreateDistribution(robot_path, distribution_map):
 
@@ -291,3 +280,35 @@ def plotPathResult(robot_path, obstacle_map, distribution_map, sample_points='',
 	# Show the plot
 	if not record:
 		plt.show()
+
+
+def mu_to_img_msg(mu):
+	# Plot the mu
+	fig, ax = plt.subplots()  # Creates a single Axes
+	plotMap(mu, mu, ax)
+
+    # Remove axes, ticks, and labels
+	ax.axis('off')  # Turn off the axis
+	plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Adjust the layout to minimize whitespace
+	plt.margins(0, 0)  # Turn off margins
+
+	# Save the figure to an in-memory buffer
+	buf = io.BytesIO()
+	plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+	plt.close(fig)  # Close the figure to avoid displaying it
+	buf.seek(0)  # Rewind the buffer
+
+	# Read the image from the buffer with OpenCV
+	cv_image = cv2.imdecode(np.frombuffer(buf.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+
+	# Convert color from BGR to RGB (OpenCV uses BGR by default)
+	# cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+	# Convert to ROS Image message
+	cv_bridge = CvBridge()
+	ros_image = cv_bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+	# Assign header with frame_id
+	ros_image.header = Header()
+	ros_image.header.stamp = rospy.Time.now()
+
+	return ros_image
