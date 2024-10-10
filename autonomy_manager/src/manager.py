@@ -374,30 +374,6 @@ class Manager(object):
                 size_y=height_in_grid,
                 startpoint=[startx_in_grid, starty_in_grid],
                 total_number=self.algorithm_total_samples,
-                boundary = []
-            )
-            self.adaptiveROS.update_boundary(boundary_in_grid)
-            self.gridROS = gridROS(
-                self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples
-            )
-            
-            # self.gridROS.updateBoundary(boundary_utm_offset)
-            # Call ros service to pass all the grid points
-            lat = []
-            lon = []
-            for i in range(len(self.gridROS.grid_points)):
-                gps = self.conversion.map2gps(
-                    self.gridROS.grid_points[i][0], self.gridROS.grid_points[i][1]
-                )
-                lat.append(gps[0])
-                lon.append(gps[1])
-            rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
-        
-            self.adaptiveROS = adaptiveROS(
-                size_x=width_in_grid,
-                size_y=height_in_grid,
-                startpoint=[startx_in_grid, starty_in_grid],
-                total_number=self.algorithm_total_samples,
                 boundary = [],
                 kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
             )
@@ -444,8 +420,8 @@ class Manager(object):
         #     lon.append(gps[1])
         # rospy.loginfo(f"-----------------\n Grid Points of length = {len(lat)}:\n Lat: {lat}\n Lon: {lon}\n -----------------\n")
         if FAKE_ARM not in self.fake_hardware_flags: 
-            self.send_autonomy_params(data.boundary_lat, 
-                                    data.boundary_lon,
+            self.send_autonomy_params(data.boundary_x, 
+                                    data.boundary_y,
                                     width_in_grid, 
                                     height_in_grid)
 
@@ -468,6 +444,21 @@ class Manager(object):
         self.init_pos_grid = self.conversion.map2grid(self.init_pos_map[0], self.init_pos_map[1])
         
         rospy.loginfo(f'{Back.YELLOW}{Fore.BLACK} | Inital Robot Location (GPS|Map|Grid): {self.init_pos_gps} | {self.init_pos_map} | {self.init_pos_grid} {Style.RESET_ALL}')
+
+        
+        
+        self.take_first_sample = True
+        self.first_sample = True
+        if self.take_first_sample:
+            # Backup
+            try:
+                constant_vel_cmder_client = rospy.ServiceProxy(self._constant_velocity_commander_service_name, Empty)
+                res = constant_vel_cmder_client()
+            except rospy.ServiceException as e:
+                rospy.logerr(e)
+                rospy.logerr("Backup Service Failed!")
+        
+            self.update_status(ARRIVED_AT_SCAN_LOC)
         
         return True
 
@@ -595,7 +586,11 @@ class Manager(object):
             self.gridROS = None
             self.conversion = Conversion(cells_per_meter=self._cells_per_meter)
             self.searchBoundary = []
-            self.original_fake_pxrf_values = deepcopy(self.fake_pxrf_values)
+            if FAKE_PXRF in self.fake_hardware_flags:
+                if self.original_fake_pxrf_values:
+                    self.fake_pxrf_values = deepcopy(self.original_fake_pxrf_values)
+                else:
+                    raise('Need Fake PXRF Values!')
         return True
 
     # TODO:Might need to convert to GPS coordinates
@@ -613,7 +608,7 @@ class Manager(object):
 
     def run_adaptive_search_algo(self):
         if self.adaptiveROS is None:
-            rospy.logwarn("Boundary not loaded!")
+            raise("Boundary not loaded!")
         self.update_status(RUNNING_SEARCH_ALGO)
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)

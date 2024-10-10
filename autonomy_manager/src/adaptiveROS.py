@@ -27,7 +27,7 @@ class adaptiveROS:
         startpoint,
         total_number,
         boundary=[],
-        min_dist=10,
+        min_dist=3,
         max_dist=40,
         sim=True,
         mode=1,
@@ -66,24 +66,27 @@ class adaptiveROS:
         self.beta = self.path_len / self.total_number * self.delta
     
     def reset(self):
-        self.sampled = [self.startpoint]
-        self.sampled_val = [self.startpoint_val]
+        # self.sampled = [self.startpoint]
+        # self.sampled_val = [self.startpoint_val]
+        self.sampled = []
+        self.sampled_val = []
         self.scaler = StandardScaler()
         
         self.path_len = 0
         self.mu = []
         self.std_var = []
         self.bin_entropy = []
-        self.gp = GaussianProcessRegressor(kernel=self.kernel, alpha=0.25, n_restarts_optimizer=50)
-        sampled_val_std = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
-        self.gp.fit(self.sampled, sampled_val_std) #todo: Should we re-init self.gp?
+        self.gp = GaussianProcessRegressor(kernel=self.kernel, alpha=0.2, n_restarts_optimizer=50)
+        if len(self.sampled_val) > 0:
+            sampled_val_std = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
+            self.gp.fit(self.sampled, sampled_val_std) #todo: Should we re-init self.gp?
         self.first_run = True
          
 
     def update(self, x, y, val):
         self.sampled.append([x, y])
         self.sampled_val.append(val)
-        
+    
         self.min = np.min(self.sampled_val)
         self.max = np.max(self.sampled_val)
         self.norm_range = np.max(self.sampled_val) - np.min(self.sampled_val)
@@ -107,9 +110,9 @@ class adaptiveROS:
         # self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
         if self.first_run:
             self.first_run = False
-            self.bin_entropy = np.abs(self.mu) + 3*(self.path_len / self.total_number) * self.std_var
+            self.bin_entropy = self.mu + 3*(self.path_len / self.total_number) * self.std_var
         else:
-            self.bin_entropy = np.abs(normalization(self.mu)) + 3*(self.path_len / self.total_number) * self.std_var
+            self.bin_entropy = normalization(self.mu) + 3*(self.path_len / self.total_number) * self.std_var
         
         if display_plots:
             # print(f"Bin Entropy for {self.path_len} with max(mu) = {np.max(self.mu)} max(sigma) = {np.max(self.std_var)} sqrt(self.beta) = {sqrt(self.beta)}")
@@ -120,7 +123,7 @@ class adaptiveROS:
             # display(self.bin_entropy, self.x_bound, self.y_bound, 'bin_entropy', self.sampled)
         
         # Params
-        self.max_dist = max(2+self.min_dist, 2*(self.path_len / self.total_number) * self.orginal_max_dist)
+        self.max_dist = max(3+self.min_dist, 2*(self.path_len / self.total_number) * self.orginal_max_dist)
         dist_coefficient = 0.05
         
         bin_entropy_constraint = copy.deepcopy(self.bin_entropy)
@@ -187,9 +190,9 @@ class adaptiveROS:
             # total_dist_to_location = dist_to_location
             # total_dist_to_location = normalization(total_dist_to_location)
             
-            # if display_plots:
-            #     display(total_dist_to_location, self.x_bound, self.y_bound, "total_dist_to_location", self.sampled)
-            ## TEST ##
+            if display_plots:
+                display(total_dist_to_location, self.x_bound, self.y_bound, "total_dist_to_location", self.sampled)
+            # TEST ##
             
             
             # dist_coefficient = 0.005  # gamma
