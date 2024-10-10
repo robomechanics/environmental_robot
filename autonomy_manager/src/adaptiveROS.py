@@ -285,7 +285,8 @@ class adaptiveROS:
         Generate and publish mu image to ROS topic
         """
         # Generate image
-        ros_image = mu_to_img_msg(self.mu)
+        ros_image, shape = mu_to_img_msg(self.mu)
+        width, height = shape
         # Publish image
         image_pub.publish(ros_image)
 
@@ -296,8 +297,8 @@ class adaptiveROS:
         static_transformStamped.header.frame_id = "map"
         static_transformStamped.child_frame_id = "pxrf_map"
 
-        static_transformStamped.transform.translation.x = tf_pos[0]
-        static_transformStamped.transform.translation.y = tf_pos[1]
+        static_transformStamped.transform.translation.x = tf_pos[0] + (width / 2)
+        static_transformStamped.transform.translation.y = tf_pos[1] + (height / 2)
         static_transformStamped.transform.rotation.w = 1.0
 
         tf_broadcaster.sendTransform(static_transformStamped)

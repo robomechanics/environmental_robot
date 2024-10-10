@@ -301,6 +301,8 @@ def mu_to_img_msg(mu):
 	# Read the image from the buffer with OpenCV
 	cv_image = cv2.imdecode(np.frombuffer(buf.getvalue(), np.uint8), cv2.IMREAD_COLOR)
 
+	height, width = cv_image.shape[:2]
+
 	# Convert color from BGR to RGB (OpenCV uses BGR by default)
 	# cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
@@ -311,4 +313,4 @@ def mu_to_img_msg(mu):
 	ros_image.header = Header()
 	ros_image.header.stamp = rospy.Time.now()
 
-	return ros_image
+	return ros_image, (width, height)
