@@ -102,6 +102,14 @@ OLD IMU -> BACK_ANTENNA         (-0.1108, -0.0347, -0.0074)
 ## Requirements
 ### Python
 jupyter matplotlib pandas ipympl shapely scikit-learnm tqdm libpysal esda pyqtdarktheme jupyter-matplotlib colorama
+### ROS
+ros-noetic-rtcm_msgs
+ros-noetic-nmea_msgs
+ros-noetic-mavros
+ros-noetic-move-base 
+ros-noetic-move-base-msgs
+git clone https://github.com/xqms/rosfmt.git
+rosdep install --from-paths src --ignore-src -r -y
 
 # Manager 
 ## OLD State Machine

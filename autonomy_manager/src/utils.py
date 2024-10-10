@@ -288,7 +288,9 @@ def visualizer_recreate(
 def visualizer_recreate_real(
     sampled,
     surface_mu,
-    adaptive,
+    # adaptive,
+    x_bound,
+    y_bound,
     predicted_mapsize,
     save_to_disk=False,
     filename="plot.png"
@@ -316,7 +318,7 @@ def visualizer_recreate_real(
     ax.invert_yaxis()
     
     ax.set_title("Adaptive - Reconstructed")
-    ax.plot(adaptive.x_bound, adaptive.y_bound, linewidth=2, color=line_color)
+    ax.plot(x_bound, y_bound, linewidth=2, color=line_color)
     sampled = np.asarray(sampled, np.dtype("int", "int"))
     ax.plot(sampled[:, 0], sampled[:, 1], ".", color=marker_color, markersize=25)
     # ax.set_xlim(0, predicted_mapsize[0])

@@ -29,9 +29,14 @@ from colorama import Fore, Back, Style
 from utils import visualizer_recreate_real
 from sklearn.gaussian_process.kernels import RBF
 import math
+from copy import deepcopy
 
 class Manager(object):
-    def __init__(self, skip_checks = False, debug_flag = False, fake_hardware_flags=[]):
+    def __init__(self, 
+                 skip_checks = False, 
+                 debug_flag = False, 
+                 fake_hardware_flags=[],
+                 fake_pxrf_values=None):
         
         rospy.init_node("manager", anonymous=False)
         rospy.sleep(0.1)
@@ -39,6 +44,19 @@ class Manager(object):
         self.debug_flag = debug_flag
         
         self.load_ros_params()
+        
+        if FAKE_PXRF in fake_hardware_flags:
+            if fake_pxrf_values:
+                self.fake_pxrf_values = deepcopy(fake_pxrf_values)
+                self.original_fake_pxrf_values = deepcopy(self.fake_pxrf_values)
+            else:
+                raise('Need Fake PXRF Values!')
+        else:
+            self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, 
+                                                        CompletedScanData, 
+                                                        self.pxrf_scan_completed_callback)
+            self.pxrf = PXRF()
+            rospy.logwarn("Started PXRF")
 
         self.statusPub = rospy.Publisher(
             self._status_topic, ManagerStatus, queue_size=10, latch=True
@@ -142,13 +160,6 @@ class Manager(object):
                 rospy.loginfo(" | Waiting for move_base server")
                 self.mb_client.wait_for_server()
         
-        if FAKE_PXRF in self.fake_hardware_flags:
-            self.fake_pxrf_values = []
-        else:
-            self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.pxrf_scan_completed_callback)
-            self.pxrf = PXRF()
-            rospy.logwarn("Started PXRF")    
-    
     def _unused(self):
         rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
         self.isOverride = False
@@ -586,7 +597,7 @@ class Manager(object):
             self.gridROS = None
             self.conversion = Conversion(cells_per_meter=self._cells_per_meter)
             self.searchBoundary = []
-
+            self.original_fake_pxrf_values = deepcopy(self.fake_pxrf_values)
         return True
 
     # TODO:Might need to convert to GPS coordinates
@@ -603,6 +614,8 @@ class Manager(object):
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
 
     def run_adaptive_search_algo(self):
+        if self.adaptiveROS is None:
+            rospy.logwarn("Boundary not loaded!")
         self.update_status(RUNNING_SEARCH_ALGO)
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)
@@ -646,7 +659,8 @@ class Manager(object):
         visualizer_recreate_real(
             sampled=self.adaptiveROS.sampled,
             surface_mu=self.adaptiveROS.mu,
-            adaptive=self.adaptiveROS,
+            x_bound=self.adaptiveROS.x_bound,
+            y_bound=self.adaptiveROS.y_bound,
             predicted_mapsize=(self.adaptiveROS.size_x, self.adaptiveROS.size_y),
             save_to_disk=save_to_disk,
             filename=filename

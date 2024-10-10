@@ -43,7 +43,6 @@ QPushButton {
     font-weight: 400;  
 }"""
 
-
 class GpsNavigationGui:
     def __init__(self, lat, lon, zoom, width, height, gui_config):
         # Load ROS Params
@@ -133,10 +132,25 @@ class GpsNavigationGui:
         
         self.loadGUIConfig()
     
+    def send_boundary(self):
+        self.loadGUIConfig()
+    
     def loadGUIConfig(self):
+        # while (self.latitude is None and self.latitude is None):
+        #     rospy.sleep(0.5)
+        #     print(f" Robot Localized: {self.latitude}, {self.longitude}")
+        
+        self.reset()
+        
+        if self.gui_config['load_start_location']:
+            print(f'Robot Start Location: {self.gui_config['robot_start_location']}')
+            self.latitude = self.gui_config['robot_start_location'][0]
+            self.longitude = self.gui_config['robot_start_location'][1]
+        
         if self.gui_config['load_boundary_points']:
             print(f'{Fore.GREEN} Loading Boundary points {Style.RESET_ALL}')
              
+            self.pathRoi.setPoints([])
             for p in self.gui_config['boundary_points']:
                 self.pathRoi.setPoints(p)
             
@@ -155,7 +169,15 @@ class GpsNavigationGui:
                 self.pathRoi.setPoints(points)
             
             self.sendBoundary(self.gui_config['boundary_points'])
+        
+         # Create a publisher object
+        # pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=10)
+        
+        # Create a Timer object that will call the timer_callback function every second
+        # timer = rospy.Timer(rospy.Duration(1), timer_callback)
+        
             
+                
     # This function converts the current path from gps coordinates to pixels
     def gpsToPixels(self):
         self.pathPlotPoints = []
@@ -336,10 +358,17 @@ class GpsNavigationGui:
         self.resetBtn.setStyleSheet("color: yellow")
         self.resetBtn.clicked.connect(self.reset)
         
-        self.adaptive = False
-        self.adaptiveBtn = QtWidgets.QPushButton('Start Adaptive')
+        self.adaptive = True
+        if self.adaptive:
+            self.adaptiveBtn= QtWidgets.QPushButton('Stop Adaptive')
+        else:
+            self.adaptiveBtn = QtWidgets.QPushButton('Start Adaptive')
         self.adaptiveBtn.setStyleSheet("color: yellow")
         self.adaptiveBtn.clicked.connect(self.toggleAdaptive)
+        
+        self.sendBoundaryBtn = QtWidgets.QPushButton('Send Boundary')
+        self.sendBoundaryBtn.setStyleSheet("color: yellow")
+        self.sendBoundaryBtn.clicked.connect(self.send_boundary)
         
         self.grid = False
         self.gridBtn = QtWidgets.QPushButton('Start Grid')
@@ -398,6 +427,7 @@ class GpsNavigationGui:
         self.widget.addWidget(self.eStopBtn,           row=4, col=6, colspan=1)
         self.widget.addWidget(self.cancelMBGaolsBtn,   row=4, col=7, colspan=1)
         self.widget.addWidget(self.gridBtn,            row=4, col=8, colspan=2)
+        self.widget.addWidget(self.sendBoundaryBtn,            row=2, col=8, colspan=2)
 
     def cancelMoveBaseGoals(self, data):
         mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
@@ -516,7 +546,7 @@ class GpsNavigationGui:
         self.boundaryPlot.setData(x=[], y=[])
         self.pathPlot.setData(x=[], y=[])
         self.updateGoalMarker()
-        self.clearMap()
+        self.reset_manager()
     
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
@@ -836,7 +866,7 @@ class GpsNavigationGui:
                 self.waypointsPath.append(self.satMap.coord2Pixel(req.waypoints_lat[i], req.waypoints_lon[i]))
         return True
 
-    def clearMap(self):
+    def reset_manager(self):
         try:
             clear_service_client = rospy.ServiceProxy(self._clear_service_name, Complete)
             res = clear_service_client(True)
