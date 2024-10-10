@@ -1,5 +1,13 @@
 import rospkg
 import subprocess
+import rosnode
+import time
+
+def kill_ros_process(process_name):
+    if '/'+process_name in rosnode.get_node_names():
+        # print("Manager is running")
+        rosnode.kill_nodes([process_name])
+        time.sleep(1)
 
 def ping_ip(ip_address):
     try:

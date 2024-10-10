@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0.2)
 
 project(pxrf)
 
@@ -32,6 +32,10 @@ add_message_files(
     PxrfMsg.msg
     CompletedScanData.msg
 )
+
+# add_service_files(
+#   FILES
+# )
 
 generate_messages(
     DEPENDENCIES
