@@ -265,7 +265,6 @@ class Manager(object):
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
         
-        
         # Load service names into params
         self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
         self._set_search_boundary_name = rospy.get_param("set_search_boundary_name")
@@ -503,9 +502,8 @@ class Manager(object):
                 rospy.signal_shutdown("Action server not available!")
                 self.update_status(ERROR)
             else:
+                self.update_status(ARRIVED_AT_SCAN_LOC)
                 return self.mb_client.get_result()
-            
-        self.update_status(ARRIVED_AT_SCAN_LOC)
         
 
     def arm_return(self):
