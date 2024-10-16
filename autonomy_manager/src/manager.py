@@ -658,10 +658,10 @@ class Manager(object):
         
         self.nextScanLoc = self.adaptiveROS.predict()
 
+        if self._sim_mode:
+            self.adaptiveROS.pub_plot_img(self.conversion.origin_tf, self.image_pub, self.tf_broadcaster, self.conversion)
         if self.show_plot:
             self.adaptiveROS.plot()
-        if self._sim_mode:
-            self.adaptiveROS.pub_plot_img(self.conversion.origin_tf, self.image_pub, self.tf_broadcaster)
 
         self.nav_goal_map = self.conversion.grid2map(self.nextScanLoc[0], self.nextScanLoc[1])
         if self._sim_mode:
@@ -719,6 +719,6 @@ class Manager(object):
         
 
 if __name__ == "__main__":    
-    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF], show_plot = False)
+    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF], show_plot=True)
     manager.fake_pxrf_values = [i for i in range(100)]
     manager.run()

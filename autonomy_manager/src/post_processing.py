@@ -10,6 +10,7 @@ from std_msgs.msg import Header
 import cv2
 import numpy as np
 import io
+import math
 from cv_bridge import CvBridge
 
 def recreateDistribution(robot_path, distribution_map):
@@ -282,35 +283,37 @@ def plotPathResult(robot_path, obstacle_map, distribution_map, sample_points='',
 		plt.show()
 
 
-def mu_to_img_msg(mu):
-	# Plot the mu
-	fig, ax = plt.subplots()  # Creates a single Axes
-	plotMap(mu, mu, ax)
+def mu_to_img_msg(mu, conversion):
+	mu_shape = mu.shape
+	aspect_ratio = mu_shape[1] / mu_shape[0]
+	target_width = math.floor(conversion.width)
+	target_height = math.floor(target_width / aspect_ratio)
 
-    # Remove axes, ticks, and labels
-	ax.axis('off')  # Turn off the axis
-	plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Adjust the layout to minimize whitespace
-	plt.margins(0, 0)  # Turn off margins
+	# Create fig without any borders, just the plot itself
+	fig, ax = plt.subplots(frameon=False)
+	ax.set_axis_off()
+
+	# Plot the gradient
+	plotMap(mu, mu, ax)
 
 	# Save the figure to an in-memory buffer
 	buf = io.BytesIO()
-	plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+	# savefig without any borders
+	plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0, facecolor='none', transparent=True)
 	plt.close(fig)  # Close the figure to avoid displaying it
 	buf.seek(0)  # Rewind the buffer
 
 	# Read the image from the buffer with OpenCV
 	cv_image = cv2.imdecode(np.frombuffer(buf.getvalue(), np.uint8), cv2.IMREAD_COLOR)
 
-	height, width = cv_image.shape[:2]
-
-	# Convert color from BGR to RGB (OpenCV uses BGR by default)
-	# cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-
+	# Resize the image to the target size
+	cv_image = cv2.resize(cv_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
 	# Convert to ROS Image message
 	cv_bridge = CvBridge()
 	ros_image = cv_bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+
 	# Assign header with frame_id
 	ros_image.header = Header()
 	ros_image.header.stamp = rospy.Time.now()
 
-	return ros_image, (width, height)
+	return ros_image

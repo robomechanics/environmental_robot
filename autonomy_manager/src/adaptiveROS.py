@@ -18,6 +18,7 @@ from utils import *
 import random
 from sklearn.preprocessing import StandardScaler
 from geometry_msgs.msg import TransformStamped
+import tf.transformations as tft
 
 class adaptiveROS:
     # init 50,50, [0,0], [[1,0],[30,5],[35,40],[2,40]], 5, 15
@@ -280,13 +281,12 @@ class adaptiveROS:
             self.update(next_loc[0], next_loc[1], random.random() + 0.1)
 
 
-    def pub_plot_img(self, tf_pos, image_pub, tf_broadcaster):
+    def pub_plot_img(self, tf_pos, image_pub, tf_broadcaster, conversion):
         """
         Generate and publish mu image to ROS topic
         """
         # Generate image
-        ros_image, shape = mu_to_img_msg(self.mu)
-        width, height = shape
+        ros_image = mu_to_img_msg(self.mu, conversion)
         # Publish image
         image_pub.publish(ros_image)
 
@@ -297,9 +297,14 @@ class adaptiveROS:
         static_transformStamped.header.frame_id = "map"
         static_transformStamped.child_frame_id = "pxrf_map"
 
-        static_transformStamped.transform.translation.x = tf_pos[0] + (width / 2)
-        static_transformStamped.transform.translation.y = tf_pos[1] + (height / 2)
-        static_transformStamped.transform.rotation.w = 1.0
+        static_transformStamped.transform.translation.x = tf_pos[0] + (ros_image.width / 2)
+        static_transformStamped.transform.translation.y = tf_pos[1] + (ros_image.height / 2)
+
+        quaternion = tft.quaternion_from_euler(0, 0, 0)  # (roll, pitch, yaw)
+        static_transformStamped.transform.rotation.x = quaternion[0]
+        static_transformStamped.transform.rotation.y = quaternion[1]
+        static_transformStamped.transform.rotation.z = quaternion[2]
+        static_transformStamped.transform.rotation.w = quaternion[3]
 
         tf_broadcaster.sendTransform(static_transformStamped)
 

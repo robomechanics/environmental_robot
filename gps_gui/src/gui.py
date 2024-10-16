@@ -601,7 +601,6 @@ class GpsNavigationGui:
         """
         Rviz visualization:
             - Draw polygon connecting clicked points
-            - Draw square around polygon
             - Overlay image of gradient
         """
         points = np.array(points)
@@ -625,29 +624,6 @@ class GpsNavigationGui:
         # Publish
         marker.points = [Point(x, y, 0) for (x,y) in points]
         self.rvizMarkerPub.publish(marker)
-
-        # Draw the dimensions of square containing it
-        marker.header.stamp = rospy.Time.now()
-        marker.ns = "boundary_square"
-        marker.id = 1
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
-        marker.color.a = 0.5
-        min_x, max_x = min(points[:,0]), max(points[:,0])
-        min_y, max_y = min(points[:,1]), max(points[:,1])
-        width = max(max_x-min_x, max_y-min_y)
-        square_points = [[min_x, min_y], # bottom left
-                         [min_x+width, min_y], # bottom right
-                         [min_x+width, min_y+width], # top right
-                         [min_x, min_y+width]] # top left
-        # Append the first point to the end to close the boundary
-        square_points.append(square_points[0])
-
-        # Publish
-        marker.points = [Point(x, y, 0) for (x,y) in square_points]
-        self.rvizMarkerPub.publish(marker)
-
 
     # This function turns on/off editing mode
     def toggleEditPathMode(self):
