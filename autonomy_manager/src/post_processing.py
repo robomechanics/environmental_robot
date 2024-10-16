@@ -310,7 +310,8 @@ def mu_to_img_msg(mu, conversion):
 	cv_image = cv2.resize(cv_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
 	# Convert to ROS Image message
 	cv_bridge = CvBridge()
-	ros_image = cv_bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+
+	ros_image = cv_bridge.cv2_to_imgmsg(cv_image, encoding="bgr8") # cv2 uses BGR, ROS uses RGB
 
 	# Assign header with frame_id
 	ros_image.header = Header()

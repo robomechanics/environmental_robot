@@ -435,7 +435,7 @@ class Manager(object):
 
             rospy.loginfo(f'Width: {self.conversion.width}')
             rospy.loginfo(f'Height: {self.conversion.height}')
-            rospy.loginfo(f"adaptiveROS args: size_x={height_in_grid}, size_y={width_in_grid}, startpoint={[startx_in_grid, starty_in_grid]}, total_number={self.algorithm_total_samples}")
+            rospy.loginfo(f"adaptiveROS args: size_x={width_in_grid}, size_y={height_in_grid}, startpoint={[startx_in_grid, starty_in_grid]}, total_number={self.algorithm_total_samples}")
 
             self.adaptiveROS = adaptiveROS(
                 size_x=width_in_grid,
@@ -638,7 +638,6 @@ class Manager(object):
 
     def run_adaptive_search_algo(self):
         self.update_status(RUNNING_SEARCH_ALGO)
-        print (f"self.pxrf_complete = {self.pxrf_complete}, self.pxrf_mean_value={self.pxrf_mean_value}, sim_mode={self._sim_mode}")
         
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             if self._sim_mode:
