@@ -443,6 +443,7 @@ class Manager(object):
                 startpoint=[startx_in_grid, starty_in_grid],
                 total_number=self.algorithm_total_samples,
                 boundary=[],
+                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
             )
             self.adaptiveROS.update_boundary(boundary_in_grid)
             self.gridROS = gridROS(self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples)

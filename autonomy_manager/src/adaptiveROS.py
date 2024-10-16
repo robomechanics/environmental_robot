@@ -156,9 +156,9 @@ class adaptiveROS:
         
         # set the locations of sampled points to -1 in bin_entropy_constraint
         for i in range(len(self.sampled)):
-            locx = min(int(self.sampled[i][1]), self.size_x - 1) #todo:  is smaple point ever beyond limits?
-            locy = min(int(self.sampled[i][0]), self.size_y - 1)
-            bin_entropy_constraint[locx][locy] = -1
+            locx = min(int(self.sampled[i][0]), self.size_x - 1) #todo:  is smaple point ever beyond limits?
+            locy = min(int(self.sampled[i][1]), self.size_y - 1)
+            bin_entropy_constraint[locy][locx] = -1
         
         # if display_plots:
             # print("remove sampled locations")
@@ -299,6 +299,7 @@ class adaptiveROS:
 
         static_transformStamped.transform.translation.x = tf_pos[0] + (ros_image.width / 2)
         static_transformStamped.transform.translation.y = tf_pos[1] + (ros_image.height / 2)
+        static_transformStamped.transform.translation.z = -0.1
 
         quaternion = tft.quaternion_from_euler(0, 0, 0)  # (roll, pitch, yaw)
         static_transformStamped.transform.rotation.x = quaternion[0]

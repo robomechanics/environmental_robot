@@ -308,6 +308,8 @@ def mu_to_img_msg(mu, conversion):
 
 	# Resize the image to the target size
 	cv_image = cv2.resize(cv_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
+	# Flip image vertically
+	cv_image = cv2.flip(cv_image, 0)
 	# Convert to ROS Image message
 	cv_bridge = CvBridge()
 
