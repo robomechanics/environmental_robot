@@ -141,6 +141,7 @@ class GpsNavigationGui:
         #     print(f" Robot Localized: {self.latitude}, {self.longitude}")
         
         self.reset()
+        self.setHistory(clear = True)
         
         if self.gui_config['load_start_location']:
             print(f'Robot Start Location: {self.gui_config['robot_start_location']}')
@@ -553,8 +554,6 @@ class GpsNavigationGui:
         rospy.loginfo(f" Sending Boundary Points:\n {boundary} \n----------------")
         try:
             sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, SetSearchBoundary)
-            if len(boundary) > 0:
-                boundary.pop()
             lat = [float(lat[0]) for lat in boundary]
             lon = [float(lon[1]) for lon in boundary]
             boundary_type = 1 if self._sim_mode else 0 # Use map 1 (map) if in sim_mode else 0 (gps)
@@ -835,18 +834,21 @@ class GpsNavigationGui:
         if self.adaptive:
             # rospy.loginfo("| Adaptive mode")
             self.pathGPS.append([req.goal_lat, req.goal_lon])
-            self.pathPlotPoints.append(coord2Pixel_func(req.goal_lat, req.goal_lon))
+            print(f"Before: {self.pathPlotPoints}")
+            self.pathPlotPoints.append((req.goal_lat, req.goal_lon))
             #self.pathPlot.setData(x = x_loc, y = y_loc)
+            print(f"After: {self.pathPlotPoints}")
+
             x, y = zip(*self.pathPlotPoints)
             self.pathPlot.setData(x=list(x), y=list(y))
             self.pathRoi.setPoints([])
             #self.pathPlotPoints = []
-            point = coord2Pixel_func(req.goal_lat, req.goal_lon)
+            point = (req.goal_lat, req.goal_lon)
             print(f'{Fore.RED} Next Goal (GPS|Pixels): {req.goal_lat, req.goal_lon} | {point} {Style.RESET_ALL}')
             self.updateGoalMarker(point)
         else:
             # rospy.loginfo("| Next point")
-            point = coord2Pixel_func(req.goal_lat, req.goal_lon)
+            point = (req.goal_lat, req.goal_lon)
             print(f'{Fore.RED} Next Goal (GPS|Pixels): {req.goal_lat, req.goal_lon} | {point} {Style.RESET_ALL}')
             self.updateGoalMarker(point)
         

@@ -615,7 +615,7 @@ class Manager(object):
 
     def run_adaptive_search_algo(self):
         if self.adaptiveROS is None:
-            rospy.logwarn("Boundary not loaded!")
+            raise("Boundary not loaded!")
         self.update_status(RUNNING_SEARCH_ALGO)
         if self.pxrf_complete == True and self.pxrf_mean_value != None:
             pos = self.conversion.gps2map(self.lat, self.lon)
