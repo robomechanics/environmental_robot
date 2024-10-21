@@ -58,6 +58,7 @@ class adaptiveROS:
         # high-variance regions. Beta is dependent on how many samples have been collected already 
         # and delta. delta is a tuning parameter that needs to be scaled correctly based on the 
         # environment.
+        self.samples_ctr = 0
         self.delta = 3
         self.beta = self.delta * (self.samples_ctr / self.max_samples) 
         
@@ -111,9 +112,9 @@ class adaptiveROS:
         # self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
         if self.first_run_flag:
             self.first_run_flag = False
-            self.bin_entropy = self.mu + (self.beta * self.std_var)
+            self.bin_entropy = (3 + self.mu) + (self.beta * self.std_var)
         else:
-            self.bin_entropy = normalization(self.mu) + (self.beta * self.std_var)
+            self.bin_entropy = (3 + normalization(self.mu)) + (self.beta * self.std_var)
         
         if display_plots:
             # print(f"Bin Entropy for {self.samples_ctr} with max(mu) = {np.max(self.mu)} max(sigma) = {np.max(self.std_var)} sqrt(self.beta) = {sqrt(self.beta)}")
@@ -124,7 +125,8 @@ class adaptiveROS:
             # display(self.bin_entropy, self.x_bound, self.y_bound, 'bin_entropy', self.sampled)
         
         # Params
-        self.max_dist = max(3+self.min_dist, 2*(self.samples_ctr / self.max_samples) * self.orginal_max_dist)
+        # self.max_dist = max(3+self.min_dist, 2*(self.samples_ctr / self.max_samples) * self.orginal_max_dist)
+        self.max_dist = self.orginal_max_dist
         dist_coefficient = 0.05
         
         bin_entropy_constraint = copy.deepcopy(self.bin_entropy)
