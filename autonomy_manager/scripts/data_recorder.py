@@ -49,7 +49,7 @@ class DataRecorder(object):
         self._pxrf_cmd_topic = rospy.get_param("pxrf_cmd_topic")
         self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
         self._pxrf_data_topic = rospy.get_param("pxrf_data_topic")
-        self._gps_topic = rospy.get_param("gq7_ekf_llh_topic")
+        self._gps_topic = rospy.get_param("gps_recorded_topic")
         self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
@@ -71,6 +71,7 @@ class DataRecorder(object):
     def gps_callback(self, data:NavSatFix):
         self.gps_location[0] = data.latitude
         self.gps_location[1] = data.longitude
+        rospy.logwarn(f" | Received RECORDED Robot Pose before Backup: {self.gps_location}")
 
     def create_logging_files(self):
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
@@ -135,6 +136,8 @@ class DataRecorder(object):
             self.gps_odom_location,
             self.gps_odom_heading,
         ]
+        rospy.logwarn(f" | Storing RECORDED Robot Pose before Backup: {self.gps_location}")
+        
         
         # Get algorithm type before saving
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)

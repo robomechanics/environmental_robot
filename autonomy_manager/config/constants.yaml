@@ -37,6 +37,7 @@ calibrate_start_service_name: '/start'
 pxrf_client_topic_name: '/take_measurement'
 gps_moving_avg_topic: '/gps_moving_avg'
 gps_moving_avg_time: 1
+gps_recorded_topic: '/gps_recorded_before_backup'
 
 # Autonomy Teleop (autonomy_teleop.py)
 deploy_sensor_auto_service_name: '/deploy_sensor_auto'

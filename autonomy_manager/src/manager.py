@@ -42,6 +42,7 @@ class Manager(object):
         rospy.sleep(0.1)
         
         self.debug_flag = debug_flag
+        self.take_first_sample = True
         
         self.load_ros_params()
         
@@ -61,6 +62,10 @@ class Manager(object):
         self.statusPub = rospy.Publisher(
             self._status_topic, ManagerStatus, queue_size=10, latch=True
         )
+        self.gps_recorded_pub = rospy.Publisher(
+            self._gps_recorded_topic, NavSatFix, queue_size=1
+        )
+        self.gps_recorded_msg = NavSatFix()
         self.update_status(INIT)
         
         # Flags
@@ -265,6 +270,7 @@ class Manager(object):
         self._joy_topic = rospy.get_param("joy_topic")
         self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
         self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
+        self._gps_recorded_topic = rospy.get_param("gps_recorded_topic")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
@@ -444,23 +450,19 @@ class Manager(object):
         self.init_pos_grid = self.conversion.map2grid(self.init_pos_map[0], self.init_pos_map[1])
         
         rospy.loginfo(f'{Back.YELLOW}{Fore.BLACK} | Inital Robot Location (GPS|Map|Grid): {self.init_pos_gps} | {self.init_pos_map} | {self.init_pos_grid} {Style.RESET_ALL}')
-
         
-        
-        self.take_first_sample = True
-        self.first_sample = True
         if self.take_first_sample:
-            # Backup
-            try:
-                constant_vel_cmder_client = rospy.ServiceProxy(self._constant_velocity_commander_service_name, Empty)
-                res = constant_vel_cmder_client()
-            except rospy.ServiceException as e:
-                rospy.logerr(e)
-                rospy.logerr("Backup Service Failed!")
-        
+            self.backup_robot()
             self.update_status(ARRIVED_AT_SCAN_LOC)
         
         return True
+    
+    def record_robot_pos(self):
+        self.gps_recorded_msg.latitude = self.lat
+        self.gps_recorded_msg.longitude = self.lon
+        self.gps_recorded_msg.altitude = 0
+        rospy.logwarn(f" | RECORDED Robot Pose before Backup: {self.self.gps_recorded_msg.latitude}, {self.self.gps_recorded_msg.longitude}")
+        self.gps_recorded_pub.publish()
 
     def set_waypoints(self, data):
         self.waypoints = []
@@ -494,6 +496,15 @@ class Manager(object):
     def gps_callback(self, data: NavSatFix):
         self.lat = data.latitude
         self.lon = data.longitude
+    
+    def backup_robot(self):
+        self.record_robot_pos()
+        try:
+            constant_vel_cmder_client = rospy.ServiceProxy(self._constant_velocity_commander_service_name, Empty)
+            res = constant_vel_cmder_client()
+        except rospy.ServiceException as e:
+            rospy.logerr(e)
+            rospy.logerr("Backup Service Failed!")
 
     def send_location_to_GUI(self, x, y):
         # rospy.wait_for_service('next_goal')
@@ -542,12 +553,7 @@ class Manager(object):
             rospy.loginfo(" | Movebase Goal Reached, Backing up...")
             
             # Backup
-            try:
-                constant_vel_cmder_client = rospy.ServiceProxy(self._constant_velocity_commander_service_name, Empty)
-                res = constant_vel_cmder_client()
-            except rospy.ServiceException as e:
-                rospy.logerr(e)
-                rospy.logerr("Backup Service Failed!")
+            self.backup_robot()
         
             
             if not wait:
