@@ -157,6 +157,7 @@ class DataRecorder(object):
             completed_scan_data_msg.mean = concentration[i]
             completed_scan_data_msg.error = error[i]
             completed_scan_data_msg.file_name = self.data_file
+            rospy.logwarn(f'Cl= {concentration[i]} recorded!')
             self.scan_recorded_to_disk_pub.publish(completed_scan_data_msg)
         except:
             rospy.logwarn(f'{self.element_of_interest} is not in scan!')
