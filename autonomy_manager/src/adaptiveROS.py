@@ -25,7 +25,7 @@ class adaptiveROS:
         size_x,
         size_y,
         startpoint,
-        total_number,
+        max_samples,
         boundary=[],
         min_dist=3,
         max_dist=40,
@@ -42,28 +42,31 @@ class adaptiveROS:
         self.max_dist = max_dist
         self.orginal_max_dist = max_dist
         self.mode = mode
-        self.total_number = total_number
+        self.max_samples = max_samples
         self.update_boundary(boundary)
         self.kernel = kernel  # covariance function
         self.x1 = np.linspace(0, self.size_y - 1, self.size_y)
         self.x2 = np.linspace(0, self.size_x - 1, self.size_x)
         self.x1x2 = np.array([(b,a) for a in self.x1 for b in self.x2])
         
-        
-        print(f'len(x1): {len(self.x1)}, len(x2): {len(self.x2)}, len(x1x2): {self.x1x2.shape}')
+        print(f'Adaptive -> len(x1): {len(self.x1)}, len(x2): {len(self.x2)}, len(x1x2): {self.x1x2.shape}')
 
-        self.norm_range = 0
-        self.norm_min = 0
-        self.min = 0
-        self.max = 0
-
-        # initialize values
-        self.delta = 25
-        self.reset()        
-
+        ### PARAMETERS ###
         # scale beta from 0 to 30
-        # beta balances mu and var. when the number of samples is low, the algorithm prioritizes high mean regions. when the number of samples approaches the set number, it prioritizes high-variance regions. Beta is dependent on how many samples have been collected already and delta. delta is a tuning parameter that needs to be scaled correctly based on the environment.
-        self.beta = self.path_len / self.total_number * self.delta
+        # beta balances mu and var. when the number of samples is low, the algorithm prioritizes 
+        # high mean regions. when the number of samples approaches the set number, it prioritizes 
+        # high-variance regions. Beta is dependent on how many samples have been collected already 
+        # and delta. delta is a tuning parameter that needs to be scaled correctly based on the 
+        # environment.
+        self.delta = 3
+        self.beta = self.delta * (self.samples_ctr / self.max_samples) 
+        
+        self.alpha = 0.2
+        self.n_restarts_optimizer = 50
+        ### PARAMETERS ###
+        
+        # initialize values
+        self.reset()        
     
     def reset(self):
         # self.sampled = [self.startpoint]
@@ -72,50 +75,48 @@ class adaptiveROS:
         self.sampled_val = []
         self.scaler = StandardScaler()
         
-        self.path_len = 0
+        self.samples_ctr = 0
         self.mu = []
         self.std_var = []
         self.bin_entropy = []
-        self.gp = GaussianProcessRegressor(kernel=self.kernel, alpha=0.2, n_restarts_optimizer=50)
-        if len(self.sampled_val) > 0:
-            sampled_val_std = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
-            self.gp.fit(self.sampled, sampled_val_std) #todo: Should we re-init self.gp?
-        self.first_run = True
-         
+        self.gp = GaussianProcessRegressor(kernel=self.kernel, 
+                                           alpha=self.alpha, 
+                                           n_restarts_optimizer=self.n_restarts_optimizer)
+        
+        self.first_run_flag = True
 
     def update(self, x, y, val):
         self.sampled.append([x, y])
         self.sampled_val.append(val)
-    
-        self.min = np.min(self.sampled_val)
-        self.max = np.max(self.sampled_val)
-        self.norm_range = np.max(self.sampled_val) - np.min(self.sampled_val)
         
-        self.path_len += 1
-        self.beta = self.path_len / self.total_number * self.delta
+        self.samples_ctr += 1
+        self.beta = self.delta *(self.samples_ctr / self.max_samples)
         
-        sampled_val_std = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
+        # Standardize sampled values
+        sampled_val_standardized = self.scaler.fit_transform(np.array(self.sampled_val).reshape(-1, 1))
         
-        self.gp.fit(self.sampled, sampled_val_std) #todo: Should we re-init self.gp?
+        # Fit GP
+        self.gp.fit(self.sampled, sampled_val_standardized)
 
     # function returns the next location to sample
     def predict(self, display_plots=False):
+        # GP prediction
         self.mu, self.std_var = self.gp.predict(self.x1x2, return_std=True)
         
+        # Reshape mu and std_var, and rescale mu
         self.mu = np.reshape(self.mu, (self.size_y, self.size_x))
         self.std_var = np.reshape(self.std_var, (self.size_y, self.size_x))
-        
         self.mu = self.scaler.inverse_transform(self.mu)
         
         # self.bin_entropy = self.mu + sqrt(self.beta) * self.std_var
-        if self.first_run:
-            self.first_run = False
-            self.bin_entropy = self.mu + 3*(self.path_len / self.total_number) * self.std_var
+        if self.first_run_flag:
+            self.first_run_flag = False
+            self.bin_entropy = self.mu + (self.beta * self.std_var)
         else:
-            self.bin_entropy = normalization(self.mu) + 3*(self.path_len / self.total_number) * self.std_var
+            self.bin_entropy = normalization(self.mu) + (self.beta * self.std_var)
         
         if display_plots:
-            # print(f"Bin Entropy for {self.path_len} with max(mu) = {np.max(self.mu)} max(sigma) = {np.max(self.std_var)} sqrt(self.beta) = {sqrt(self.beta)}")
+            # print(f"Bin Entropy for {self.samples_ctr} with max(mu) = {np.max(self.mu)} max(sigma) = {np.max(self.std_var)} sqrt(self.beta) = {sqrt(self.beta)}")
             display(self.mu, self.x_bound, self.y_bound, 'mu', self.sampled)
             display(self.mu, self.x_bound, self.y_bound, 'mu_without_samples', [])
             # display(normalization(self.mu), self.x_bound, self.y_bound, 'mu', self.sampled)
@@ -123,7 +124,7 @@ class adaptiveROS:
             # display(self.bin_entropy, self.x_bound, self.y_bound, 'bin_entropy', self.sampled)
         
         # Params
-        self.max_dist = max(3+self.min_dist, 2*(self.path_len / self.total_number) * self.orginal_max_dist)
+        self.max_dist = max(3+self.min_dist, 2*(self.samples_ctr / self.max_samples) * self.orginal_max_dist)
         dist_coefficient = 0.05
         
         bin_entropy_constraint = copy.deepcopy(self.bin_entropy)
@@ -196,7 +197,7 @@ class adaptiveROS:
             
             
             # dist_coefficient = 0.005  # gamma
-            # dist_coefficient = (self.path_len / self.total_number) * 0.01
+            # dist_coefficient = (self.samples_ctr / self.max_samples) * 0.01
             
             # new_bin = bin_entropy_constraint / (dist_to_location * dist_coefficient)
             # new_bin = bin_entropy_constraint - total_dist_to_location * dist_coefficient
