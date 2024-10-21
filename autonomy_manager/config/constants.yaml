@@ -22,7 +22,8 @@ start_utm_y_param: 'start_utm_y'
 start_utm_lat_param: 'start_utm_lat'
 start_utm_lon_param: 'start_utm_lon'
 algorithm_type_param_name: algorithm_type
-algorithm_type: algo_none
+# algorithm_type: algo_none
+algorithm_type: adaptive
 algorithm_total_samples: 16
 sim_mode: false
 
@@ -103,11 +104,14 @@ fake_pxrf_img_create_service_name: '/fake_pxrf/img/create'
 # Adaptive Algorithm
 cells_per_meter: 4 
 
-# Cosntant Velocity Publisher
+# Contant Velocity Publisher
 constant_velocity_commander_service_name: '/rover/move_at_constant_velocity'
 /constant_velocity/time: 2 # secs
 /constant_velocity/cmd_vel: {
                                 "linear": {"x": -0.2, "y": 0.0, "z": 0.0},
                                 "angular": {"x": 0.0, "y": 0.0, "z": 0.0},
                             }
+
+# Sim
+sim_mode: 0
             
