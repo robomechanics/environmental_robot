@@ -379,7 +379,7 @@ class Manager(object):
                 size_x=width_in_grid,
                 size_y=height_in_grid,
                 startpoint=[startx_in_grid, starty_in_grid],
-                total_number=self.algorithm_total_samples,
+                max_samples=self.algorithm_total_samples,
                 boundary = [],
                 kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
             )
@@ -401,7 +401,7 @@ class Manager(object):
                 size_x=width,
                 size_y=height,
                 startpoint=[0, 0],
-                total_number=self.algorithm_total_samples,
+                max_samples=self.algorithm_total_samples,
                 boundary=self.searchBoundary
             )
             self.gridROS = gridROS(
@@ -461,7 +461,7 @@ class Manager(object):
         self.gps_recorded_msg.latitude = self.lat
         self.gps_recorded_msg.longitude = self.lon
         self.gps_recorded_msg.altitude = 0
-        rospy.logwarn(f" | RECORDED Robot Pose before Backup: {self.self.gps_recorded_msg.latitude}, {self.self.gps_recorded_msg.longitude}")
+        rospy.logwarn(f" | RECORDED Robot Pose before Backup: {self.gps_recorded_msg.latitude}, {self.gps_recorded_msg.longitude}")
         self.gps_recorded_pub.publish()
 
     def set_waypoints(self, data):
