@@ -19,6 +19,7 @@ import random
 from sklearn.preprocessing import StandardScaler
 from geometry_msgs.msg import TransformStamped
 import tf.transformations as tft
+from roverrobotics_navigation.fake_gps_publisher import FakeGPSPublisher
 
 class adaptiveROS:
     # init 50,50, [0,0], [[1,0],[30,5],[35,40],[2,40]], 5, 15
@@ -34,7 +35,8 @@ class adaptiveROS:
         sim=True,
         mode=1,
         kernel=RBF(2.0),
-        startpoint_val=0
+        startpoint_val=0,
+        conversion=None,
     ):
         self.size_x = size_x
         self.size_y = size_y
@@ -50,7 +52,7 @@ class adaptiveROS:
         self.x1 = np.linspace(0, self.size_y - 1, self.size_y)
         self.x2 = np.linspace(0, self.size_x - 1, self.size_x)
         self.x1x2 = np.array([(b,a) for a in self.x1 for b in self.x2])
-        
+        self.conversion = conversion
         
         print(f'len(x1): {len(self.x1)}, len(x2): {len(self.x2)}, len(x1x2): {self.x1x2.shape}')
 
@@ -141,13 +143,18 @@ class adaptiveROS:
         # if display_plots:
         #     display(bin_entropy_constraint, self.x_bound, self.y_bound, "bin_entropy constraint", self.sampled)
 
+        rover_x, rover_y, rover_z = FakeGPSPublisher.get_rover_pos()
         # include boundary constraint
         for i_row in range(bin_entropy_constraint.shape[0]):
             for j_col in range(bin_entropy_constraint.shape[1]):
                 # Call the function on the current coordinate
                 result = boundary_check(self.boundary, [j_col, i_row])
+                goal_in_map = self.conversion.grid2map(j_col, i_row)
+                goal_in_tf = self.conversion.map2tf(goal_in_map[0], goal_in_map[1])
+                reachable = reachability_check([rover_x, rover_y], goal_in_tf)
+                print(f"REACH: reachable={reachable} | start={[rover_x, rover_y]} | goal_in_tf={goal_in_tf} | goal_in_grid={[j_col, i_row]}")
                 # Set the value of the current coordinate to the result of the function
-                if not result:
+                if not result or not reachable:
                     bin_entropy_constraint[i_row][j_col] = -1
         
         if display_plots:
@@ -281,12 +288,12 @@ class adaptiveROS:
             self.update(next_loc[0], next_loc[1], random.random() + 0.1)
 
 
-    def pub_plot_img(self, tf_pos, image_pub, tf_broadcaster, conversion):
+    def pub_plot_img(self, tf_pos, image_pub, tf_broadcaster):
         """
         Generate and publish mu image to ROS topic
         """
         # Generate image
-        ros_image = mu_to_img_msg(self.mu, conversion)
+        ros_image = mu_to_img_msg(self.mu, self.conversion)
         # Publish image
         image_pub.publish(ros_image)
 

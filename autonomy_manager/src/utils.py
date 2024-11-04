@@ -27,6 +27,9 @@ import os
 from pathlib import Path
 import random
 from sklearn.preprocessing import StandardScaler
+import rospy
+from nav_msgs.srv import GetPlan
+from geometry_msgs.msg import PoseStamped
 
 
 def is_standardized(arr):
@@ -385,6 +388,33 @@ def boundary_check(polygon, point):
     polygon = Polygon(polygon)
     point = Point(tuple(point))
     return point.within(polygon)    
+
+def reachability_check(start_coords, goal_coords):
+    # Check if the goal is reachable from start to goal
+    make_plan_srv = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
+    start = PoseStamped()
+    start.header.frame_id = 'map'
+    start.pose.position.x = start_coords[0]
+    start.pose.position.y = start_coords[1]
+    start.pose.orientation.w = 1.0
+
+    goal = PoseStamped()
+    goal.header.frame_id = 'map'
+    goal.pose.position.x = goal_coords[0]
+    goal.pose.position.y = goal_coords[1]
+    goal.pose.orientation.w = 1.0
+
+    tolerance = 0.1
+
+    try:
+        resp = make_plan_srv(start, goal, tolerance)
+        if len(resp.plan.poses) == 0:
+            return False # Goal is not reachable
+        else:
+            return True # Goal is reachable
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call (/move_base/make_plan) failed: {e}")
+        return False
 
 
 # Ref: https://stackoverflow.com/questions/3173320/text-progress-bar-in-terminal-with-block-characters

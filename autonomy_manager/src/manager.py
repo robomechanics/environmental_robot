@@ -400,7 +400,8 @@ class Manager(object):
                 startpoint=[startx_in_grid, starty_in_grid],
                 total_number=self.algorithm_total_samples,
                 boundary = [],
-                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
+                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06)),
+                conversion=self.conversion
             )
             # TODO: Check width and height
             self.adaptiveROS.update_boundary(boundary_in_grid)
@@ -443,7 +444,8 @@ class Manager(object):
                 startpoint=[startx_in_grid, starty_in_grid],
                 total_number=self.algorithm_total_samples,
                 boundary=[],
-                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06))
+                kernel=RBF(length_scale=100, length_scale_bounds=(5, 1e06)),
+                conversion=self.conversion
             )
             self.adaptiveROS.update_boundary(boundary_in_grid)
             self.gridROS = gridROS(self.conversion.width, self.conversion.height, [0, 0], self.algorithm_total_samples)
@@ -658,7 +660,7 @@ class Manager(object):
         self.nextScanLoc = self.adaptiveROS.predict()
 
         if self._sim_mode:
-            self.adaptiveROS.pub_plot_img(self.conversion.origin_tf, self.image_pub, self.tf_broadcaster, self.conversion)
+            self.adaptiveROS.pub_plot_img(self.conversion.origin_tf, self.image_pub, self.tf_broadcaster)
         if self.show_plot:
             self.adaptiveROS.plot()
 
@@ -718,6 +720,6 @@ class Manager(object):
         
 
 if __name__ == "__main__":    
-    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF], show_plot=True)
+    manager = Manager(fake_hardware_flags=[FAKE_ARM, FAKE_PXRF], show_plot=False)
     manager.fake_pxrf_values = [i for i in range(100)]
     manager.run()
