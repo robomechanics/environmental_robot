@@ -144,7 +144,7 @@ class GpsNavigationGui:
         self.setHistory(clear = True)
         
         if self.gui_config['load_start_location']:
-            print(f'Robot Start Location: {self.gui_config['robot_start_location']}')
+            print(f"Robot Start Location: {self.gui_config['robot_start_location']}")
             self.latitude = self.gui_config['robot_start_location'][0]
             self.longitude = self.gui_config['robot_start_location'][1]
         
