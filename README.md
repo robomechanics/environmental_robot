@@ -53,6 +53,7 @@ rosdep install --from-paths src --ignore-src -r -y
 # Manager
 ## State Machine 
 > `autonomy_manager/src/manager.py`
+
 ```mermaid
 flowchart TD;
     INIT --> READY;
