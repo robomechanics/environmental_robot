@@ -11,7 +11,7 @@
 - [ ] Change antenna and IMU offsets in `robo_nav/launch/gq7_odom_hebi.launch`
 - [ ] Web GPS GUI (ROS topics/services names can be found in `autonomy_manager/config/constants.yaml`)
 - [ ] Tune movebase params under `robo_nav/config`
-- [ ] 
+
 # Installation
 Refer (setup.md)[setup.md]
 
