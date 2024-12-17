@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="useGPS" default="true"/>
+
+    <!-- load rosparams for services and topics -->
+    <rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
+
+    <!-- GPS Localization -->
+    <group if="$(arg useArm)">
+        <include file = "$(find robo_nav)/launch/gq7_odom.launch"/>
+
+        <!-- Start GPS Interface -->
+        <node name="gps_navigation_interface" pkg="robo_nav" type="gps_navigation_interface.py" output="screen" />
+    </group >
+</launch>
