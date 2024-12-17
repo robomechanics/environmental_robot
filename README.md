@@ -3,10 +3,15 @@
 | ----------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | Code Setup              | ✅                  | Current script installs all dependencies for codebase                                                                    |
 | ROS Services and Topics | :white_check_mark: | Made changes to arm touchdown, return and NIR sensing services on HEBI side                                              |
-| Localization            | :heavy_check_mark: | Dual antenna GPS fixes onto satellite. Pose has larger error (~1m; need to have more precise IMU-antenna distance params |
-| GUI                     | :heavy_check_mark: | PyQT GUI works. Working on Web GUI                                                                                       |
-| Navigation              | ❌                  | Need to tune movebase params                                                                                             |
+| Localization            | :heavy_check_mark: | Dual antenna GPS fixes onto satellite. Pose has larger error (~1m); need to have more precise IMU-antenna distance params |
+| GUI                     | :heavy_check_mark: | PyQT GUI works. Working on Web GUI; ROS topics/services names can be found in `autonomy_manager/config/constants.yaml`                                                                                       |
+| Navigation              | ❌                  | Need to tune movebase params under `robo_nav/config`                                                                                            |
 
+# Todo
+- [ ] Change antenna and IMU offsets in `robo_nav/launch/gq7_odom_hebi.launch`
+- [ ] Web GPS GUI (ROS topics/services names can be found in `autonomy_manager/config/constants.yaml`)
+- [ ] Tune movebase params under `robo_nav/config`
+- [ ] 
 # Installation
 Refer (setup.md)[setup.md]
 
@@ -43,9 +48,11 @@ ros-noetic-move-base
 ros-noetic-move-base-msgs
 git clone https://github.com/xqms/rosfmt.git
 rosdep install --from-paths src --ignore-src -r -y
+```
 
 # Manager
-## State Machine
+## State Machine 
+> `autonomy_manager/src/manager.py`
 ```mermaid
 flowchart TD;
     INIT --> READY;
@@ -59,11 +66,8 @@ flowchart TD;
     ARM_LOWERED --> SCANNING;
     SCANNING --> FINISHED_SCAN;
     FINISHED_SCAN --> ARM_RETURNING;
-    ARM_RETURNING --> ARM_RETURNED;
-    
+    ARM_RETURNING --> ARM_RETURNED;    
 ```
-## Code Logic
-- SetSearchBoundary is a list of (lat, lon) for gps or (x,y) for map and returns success if path was successfully followed
 
 
 # Programming Environment

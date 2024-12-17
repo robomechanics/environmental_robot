@@ -3,7 +3,7 @@ arm_ready_param_name: ready_arm
 pxrf_ready_param_name: ready_pxrf
 rover_ready_param_name: ready_rover
 
-# Autonomy Manager (autonomy_teleop.py)
+# Autonomy Manager
 status_topic: '/autonomy_manager/status'
 sensor_prep_status_topic: '/sensor_prep_status'
 joy_topic: '/joy'
@@ -12,8 +12,7 @@ set_search_boundary_name: '/autonomy_manager/set_search_boundary'
 clear_service_name: 'clear'
 waypoints_service_name: 'waypoints'
 grid_points_service_name: 'grid_points'
-next_goal_to_GUI_service_name: 'next_goal_to_GUI'
-lower_arm_service_name: 'lower_arm'
+lower_arm_service_name: 'lower_arm'                             # Used in GUI
 manager_run_loop_service_name: 'manager_run_loop'
 manager_run_type: 1 # 0 - continuous loop, 1 - run loop when called through service manager_run_loop_service_name
 manager_set_status_after_error_param_name: 'manager/set_status_after_error'
@@ -21,15 +20,15 @@ start_utm_x_param: 'start_utm_x'
 start_utm_y_param: 'start_utm_y'
 start_utm_lat_param: 'start_utm_lat'
 start_utm_lon_param: 'start_utm_lon'
-algorithm_type_param_name: algorithm_type
-algorithm_type: adaptive
-algorithm_total_samples: 16
+algorithm_type_param_name: algorithm_type                       
+algorithm_type: adaptive                                        # Used in GUI           
+algorithm_total_samples: 16                                     # Used in GUI
 sim_mode: false
 
 odometry_topic: 'odometry'
 cancel_goal_topic: 'cancel_goal'
 
-# GUI (gps_user_input.py)
+# GUI (gui.py)
 goal_pub_topic: '/gps_navigation/goal'
 gps_sub_topic: '/heading_true'
 parking_break_service_name: '/parking_brake'
@@ -38,8 +37,9 @@ pxrf_client_topic_name: '/take_measurement'
 gps_moving_avg_topic: '/gps_moving_avg'
 gps_moving_avg_time: 1
 gps_recorded_topic: '/gps_recorded_before_backup'
+next_goal_to_GUI_service_name: 'next_goal_to_GUI'
 
-# Autonomy Teleop (autonomy_teleop.py)
+# Autonomy Teleop
 deploy_sensor_auto_service_name: '/deploy_sensor_auto'
 deploy_tool_auto_service_name: '/deploy_tool_auto'
 deploy_tool_service_name: '/deploy_tool'
