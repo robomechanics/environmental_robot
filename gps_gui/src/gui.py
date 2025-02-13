@@ -877,8 +877,8 @@ class GpsNavigationGui:
 
     def togglePxrfCollection(self):
         try:
-            lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-            lower_arm_service(True)
+            # lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
+            # lower_arm_service(True)
             
             self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
             rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
