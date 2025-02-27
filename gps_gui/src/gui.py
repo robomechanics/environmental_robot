@@ -144,7 +144,7 @@ class GpsNavigationGui:
         self.setHistory(clear = True)
         
         if self.gui_config['load_start_location']:
-            print(f'Robot Start Location: {self.gui_config['robot_start_location']}')
+            print(f"Robot Start Location: {self.gui_config['robot_start_location']}")
             self.latitude = self.gui_config['robot_start_location'][0]
             self.longitude = self.gui_config['robot_start_location'][1]
         
@@ -937,10 +937,10 @@ def load_config():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
-    parser.add_argument("-o", "--option", type=int, default=3, 
-                        help='1: Change Map. 2: New Map. 3: Use Config File.')
+    # parser.add_argument("-o", "--option", type=int, default=3, 
+    #                     help='1: Change Map. 2: New Map. 3: Use Config File.')
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
     gui_config = load_config()
     
     rospy.init_node('gps_gui',anonymous=True)
