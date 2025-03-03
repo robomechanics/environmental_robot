@@ -6,7 +6,6 @@ import time
 from matplotlib import pyplot as plt
 
 from env_utils.algo_constants import *
-from env_utils.sim_utils import *
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.preprocessing import StandardScaler

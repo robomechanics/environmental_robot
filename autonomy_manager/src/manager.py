@@ -16,7 +16,6 @@ from std_srvs.srv import SetBool
 from adaptiveROS import adaptiveROS
 from gridROS import gridROS
 from boundaryConversion import Conversion
-from sensor_msgs.msg import Joy
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 from pyproj import Transformer
@@ -30,6 +29,7 @@ from utils import visualizer_recreate_real
 from sklearn.gaussian_process.kernels import RBF
 import math
 from copy import deepcopy
+
 
 class Manager(object):
     def __init__(self, 
@@ -164,28 +164,7 @@ class Manager(object):
             if skip_checks:
                 rospy.loginfo(" | Waiting for move_base server")
                 self.mb_client.wait_for_server()
-        
-    def _unused(self):
-        rospy.Subscriber(self._joy_topic, Joy, self.manual_behavior_skip)
-        self.isOverride = False
-        
-        def manual_behavior_skip(self, data):
-            self.isOverride = data.buttons[5] == 1
-            if data.buttons[1] > 0 and (
-                not hasattr(self, "last_skip_button_status")
-                or not self.last_skip_button_status
-            ):
-                if self.status == RAKING:
-                    self.sensorPrep(False)
-                    self.update_status(FINISHED_RAKING)
-                elif self.status == NAVIGATION_TO_SCAN_LOC:
-                    cancel_goal = rospy.ServiceProxy(self._cancel_goal_topic, NavigateGPS)
-                    cancel_goal(0, 0)
-                    self.update_status(ARRIVED_AT_SCAN_LOC)
-                elif self.status == FINISHED_RAKING:
-                    self.update_status(FINISHED_SCAN)
-            self.last_skip_button_status = data.buttons[1] > 0
-    
+
     def gps_odom_callback(self, data: Odometry):
         self.is_full_nav_achieved = True
 

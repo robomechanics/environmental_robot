@@ -1,6 +1,4 @@
-# Starts at 0
-# location_index: 12 # NREC Map
-location_index: 8 # Flagstaff Hill
+location_index: 0   # From locations.csv
 
 # load boundary_points
 load_boundary_points: 1

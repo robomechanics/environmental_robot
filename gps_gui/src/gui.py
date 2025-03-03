@@ -35,7 +35,6 @@ from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from visualization_msgs.msg import Marker, MarkerArray
 from env_utils.algo_constants import *
 from env_utils.pxrf_utils import PXRF
-from env_utils.ros_utils import get_ros_pkg_path
 
 qss = """
 QPushButton {
@@ -926,7 +925,7 @@ class GpsNavigationGui:
             rospy.loginfo("Service call failed: %s", e)
 
 def load_config():
-    config_dir_path = os.path.join(get_ros_pkg_path('gps_gui'), 'config')
+    config_dir_path = os.path.join(rospkg.RosPack().get_path('gps_gui'), 'config')
     config_file_path = os.path.join(config_dir_path, 'gui_config.yaml')
 
     with open(config_file_path, 'r') as file:

@@ -12,6 +12,12 @@ work_dir_path = os.path.join(rospack.get_path('gps_gui'), 'src')
 sys.path.insert(0, work_dir_path)
 
 def read_location(map_option=3, location_index=None):
+    """
+    Reads location based on either
+    1. Selecting from config/locations.csv manually
+    2. Adding new map location
+    3. Selection from config/locations.csv based on location_index
+    """
     print("Please ensure that the robot is connected to the wifi.")
     data = []
     num = 0

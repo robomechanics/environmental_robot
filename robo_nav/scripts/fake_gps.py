@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import NavSatFix
-from env_utils.ros_utils import get_ros_pkg_path
+import rospkg
 import os
 import yaml
 
@@ -10,7 +10,7 @@ def gps_publisher():
     # Initialize the ROS node
     rospy.init_node('fake_static_gps_publisher', anonymous=True)
     
-    config_dir_path = os.path.join(get_ros_pkg_path('gps_gui'), 'config')
+    config_dir_path = os.path.join(rospkg.RosPack().get_path('gps_gui'), 'config')
     config_file_path = os.path.join(config_dir_path, 'gui_config.yaml')
 
     gui_config = None
