@@ -16,8 +16,8 @@ from std_srvs.srv import Empty, EmptyResponse
 from autonomy_manager.srv import AutonomyParams
 import yaml
 
-from env_utils.algo_constants import *
-from env_utils.pxrf_utils import PXRF, chemistry_parser
+from algo_constants import *
+from pxrf_utils import PXRF, chemistry_parser
 
 class DataRecorder(object):
     def __init__(self):

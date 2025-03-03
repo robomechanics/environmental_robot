@@ -1,20 +1,15 @@
 from copy import copy
 
 from manager import * 
-import rosnode
-import time
 from matplotlib import pyplot as plt
 
-from env_utils.algo_constants import *
-from sklearn.gaussian_process.kernels import RBF
+from algo_constants import *
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 from boundaryConversion import Conversion
 
 import numpy as np
-import scipy as sp
-import scipy.ndimage
 from scipy.interpolate import griddata
 
 from adaptiveROS import *

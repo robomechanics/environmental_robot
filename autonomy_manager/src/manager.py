@@ -22,8 +22,8 @@ from pyproj import Transformer
 import rosnode
 from autonomy_manager.srv import AutonomyParams
 from gps_gui.srv import SetString, SetStringResponse
-from env_utils.algo_constants import *
-from env_utils.pxrf_utils import PXRF
+from algo_constants import *
+from pxrf_utils import PXRF
 from colorama import Fore, Back, Style
 from utils import visualizer_recreate_real
 from sklearn.gaussian_process.kernels import RBF
