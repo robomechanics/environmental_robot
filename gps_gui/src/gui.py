@@ -936,11 +936,13 @@ def load_config():
 
 
 if __name__ == '__main__':
+    # Use rospy.myargv() to get the arguments passed by ROS, excluding internal arguments like __name and __log
+    args = rospy.myargv(argv=sys.argv)
     parser = argparse.ArgumentParser(description='Environmental Sensing GPS GUI')
     parser.add_argument("-o", "--option", type=int, default=3, 
                         help='1: Change Map. 2: New Map. 3: Use Config File.')
 
-    args = parser.parse_args()
+    args = parser.parse_args(args[1:])
     gui_config = load_config()
     
     rospy.init_node('gps_gui',anonymous=True)
