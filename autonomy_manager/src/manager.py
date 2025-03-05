@@ -71,7 +71,7 @@ class Manager(object):
         # Flags
         self.pxrf_complete = False
         self.pxrf_mean_value = None
-        self.is_full_nav_achieved = False
+        self.is_full_nav_achieved = True
         self.nav_goal_gps = None
         self.lat = None
         self.lon = None

@@ -229,7 +229,8 @@ class GpsNavigationGui:
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
         
         self._scan_recorded_to_disk_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.scan_recorded_callback)
-        self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
+        self.gpsSub = rospy.Subscriber(self._gps_moving_avg_topic, NavSatFix, self.robotUpdate) # plotRobotPosition
+        # self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
         
@@ -779,14 +780,15 @@ class GpsNavigationGui:
             self.currentGoalMarker.setData(x=[point[0]], y=[point[1]])
        
     # This function is called by subscriber of gps sensor
-    def robotUpdate(self, data: Odometry):
+    def robotUpdate(self, data: NavSatFix): # Odometry):
         if (rospy.Time.now() - self.lastRobotDrawTime).secs > 0.5:
-            if self.latitude == None or self.longitude == None:
+            if data.latitude == None or data.longitude == None:
+            # if self.latitude == None or self.longitude == None:
                 return
             
-            lat = self.latitude
-            lon = self.longitude
-
+            lat = data.latitude # self.latitude
+            lon = data.longitude # self.longitude
+            
             #calculate heading based on gps coordinates 
             pixX, pixY = self.satMap.coord2Pixel(lat, lon)
             
@@ -795,10 +797,10 @@ class GpsNavigationGui:
             # rospy.loginfo_throttle(10, "Tile Map X/Y     : %s %s", self.satMap.x, self.satMap.y)
             # rospy.loginfo_once("Robot Pixel Pos  : %s %s", pixX, pixY)
             
-            self.quaternion[0] = data.pose.pose.orientation.x
-            self.quaternion[1] = data.pose.pose.orientation.y
-            self.quaternion[2] = data.pose.pose.orientation.z
-            self.quaternion[3] = data.pose.pose.orientation.w
+            # self.quaternion[0] = data.pose.pose.orientation.x
+            # self.quaternion[1] = data.pose.pose.orientation.y
+            # self.quaternion[2] = data.pose.pose.orientation.z
+            # self.quaternion[3] = data.pose.pose.orientation.w
             robotHeading = euler_from_quaternion(self.quaternion, "sxyz")[2]
 
             # if not self.robotArrow is None:
