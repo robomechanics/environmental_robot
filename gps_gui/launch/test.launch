@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
 <launch>
+
+	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
 	
 	<!-- open python gui -->
 	<node pkg="gps_gui" type="gui.py" name="navigation_gui" output="screen">

@@ -76,7 +76,7 @@ vanta_ip: "192.168.7.2"
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
-rover_battery_percentage_topic: /rover/battery_percentage
+rover_battery_percentage_topic: /battery_level
 
 # PXRF
 start_scan_service_name: 'scan_start'

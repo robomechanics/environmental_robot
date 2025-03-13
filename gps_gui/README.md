@@ -1,11 +1,23 @@
 # gps_navigation
-File descriptions
 
-	gps_user_location.py:
-It both parses the locations.csv to extract the coordinate information. It can also take the input from the user and store the coordinate in the locations.csv file so that it can be easily accessed in the future
+#### Publications: 
+ * /gps_navigation/goal [geometry_msgs/PoseStamped]
+ * /pxrf_cmd [std_msgs/String]
+ * /rosout [rosgraph_msgs/Log]
+ * /soft_estop/enable [std_msgs/Bool]
+ * /soft_estop/reset [std_msgs/Bool]
 
-	gps_user_input.py:
-The main GUI that uses PyQT as the library that displays the regional map. It allows the user to place pins on the map, control pxrf, monitor robot status, etc
+#### Subscriptions: 
+ * /arm/lipo_battery_percentage [unknown type]
+ * /autonomy_manager/status [unknown type]
+ * /gps_moving_avg [unknown type]
+ * /gq7/ekf/odometry_map [unknown type]
+ * /pxrf_response [unknown type]
+ * /rover/battery_percentage [unknown type]
+ * /scan_recorded_to_disk [unknown type]
 
-	gps_navigation.py:
-The main controller for waypoint navigation. It includes both LQR and PID controllers. Currently only PID controller is used. LQR controller is not well tuned.
+#### Services: 
+ * /grid_points
+ * /navigation_gui/get_loggers
+ * /navigation_gui/set_logger_level
+ * /next_goal_to_GUI

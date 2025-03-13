@@ -6,7 +6,7 @@ import numpy as np
 import yaml
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
-from std_msgs.msg import String, Bool, Int32
+from std_msgs.msg import String, Bool, Int32, Float32
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped, PointStamped, Point
@@ -30,7 +30,7 @@ import qdarktheme
 from move_base_msgs.msg import MoveBaseAction
 import rosnode
 from gps_gui.srv import SetString
-from colorama import Fore, Back, Style
+from colorama import Fore, Style
 from gui_utils import read_location, PlotWithClick, PolyLineROINoHover
 from visualization_msgs.msg import Marker
 from algo_constants import *
@@ -232,7 +232,7 @@ class GpsNavigationGui:
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
         
-        self.roverBatterySub = rospy.Subscriber(self._rover_battery_percentage_topic, Int32, self.roverBatteryCallback)
+        self.roverBatterySub = rospy.Subscriber(self._rover_battery_percentage_topic, Float32, self.roverBatteryCallback)
         self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_percentage_topic, String, self.lipoBatteryCallback)
     
         self.rvizPoints = []
@@ -245,7 +245,7 @@ class GpsNavigationGui:
         # Load topic names into params
         self._location_sub_topic = rospy.get_param('gq7_ekf_odom_map_topic')
         self._gps_sub_topic = rospy.get_param('gq7_ekf_llh_topic')
-        self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
+        # self._pxrf_response_topic = rospy.get_param("pxrf_response_topic")
         self._gps_moving_avg_topic = rospy.get_param("gps_moving_avg_topic")
         self._goal_pub_topic = rospy.get_param('goal_pub_topic')
         self._status_sub_topic = rospy.get_param('status_topic')
@@ -270,12 +270,12 @@ class GpsNavigationGui:
         self._fake_pxrf_img_create_service_name = rospy.get_param("fake_pxrf_img_create_service_name")
         
         # Load action client topic names
-        self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
+        # self._pxrf_client_topic = rospy.get_param('pxrf_client_topic_name')
         self._estop_enable_topic = rospy.get_param("estop_enable_topic")
         self._estop_reset_topic = rospy.get_param("estop_reset_topic")
         
         # Load constants
-        self._pxrf_test_results_file = rospy.get_param('pxrf_test_results_file')
+        # self._pxrf_test_results_file = rospy.get_param('pxrf_test_results_file')
         self._sim_mode = rospy.get_param('sim_mode')
 
     def setupWidgets(self):
@@ -283,18 +283,18 @@ class GpsNavigationGui:
             self.setHistory(clear = True)
 
         # add buttons 
-        clearHistoryBtn = QtWidgets.QPushButton('Clear History')
-        clearHistoryBtn.setStyleSheet("color: orange")
-        clearHistoryBtn.clicked.connect(clearHistory)
-        
-        clearPathBtn = QtWidgets.QPushButton('Clear Path')
-        clearPathBtn.setStyleSheet("color: orange")
-        clearPathBtn.clicked.connect(self.clearPath)
-        
         self.editPathMode = False
         self.editPathBtn = QtWidgets.QPushButton('Edit Waypoints')
         self.editPathBtn.setStyleSheet("color: orange")
         self.editPathBtn.clicked.connect(self.toggleEditPathMode)
+
+        clearPathBtn = QtWidgets.QPushButton('Clear Path')
+        clearPathBtn.setStyleSheet("color: orange")
+        clearPathBtn.clicked.connect(self.clearPath)
+
+        clearHistoryBtn = QtWidgets.QPushButton('Clear History')
+        clearHistoryBtn.setStyleSheet("color: orange")
+        clearHistoryBtn.clicked.connect(clearHistory)
         
         # loadPathFileBtn = QtWidgets.QPushButton('Load Path')
         # loadPathFileBtn.setStyleSheet("color: orange")
@@ -384,14 +384,14 @@ class GpsNavigationGui:
         self.managerStepOnceBtn.setStyleSheet("color: lightgreen")
         self.managerStepOnceBtn.clicked.connect(self.managerStepOnce)
         
-        self.statusDetailed = QtWidgets.QLineEdit("")
+        self.statusDetailed = QtWidgets.QLineEdit("PXRF Result")
         self.statusDetailed.setReadOnly(True)
         
-        self.statusRoverBattery = QtWidgets.QLineEdit("XX")
+        self.statusRoverBattery = QtWidgets.QLineEdit("Rover Battery")
         self.statusRoverBattery.setStyleSheet("background-color: lightpurple")
         self.statusRoverBattery.setReadOnly(True)
         
-        self.statusLIPOBattery = QtWidgets.QLineEdit("XX")
+        self.statusLIPOBattery = QtWidgets.QLineEdit("LIPO Battery")
         self.statusLIPOBattery.setStyleSheet("background-color: lightpurple")
         self.statusLIPOBattery.setReadOnly(True)
         
