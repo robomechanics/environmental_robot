@@ -1,7 +1,7 @@
 location_index: 0   # From locations.csv
 
 # load boundary_points
-load_boundary_points: 1
+load_boundary_points: 0
 
 # boundary points in GPS coordinates
 # last point and first point should be same

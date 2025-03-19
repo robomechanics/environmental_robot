@@ -8,12 +8,6 @@
     <!-- load rosparams for services and topics -->
 	<rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
 
-    <!-- joy stick -->
-    <node respawn="true" pkg="joy" type="joy_node" name="joy_input" if="$(arg useJoy)">
-	    <param name="dev" type="string" value="/dev/input/js0"/>
-	    <param name="autorepeat_rate" value="10"/>
-    </node>
-
     <!-- lidar -->
     <include file="$(find ouster_ros)/launch/sensor.launch" if="$(arg useLidar)">
 	    <arg name="sensor_hostname" value="10.10.1.111"/>
@@ -42,9 +36,5 @@
     
     <!-- navigation -->
     <include file="$(find autonomy_manager)/launch/navigation.launch" />
-
-    <!-- Arm LIPO Battery Info Publisher -->
-    <node name="lipo_jrk_interface" pkg="arm_control" type="lipo_jrk_interface.py" />
-
    
 </launch>

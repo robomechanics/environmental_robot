@@ -8,7 +8,7 @@
 | Navigation              | ❌                  | Need to tune movebase params under `robo_nav/config`                                                                                            |
 
 # Todo
-- [ ] Change antenna and IMU offsets in `robo_nav/launch/gq7_odom_hebi.launch`
+- [x] Change antenna and IMU offsets in `robo_nav/launch/gq7_odom.launch`
 - [ ] Web GPS GUI (ROS topics/services names can be found in `autonomy_manager/config/constants.yaml`)
 - [ ] Tune movebase params under `robo_nav/config`
 

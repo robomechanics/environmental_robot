@@ -20,7 +20,6 @@ import rospkg
 rospack = rospkg.RosPack()
 pxrf_path = rospack.get_path('pxrf')
 sys.path.insert(0, os.path.abspath(os.path.join(pxrf_path, "scripts")))
-from plot import generate_plot
 from autonomy_manager.srv import NavigateGPS, SetSearchBoundary, Complete, Waypoints
 from tf.transformations import euler_from_quaternion
 import tf
@@ -114,9 +113,6 @@ class GpsNavigationGui:
         self.currentGoalMarker = self.click_plot.plot(symbolBrush=(0, 0, 255))
         self.pathIndex = 0
 
-        # interaction for adding path points
-        self.click_plot.click_handlers = [self.addROIPoint]
-
         # Robot's history (path measured by gps)
         self.lastHistoryDrawTime = rospy.Time.now() - rospy.Duration(10)
         self.lastRobotDrawTime = rospy.Time.now() - rospy.Duration(10)
@@ -131,15 +127,20 @@ class GpsNavigationGui:
         
         self.loadGUIConfig()
     
-    def send_boundary(self):
-        self.loadGUIConfig()
-    
     def loadGUIConfig(self):
+        print("Inside loadGUIConfig")
         # while (self.latitude is None and self.latitude is None):
         #     rospy.sleep(0.5)
         #     print(f" Robot Localized: {self.latitude}, {self.longitude}")
         
-        self.reset()
+        self.pathRoi.setPoints([])
+        self.pathPlotPoints= []
+        self.boundaryPath = []
+        self.boundaryPlot.setData(x=[], y=[])
+        self.pathPlot.setData(x=[], y=[])
+        self.updateGoalMarker()
+        self.reset_manager()
+
         self.setHistory(clear = True)
         
         if self.gui_config['load_start_location']:
@@ -175,28 +176,9 @@ class GpsNavigationGui:
         
         # Create a Timer object that will call the timer_callback function every second
         # timer = rospy.Timer(rospy.Duration(1), timer_callback)
-        
-            
-                
-    # This function converts the current path from gps coordinates to pixels
-    def gpsToPixels(self):
-        self.pathPlotPoints = []
-        for gpsPoint in self.pathGPS:
-            lat = gpsPoint[0]
-            lon = gpsPoint[1]
-            point = list(self.satMap.coord2Pixel(lat, lon))
-            self.pathPlotPoints.append(point)
-
-    # This fuction converts the current path from pixels to gps coordinates
-    def pixelsToGps(self, pathPlotPoints):
-        pathGPS = []
-        for point in pathPlotPoints:
-            gpsPoint = list(self.satMap.pixel2Coord(point))
-            gpsPoint.append(1)
-            pathGPS.append(gpsPoint)
-        return pathGPS
     
     def addMarkerAt(self, lat: float, lon: float, label=None, size=20):
+        print("Inside addMarkerAt")
         pos = self.satMap.coord2Pixel(lat, lon)
         marker = pg.TargetItem(
             pos=pos,
@@ -228,17 +210,12 @@ class GpsNavigationGui:
         # self.location_sub = rospy.Subscriber(self._gps_sub_topic, NavSatFix, self.onGpsUpdate) # Use GPS llh position
         
         self._scan_recorded_to_disk_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, CompletedScanData, self.scan_recorded_callback)
-        self.gpsSub = rospy.Subscriber(self._location_sub_topic, Odometry, self.robotUpdate) # plotRobotPosition
         self.statusSub = rospy.Subscriber(self._status_sub_topic, ManagerStatus, self.managerStatusUpdate)
         #self.next_goal_sub = rospy.Subscriber('/next_goal', NavSatFix, self.onNextGoalUpdate) # display the next goal on the map
-        
-        self.roverBatterySub = rospy.Subscriber(self._rover_battery_percentage_topic, Float32, self.roverBatteryCallback)
-        self.lipoBatterySub = rospy.Subscriber(self._lipo_battery_percentage_topic, String, self.lipoBatteryCallback)
-    
+            
         self.rvizPoints = []
         if self._sim_mode:
             self.clickedPointSub = rospy.Subscriber("/clicked_point", PointStamped, self.onRvizClickedPoint)
-            self.rvizMarkerPub = rospy.Publisher("/exploration_polygon_marker", Marker, queue_size=10)
             self.pubPxrfImg = rospy.ServiceProxy(self._fake_pxrf_img_create_service_name, SetSearchBoundary)
 
     def loadROSParams(self):
@@ -279,23 +256,8 @@ class GpsNavigationGui:
         self._sim_mode = rospy.get_param('sim_mode')
 
     def setupWidgets(self):
-        def clearHistory():
-            self.setHistory(clear = True)
 
-        # add buttons 
-        self.editPathMode = False
-        self.editPathBtn = QtWidgets.QPushButton('Edit Waypoints')
-        self.editPathBtn.setStyleSheet("color: orange")
-        self.editPathBtn.clicked.connect(self.toggleEditPathMode)
-
-        clearPathBtn = QtWidgets.QPushButton('Clear Path')
-        clearPathBtn.setStyleSheet("color: orange")
-        clearPathBtn.clicked.connect(self.clearPath)
-
-        clearHistoryBtn = QtWidgets.QPushButton('Clear History')
-        clearHistoryBtn.setStyleSheet("color: orange")
-        clearHistoryBtn.clicked.connect(clearHistory)
-        
+        # add buttons        
         # loadPathFileBtn = QtWidgets.QPushButton('Load Path')
         # loadPathFileBtn.setStyleSheet("color: orange")
         # loadPathFileBtn.clicked.connect(self.loadPathFile)
@@ -338,26 +300,11 @@ class GpsNavigationGui:
         self.statusGPS.setText('GPS Connecting...')
         self.statusGPS.setReadOnly(False)
         
-        self.showPxrfBtn = QtWidgets.QPushButton('PXRF Results')
-        self.showPxrfBtn.setStyleSheet("color: lightblue")
-        self.showPxrfBtn.clicked.connect(self.showPXRFResults)
-        
-        
         self.statusManager = QtWidgets.QLineEdit()
         self.statusManager.setText('Waiting for manager...')
         self.statusManager.setReadOnly(True)
         
-        # set the boundary on the map 
-        self.editBoundaryMode = False
-        self.addBoundaryBtn = QtWidgets.QPushButton('Edit Bound')
-        self.addBoundaryBtn.setStyleSheet("color: yellow")
-
-        self.addBoundaryBtn.clicked.connect(self.toggleEditBoundaryMode)
-        
-        self.resetBtn = QtWidgets.QPushButton('Reset')
-        self.resetBtn.setStyleSheet("color: yellow")
-        self.resetBtn.clicked.connect(self.reset)
-        
+        # set the boundary on the map        
         self.adaptive = True
         if self.adaptive:
             self.adaptiveBtn= QtWidgets.QPushButton('Stop Adaptive')
@@ -365,11 +312,7 @@ class GpsNavigationGui:
             self.adaptiveBtn = QtWidgets.QPushButton('Start Adaptive')
         self.adaptiveBtn.setStyleSheet("color: yellow")
         self.adaptiveBtn.clicked.connect(self.toggleAdaptive)
-        
-        self.sendBoundaryBtn = QtWidgets.QPushButton('Send Boundary')
-        self.sendBoundaryBtn.setStyleSheet("color: yellow")
-        self.sendBoundaryBtn.clicked.connect(self.send_boundary)
-        
+
         self.grid = False
         self.gridBtn = QtWidgets.QPushButton('Start Grid')
         self.gridBtn.setStyleSheet("color: yellow")
@@ -386,15 +329,7 @@ class GpsNavigationGui:
         
         self.statusDetailed = QtWidgets.QLineEdit("PXRF Result")
         self.statusDetailed.setReadOnly(True)
-        
-        self.statusRoverBattery = QtWidgets.QLineEdit("Rover Battery")
-        self.statusRoverBattery.setStyleSheet("background-color: lightpurple")
-        self.statusRoverBattery.setReadOnly(True)
-        
-        self.statusLIPOBattery = QtWidgets.QLineEdit("LIPO Battery")
-        self.statusLIPOBattery.setStyleSheet("background-color: lightpurple")
-        self.statusLIPOBattery.setReadOnly(True)
-        
+
         self.cancelMBGaolsBtn = QtWidgets.QPushButton('Cancel Goals')
         self.cancelMBGaolsBtn.setStyleSheet("color: red")
         self.cancelMBGaolsBtn.clicked.connect(self.cancelMoveBaseGoals)
@@ -403,19 +338,12 @@ class GpsNavigationGui:
         self.widget.addWidget(self.statusGPS,          row=1, col=0, colspan=1)
         self.widget.addWidget(self.statusManager,      row=1, col=1, colspan=3)
         self.widget.addWidget(self.statusDetailed,     row=1, col=4, colspan=3)
-        self.widget.addWidget(self.statusRoverBattery, row=1, col=7, colspan=1)
-        self.widget.addWidget(self.statusLIPOBattery,  row=1, col=8, colspan=1)
         
-        self.widget.addWidget(self.editPathBtn,        row=2, col=0, colspan=2)
-        self.widget.addWidget(clearPathBtn,            row=2, col=2, colspan=2)
-        self.widget.addWidget(clearHistoryBtn,         row=2, col=4, colspan=2)
         # self.widget.addWidget(loadPathFileBtn,       row=2, col=2, colspan=1)
         # self.widget.addWidget(savePathBtn,           row=2, col=3, colspan=1)
         self.widget.addWidget(self.startPauseBtn,      row=2, col=6, colspan=2)
         
         self.widget.addWidget(self.adaptiveBtn,        row=3, col=0, colspan=2)
-        self.widget.addWidget(self.resetBtn,           row=3, col=2, colspan=2)
-        self.widget.addWidget(self.addBoundaryBtn,     row=3, col=4, colspan=2)
         self.widget.addWidget(self.managerStepOnceBtn, row=3, col=6, colspan=1)
         self.widget.addWidget(self.managerComboBox,    row=3, col=7, colspan=1)
 
@@ -423,32 +351,19 @@ class GpsNavigationGui:
         self.widget.addWidget(self.sampleBtn,          row=4, col=0, colspan=1)
         self.widget.addWidget(self.fakeSampleBtn,      row=4, col=1, colspan=1)
         self.widget.addWidget(self.ArmBtn,             row=4, col=2, colspan=2)
-        self.widget.addWidget(self.showPxrfBtn,        row=4, col=4, colspan=2)
         self.widget.addWidget(self.eStopBtn,           row=4, col=6, colspan=1)
         self.widget.addWidget(self.cancelMBGaolsBtn,   row=4, col=7, colspan=1)
         self.widget.addWidget(self.gridBtn,            row=4, col=8, colspan=2)
-        self.widget.addWidget(self.sendBoundaryBtn,            row=2, col=8, colspan=2)
 
     def cancelMoveBaseGoals(self, data):
+        print("Inside cancelMoveBaseGoals")
         mb_client = actionlib.SimpleActionClient(self._move_base_action_server_name, MoveBaseAction)
         rospy.loginfo(f"Cancelling all Movebase goals...")
         mb_client.cancel_all_goals()
         rospy.loginfo(f"Cancelled all Movebase goals!")
-            
-    def roverBatteryCallback(self, data: Int32):
-        self.statusRoverBattery.setText(f"Rover: {data.data} %")
-    
-    def lipoBatteryCallback(self, data: String):
-        battery_level = float(data.data)
-        if battery_level:
-            voltage = (0.08*battery_level) + 25.6
-            self.statusLIPOBattery.setText(f"LIPO: {battery_level} % | {voltage:.1f} V)")
-    
-    def showPXRFResults(self):
-        if self.pxrf_data:
-            generate_plot(self.pxrf_data.file_name)
-        
+
     def scan_recorded_callback(self, data: CompletedScanData):
+        print("Inside scan_recorded_callback")
         self.pxrf_data = deepcopy(data)
         
         algorithm_type = rospy.get_param(self._algorithm_type_param_name)
@@ -478,15 +393,18 @@ class GpsNavigationGui:
         return True
     
     def managerStatusUpdate(self, data:ManagerStatus):
+        print("Inside managerStatusUpdate")
         self.statusManager.setText(data.status)
         
     def managerComboBoxChanged(self, selected_item):
+        print("Inside managerComboBoxChanged")
         if selected_item == "State Step" or selected_item == "Sample Step":
             self.managerStepOnceBtn.setEnabled(True)
         else:
             self.managerStepOnceBtn.setEnabled(False)
     
     def eStopCallback(self):
+        print("Inside eStopCallback")
         self.eStop = not self.eStop
         
         if self.eStop:
@@ -499,23 +417,17 @@ class GpsNavigationGui:
             self.eStopBtn.setText('E-STOP')
             
     def managerStepOnce(self):
+        print("Inside managerStepOnce")
         try:
             managerStepOnce_client = rospy.ServiceProxy(self._manager_run_loop_service_name, SetString)
             managerStepOnce_client(str(self.managerComboBox.currentText()))
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s", e)
-     
-    # This function adds points to roi (when user is editing path)
-    def addROIPoint(self, point):
-        if self.editPathMode or self.editBoundaryMode:
-            points = [[handle['pos'].x(),handle['pos'].y()] for handle in self.pathRoi.handles]
-            rospy.loginfo(f'Clicked at point: {point}')
-            points.append(point)
-            self.pathRoi.setPoints(points)
     
     #CHECK
     # This function clears robot's history path
     def setHistory(self, clear=False):
+        print("Inside setHistory")
         if clear:
             self.historyPoints=[]
         
@@ -527,29 +439,9 @@ class GpsNavigationGui:
 
         self.historyPlot.setData(x=list(x), y=list(y))
     
-    # This function clears the current path
-    def clearPath(self):
-        self.pathRoi.setPoints([])
-        self.pathPlotPoints= []
-        self.pathGPS = []
-        self.pathPlot.setData(x=[], y=[])
-        self.updateGoalMarker()
-        self.is_navigating = False
-        self.startPauseBtn.setText('Start')
-        self.startPauseBtn.setStyleSheet("color: orange")
-        
-    #This function clears the current boundary
-    def reset(self):
-        self.pathRoi.setPoints([])
-        self.pathPlotPoints= []
-        self.boundaryPath = []
-        self.boundaryPlot.setData(x=[], y=[])
-        self.pathPlot.setData(x=[], y=[])
-        self.updateGoalMarker()
-        self.reset_manager()
-    
     # this is a utility function to pass the boundary points
     def sendBoundary(self, boundary):
+        print("Inside sendBoundary")
         rospy.loginfo(f" Sending Boundary Points:\n {boundary} \n----------------")
         try:
             sendBoundaryClient = rospy.ServiceProxy(self._set_search_boundary_name, SetSearchBoundary)
@@ -562,6 +454,7 @@ class GpsNavigationGui:
             rospy.logerr("Boundary was not sent successfully: %s", e)
 
     def sendWaypoints(self, waypoints):
+        print("Inside sendWaypoints")
         #rospy.wait_for_service('/waypoints')
         try:
             sendWaypointsClient = rospy.ServiceProxy(self._waypoints_service_name, Waypoints)
@@ -572,55 +465,8 @@ class GpsNavigationGui:
         except rospy.ServiceException:
             rospy.logerr("Waypoints were not sent successfully")
 
-    # this function turns on/off editing mode for the boundary
-    def toggleEditBoundaryMode(self):
-        if self.editPathMode:
-            rospy.logwarn("Warning: Please finish editing the path first")
-            return
-        elif self.editBoundaryMode and self.pathRoi.handles == [] and self.rvizPoints == []:
-            rospy.logwarn('Warning: No boundary to edit, please draw a boundary first')
-            return
-
-        self.editBoundaryMode = not self.editBoundaryMode
-        
-        if self.editBoundaryMode:
-            self.addBoundaryBtn.setText('Confirm')
-            self.pathRoi.setPoints([])
-            #FIX: Below codepathRoi might be unecessary
-            for point in self.pathPlotPoints:
-                self.addROIPoint(point)
-        else:
-            # When boundary is confirmed
-            self.addBoundaryBtn.setText('Edit Bound')
-            self.pathPlotPoints = []
-            if self._sim_mode:
-                self.pathPlotPoints = self.rvizPoints
-                # Append the first point to the end to close the boundary
-                self.pathPlotPoints.append(self.pathPlotPoints[0])
-                self.boundaryPath = self.pathPlotPoints
-                self.drawRvizPolygon(self.boundaryPath)
-            else:
-                for handle in self.pathRoi.handles:
-                    pos = handle['pos']
-                    self.pathPlotPoints.append([pos.x(), pos.y()])
-            
-                # Append the first point to the end to close the boundary
-                self.pathPlotPoints.append(self.pathPlotPoints[0])
-
-                self.boundaryPath = self.pixelsToGps(self.pathPlotPoints)
-
-            x, y = zip(*self.pathPlotPoints)
-            self.boundaryPlot.setData(x=list(x), y=list(y))
-
-            self.pathRoi.setPoints([])
-            self.pathPlotPoints = []
-            self.rvizPoints = []
-            self.sendBoundary(self.boundaryPath)
-            print('Set points')
-            
-
-
     def onRvizClickedPoint(self, msg):
+        print("Inside onRvizClickedPoint")
         if not self.editBoundaryMode:
             rospy.logwarn("Received rviz /clicked_point but not in edit boundary mode! Aborting!")
             return
@@ -629,95 +475,8 @@ class GpsNavigationGui:
         self.rvizPoints.append(point)
         rospy.loginfo(f'Received rviz point: {point}')
 
-    def drawRvizPolygon(self, points):
-        """
-        Rviz visualization:
-            - Draw polygon connecting clicked points
-            - Draw square around polygon
-            - Overlay image of gradient
-        """
-        points = np.array(points)
-        # Create a Marker message
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.header.stamp = rospy.Time.now()
-        marker.ns = "boundary"
-        marker.id = 0
-        marker.type = Marker.LINE_STRIP  # Use LINE_STRIP to draw a polygon
-        marker.action = Marker.ADD
-        marker.pose.orientation.w = 1.0
-
-        # Define the color and scale
-        marker.scale.x = 0.1 
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0
-
-        # Publish
-        marker.points = [Point(x, y, 0) for (x,y) in points]
-        self.rvizMarkerPub.publish(marker)
-
-        # Draw the dimensions of square containing it
-        marker.header.stamp = rospy.Time.now()
-        marker.ns = "boundary_square"
-        marker.id = 1
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
-        marker.color.a = 0.5
-        min_x, max_x = min(points[:,0]), max(points[:,0])
-        min_y, max_y = min(points[:,1]), max(points[:,1])
-        width = max(max_x-min_x, max_y-min_y)
-        square_points = [[min_x, min_y], # bottom left
-                         [min_x+width, min_y], # bottom right
-                         [min_x+width, min_y+width], # top right
-                         [min_x, min_y+width]] # top left
-        square_x = [float(x[0]) for x in square_points]
-        square_y = [float(y[1]) for y in square_points]
-        # Append the first point to the end to close the boundary
-        square_points.append(square_points[0])
-
-        # Publish
-        marker.points = [Point(x, y, 0) for (x,y) in square_points]
-        self.rvizMarkerPub.publish(marker)
-
-        # Publish pxrf map image
-        self.pubPxrfImg(square_x, square_y, int(1))
-
-
-    # This function turns on/off editing mode
-    def toggleEditPathMode(self):
-        if self.editBoundaryMode:
-            rospy.logwarn("Warning: Please finish editing the boundary first")
-            return
-        #check if pathRoi is empty
-        elif self.editPathMode and self.pathRoi.handles == []:
-            rospy.logwarn('Warning: No path to edit, please draw a path first')
-            return
-
-        self.editPathMode = not self.editPathMode
-        if self.editPathMode:
-            self.editPathBtn.setText('Apply')
-            self.pathRoi.setPoints([])
-            for point in self.pathPlotPoints:
-                self.addROIPoint(point)
-        else:
-            self.editPathBtn.setText('Edit Waypoints')
-            self.pathPlotPoints = []
-            for handle in self.pathRoi.handles:
-                pos = handle['pos']
-                self.pathPlotPoints.append([pos.x(), pos.y()])
-
-            self.pathGPS = self.pixelsToGps(self.pathPlotPoints)
-            x, y = zip(*self.pathPlotPoints)
-            #size of x
-            self.pathPlot.setData(x=list(x), y=list(y))
-            rospy.loginfo(f"Waypoints: {self.pathGPS}")
-            self.pathRoi.setPoints([])
-            self.sendWaypoints(self.pathGPS)
-    
     def toggleAdaptive(self):
+        print("Inside toggleAdaptive")
         self.adaptive = not self.adaptive
         
         if self.adaptive:
@@ -728,6 +487,7 @@ class GpsNavigationGui:
             self.adaptiveBtn.setText('Start Adaptive')
     
     def toggleGrid(self):
+        print("Inside toggleGrid")
         self.grid = not self.grid
         if self.grid:
             rospy.loginfo("grid mode")
@@ -745,6 +505,7 @@ class GpsNavigationGui:
     #CHECK
     # This function starts/ pauses the navigation
     def startPause(self):
+        print("Inside startPause")
         # if (len(self.pathGPS) == 0):
         #     return
         # self.is_navigating = not self.is_navigating
@@ -772,52 +533,15 @@ class GpsNavigationGui:
 
     # This function updates the marked goal on the path
     def updateGoalMarker(self, point = None):
+        print("Inside updateGoalMarker")
         if point == None:
             self.currentGoalMarker.setData(x=[], y=[])
         else:
             self.currentGoalMarker.setData(x=[point[0]], y=[point[1]])
-       
-    # This function is called by subscriber of gps sensor
-    def robotUpdate(self, data: Odometry):
-        if (rospy.Time.now() - self.lastRobotDrawTime).secs > 0.5:
-            if self.latitude == None or self.longitude == None:
-                return
-            
-            lat = self.latitude
-            lon = self.longitude
-
-            #calculate heading based on gps coordinates 
-            pixX, pixY = self.satMap.coord2Pixel(lat, lon)
-            
-            # rospy.loginfo_throttle(10, "Robot Lat/Lon    : %s %s", self.latitude, self.longitude)
-            # rospy.loginfo_throttle(10, "Tile Map Lat/Lon : %s %s", self.satMap.lat, self.satMap.lon)
-            # rospy.loginfo_throttle(10, "Tile Map X/Y     : %s %s", self.satMap.x, self.satMap.y)
-            # rospy.loginfo_once("Robot Pixel Pos  : %s %s", pixX, pixY)
-            
-            self.quaternion[0] = data.pose.pose.orientation.x
-            self.quaternion[1] = data.pose.pose.orientation.y
-            self.quaternion[2] = data.pose.pose.orientation.z
-            self.quaternion[3] = data.pose.pose.orientation.w
-            robotHeading = euler_from_quaternion(self.quaternion, "sxyz")[2]
-
-            # if not self.robotArrow is None:
-            self.robotArrow.setStyle(angle = 180 - (robotHeading*180.0/np.pi))
-            self.robotArrow.setPos(pixX, pixY)
-            self.robotArrow.update()
-            self.lastRobotDrawTime = rospy.Time.now()
-            
-            if (rospy.Time.now() - self.lastHistoryDrawTime).secs > 5:
-                self.historyPoints.append([pixX, pixY])
-                self.setHistory()
-                self.prev_lat = lat
-                self.prev_lon = lon
-                self.prev_heading = robotHeading
-                
-                self.lastHistoryDrawTime = rospy.Time.now()
-                
     
     # This function updates the value of longitude and latitude information
     def onGpsUpdate(self, data: NavSatFix):
+        print("Inside onGpsUpdate")
         self.latitude = data.latitude
         self.longitude = data.longitude
         
@@ -828,6 +552,7 @@ class GpsNavigationGui:
     #CHECK
     # This function updates the goal and displays it on the map
     def onNextGoalUpdate(self, req: NavigateGPS):
+        print("Inside onNextGoalUpdate")
         # No conversion needed if in sim mode
         coord2Pixel_func = lambda a, b: (a, b) if self._sim_mode else self.satMap.coord2Pixel
         if self.adaptive:
@@ -857,6 +582,7 @@ class GpsNavigationGui:
     
     #CHECK 
     def onGridPoints(self, req: Waypoints):
+        print("Inside onGridPoints")
         #display it on the map by setting the data of the pathPlot
         if True:
             rospy.loginfo("Printing grid points")
@@ -868,6 +594,7 @@ class GpsNavigationGui:
         return True
 
     def reset_manager(self):
+        print("Inside reset_manager")
         try:
             clear_service_client = rospy.ServiceProxy(self._clear_service_name, Complete)
             res = clear_service_client(True)
@@ -875,6 +602,7 @@ class GpsNavigationGui:
             rospy.loginfo("Reset Failed")
 
     def togglePxrfCollection(self):
+        print("Inside togglePxrfCollection")
         try:
             lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
             lower_arm_service(True)
@@ -892,6 +620,7 @@ class GpsNavigationGui:
             rospy.loginfo("Service call failed: %s", e)
     
     def toggleFakePxrfCollection(self):
+        print("Inside toggleFakePxrfCollection")
         try:   
             self.algorithm_type_before_manual_sample = rospy.get_param(self._algorithm_type_param_name)
             rospy.set_param(self._algorithm_type_param_name, ALGO_MANUAL)
@@ -907,24 +636,9 @@ class GpsNavigationGui:
             self.fakeSampleBtn.setText("Fake Sample")
         except rospy.ServiceException as e:
             rospy.loginfo("Service call failed: %s", e)
-    
-    def toggleArm(self):
-        while '/arm_control' not in rosnode.get_node_names():
-            rospy.loginfo("Waiting for Arm Control Node")
-            rospy.sleep(1)
-        self.is_arm_in_home_pose = rospy.get_param(
-                self._is_arm_in_home_pose_param_name
-                ) # Arm pose flag that persists across restarts
-        
-        rospy.loginfo(f"Arm in home Pose: {self.is_arm_in_home_pose}")
-        
-        try:
-            lower_arm_service = rospy.ServiceProxy(self._lower_arm_service_name, SetBool)
-            lower_arm_service(self.is_arm_in_home_pose)
-        except rospy.ServiceException as e:
-            rospy.loginfo("Service call failed: %s", e)
 
 def load_config():
+    print("Inside load_config")
     config_dir_path = os.path.join(rospkg.RosPack().get_path('gps_gui'), 'config')
     config_file_path = os.path.join(config_dir_path, 'gui_config.yaml')
 

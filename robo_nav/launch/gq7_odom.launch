@@ -1,6 +1,6 @@
 <launch>
   <!-- These arguments will be consumed by the yml files -->
-  <arg name="port"         default="/dev/serial/by-id/usb-Lord_Microstrain_Lord_Inertial_Sensor_0000_6284.145875-if00" doc="Serial port that the GQ7 is connected on" />
+  <arg name="port"         default="/dev/serial/by-id/usb-Lord_Microstrain_Lord_Inertial_Sensor_0000_6284.154203-if00" doc="Serial port that the GQ7 is connected on" />
   <arg name="baudrate"     default="115200"                doc="Baudrate of the serial port that the GQ7 is connected on" />
   <arg name="aux_port"     default="/dev/serial/by-id/usb-Lord_Microstrain_Lord_Inertial_Sensor_2-00_6284.145875-if00"  doc="Serial port that the GQ7 aux port is connected on. Only used if ntrip is true" />
   <arg name="aux_baudrate" default="115200"                doc="Baudrate of the serial port that the GQ7 aux port is connected on. Only used if ntrip is true" />
@@ -16,9 +16,9 @@
   <arg name="filter_relative_position_ref"    default="[0.0, 0.0, 0.01]" doc="Reference position. Units dictated by filter_relative_position_frame" />
 
   <arg name="gnss1_antenna_offset_source" default="1"                doc="GNSS1 antenna offset source selector" />
-  <arg name="gnss1_antenna_offset"        default="[0.1746, -0.1547, -0.0074]"  doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
+  <arg name="gnss1_antenna_offset"        default="[0.232, -0.1165, -0.03]"  doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
   <arg name="gnss2_antenna_offset_source" default="1"                doc="GNSS1 antenna offset source selector" />
-  <arg name="gnss2_antenna_offset"        default="[-0.189, 0.1547, -0.0074]" doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
+  <arg name="gnss2_antenna_offset"        default="[-0.2594, 0.1035, -0.03]" doc="GNSS1 antenna offset. Only used if gnss1_antenna_offset_source is set to 1" />
 
   <arg name="filter_auto_heading_alignment_selector" default="1" doc="Filter initialization auto-heading alignment selector" />
 
