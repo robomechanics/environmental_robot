@@ -65,8 +65,3 @@ target_link_libraries(
     Qt5::Core
     Qt5::WebSockets
 )
-
-catkin_install_python(PROGRAMS
-	scripts/pxrf_gui.py
-	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)

@@ -2,27 +2,22 @@
 #include <unistd.h>
 
 
-bool isPingReceived(const std::string& ipAddress) {
-    std::string command = "ping -c 1 " + ipAddress + " > /dev/null 2>&1";
-    int result = system(command.c_str());
-    return (result == 0);
-}
-
 VantaCommunicator::VantaCommunicator(int argc, char** argv)
 {
     ros::init(argc, argv, "pxrf");
-    ros::NodeHandle n;
-    isRunning = false;
+    ros::NodeHandle n("~");
+    state = Startup;
 
-    n.getParam("vanta_ip", vanta_ip);
+    n.param<std::string>("vanta_ip", vanta_ip, "192.168.7.2");
 
-    while (!ros::isShuttingDown() ) {
-        if(isPingReceived(vanta_ip))
-            break;
-        else {
-            ROS_INFO_THROTTLE(2, "PXRF is not switched on. Cannot ping %s", vanta_ip.c_str());
-        }
-    }
+    ctrl_sub = n.subscribe("cmd", 10, &VantaCommunicator::command_callback, this);
+    chemistry_pub = n.advertise<pxrf::PxrfMsg>("data", 10);
+    response_pub = n.advertise<std_msgs::String>("response", 10);
+    state_pub = n.advertise<std_msgs::String>("state", 1);
+
+    QTimer *stateTimer = new QTimer(this);
+    connect(stateTimer, SIGNAL(timeout()), this, SLOT(publishState()));
+    stateTimer->start(1000);
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(petWatchdog()));
@@ -40,6 +35,7 @@ VantaCommunicator::VantaCommunicator(int argc, char** argv)
 
 VantaCommunicator::~VantaCommunicator()
 {
+    ros::shutdown();
 }
 
 void VantaCommunicator::petWatchdog()
@@ -58,17 +54,17 @@ void VantaCommunicator::publishChemistry(std::string chemistry, int dailyId, int
     chemistry_pub.publish(msg);
 }
 
-void VantaCommunicator::callback(const std_msgs::String::ConstPtr& msg)
+void VantaCommunicator::command_callback(const std_msgs::String::ConstPtr& msg)
 {
-    std::cout << msg->data << std::endl;
-    if (msg->data == "start" && !isRunning)
+    // ROS_INFO("Received command: %s", msg->data.c_str());
+    if (msg->data == "start" && state != Reading)
     {
         // isRunning = true;
         std::string startTestMessage = m_vantaMessageFactory.CreateStartTestMessage();
         ROS_INFO("Sending a Start Test Message");
         m_vantaConnection.sendToVanta(startTestMessage);
     }
-    else if (msg->data == "stop" && isRunning) 
+    else if (msg->data == "stop" && state == Reading) 
     {
         // isRunning = false;
         std::string stopTestMessage = m_vantaMessageFactory.CreateStopTestMessage();
@@ -80,14 +76,18 @@ void VantaCommunicator::callback(const std_msgs::String::ConstPtr& msg)
 void VantaCommunicator::messageResponse(std::string response)
 {
     int messageId, id;
-    std::string error, params, systemStatus, info;
+    std::string error, params;
     m_vantaMessageFactory.parseMessageResponse(response, &messageId, &id, &error, &params);
     ros::spinOnce();
     
     switch(messageId) {
     case MessageFactory::Login: {
         ROS_INFO("Got a Login response back from Vanta");
-        sleep(2);//sleeps for 2 second
+        if (state == Startup) {
+            state = Ready;
+            ROS_INFO("Transitioning to Ready state");
+        }
+        sleep(2);
         break;
     }
 
@@ -98,6 +98,7 @@ void VantaCommunicator::messageResponse(std::string response)
         // std::cout << id << std::endl;
         switch(id) {
             case MessageFactory::SystemStatus: {
+                std::string systemStatus, info;
                 m_vantaMessageFactory.parseSystemStatusNotification(params, &systemStatus, &info);
                 if (systemStatus == "Ready")
                 {
@@ -108,7 +109,7 @@ void VantaCommunicator::messageResponse(std::string response)
                 }
                 
                 if (info.length() > 0)
-                    ROS_INFO_THROTTLE(5, "%s", info.c_str());;
+                    ROS_INFO_THROTTLE(5, "%s", info.c_str());
                 break;
             }
             case MessageFactory::ResultReceived: {
@@ -123,17 +124,19 @@ void VantaCommunicator::messageResponse(std::string response)
                 break;
             }
             case MessageFactory::TestStarted: {
+                ROS_INFO("Test started");
                 std_msgs::String msg;
                 msg.data = "200";
                 response_pub.publish(msg);
-                isRunning = true;
+                state = Reading;
                 break;
             }
             case MessageFactory::TestStopped: {
+                ROS_INFO("Test stopped");
                 std_msgs::String msg;
                 msg.data = "201";
                 response_pub.publish(msg);
-                isRunning = false;
+                state = Ready;
                 break;
             }
             default: {
@@ -150,20 +153,16 @@ void VantaCommunicator::messageResponse(std::string response)
 
 void VantaCommunicator::status(std::string status)
 {
-    if (status.compare(std::string("ok"))==0) {
-
+    if (status.compare(std::string("ok")) == 0) {
         ROS_INFO("Established a websocket connection with the Vanta");
 
-        std::string loginMessage = m_vantaMessageFactory.CreateLoginMessage("Administrator","0000");
-
-        // std::cout << "Creating a Login message " << std::endl << loginMessage << std::endl;
         ROS_INFO("Logging in to a Vanta as Administrator...");
-
-        sleep(3); //sleeps for 1 second
+        std::string loginMessage = m_vantaMessageFactory.CreateLoginMessage("Administrator","0000");
+        sleep(3);
         m_vantaConnection.sendToVanta(loginMessage);
 
     } else {
-        ROS_WARN("Might be a Websocket error");
+        ROS_ERROR("Websocket client error: %s", status.c_str());
     }
 }
 
@@ -183,4 +182,22 @@ void VantaCommunicator::start(QCoreApplication *app)
 
     /* Execute the Qt application event loop. */
     app->exec();
+}
+
+void VantaCommunicator::publishState()
+{
+    ros::spinOnce();
+    std_msgs::String msg;
+    switch (state) {
+        case Startup:
+            msg.data = "STARTUP";
+            break;
+        case Ready:
+            msg.data = "READY";
+            break;
+        case Reading:
+            msg.data = "READING";
+            break;
+    }
+    state_pub.publish(msg);
 }

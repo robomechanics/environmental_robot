@@ -20,19 +20,26 @@ class VantaCommunicator : public QObject
     Q_OBJECT
 
 public:
+    enum SensorState {
+        Startup,
+        Ready,
+        Reading
+    };
 
     VantaCommunicator(int argc, char** argv);
     ~VantaCommunicator();
 
-    bool isRunning;
+    SensorState state;
 
     ros::Publisher chemistry_pub;
     ros::Publisher response_pub;
     ros::Subscriber ctrl_sub;
+    ros::Publisher state_pub;
     std::string vanta_ip;
 
     // Timer object used to pet the watchdog
     QTimer *timer;
+    QTimer *stateTimer;
 
     /* No loop rate/sleep needed since it loops at speed defined by Qt */
 
@@ -52,11 +59,14 @@ public:
     void publishChemistry(std::string chemistry, int dailyId, int testId, std::string testDateTime);
 
     /* Callback function for commands from gui */
-    void callback(const std_msgs::String::ConstPtr& msg);
+    void command_callback(const std_msgs::String::ConstPtr& msg);
 
 public slots:
     /* This method will send the PetWatchdog message to the Vanta device. */
     void petWatchdog();
+
+    /* This method will publish the current state. */
+    void publishState();
 
 private:
     MessageFactory   m_vantaMessageFactory;

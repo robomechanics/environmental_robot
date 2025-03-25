@@ -90,25 +90,34 @@ void WebSocketClient::onTextMessageReceived(QString message)
         m_connectionState = SockNotConnected;
         m_webSocket.close();
         statusMessage = "Device is BUSY";
+        if (m_vcInstance) {
+            m_vcInstance->status(statusMessage);
+        }
     }
 
     if (message.contains(vantaBeingControlled)) {
         m_connectionState = SockNotConnected;
         m_webSocket.close();
         statusMessage = "Device is BUSY";
+        if (m_vcInstance) {
+            m_vcInstance->status(statusMessage);
+        }
     }
 
     if (message.contains(vantaReady)) {
         m_connectionState = SockConnected;
         statusMessage = "ok";
+        if (m_vcInstance) {
+            m_vcInstance->status(statusMessage);
+        }
     }
-
-    m_vcInstance->status(statusMessage);
 }
 
 void WebSocketClient::onBinaryMessageReceived(QByteArray message)
 {
+    if (m_vcInstance) {
     m_vcInstance->messageResponse(message.toStdString());
+    }
 }
 
 void WebSocketClient::sendTextMsgToVanta(const char *message)
@@ -203,7 +212,9 @@ void WebSocketClient::socketError(QAbstractSocket::SocketError error)
         break;
     }
 
+    if (m_vcInstance) {
     m_vcInstance->status(sockErrString.toStdString());
+    }
 }
 
 #endif // WEBSOCKETCLIENT_CPP
