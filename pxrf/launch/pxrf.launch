@@ -1,4 +1,0 @@
-<launch>
-  <!-- PXRF Vanta Communicator -->
-  <node name="pxrf" pkg="pxrf" type="main" output="screen"/>
-</launch>
