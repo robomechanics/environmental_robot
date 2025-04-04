@@ -30,7 +30,7 @@
   <arg name="ntrip_password"   default="pass"                 doc="Password to use to authenticate with the NTRIP caster" />
   <arg name="ntrip_ssl"        default="false"                doc="Whether or not to connect using SSL to the NTRIP caster" />
 
-  <arg name="robot_localization"          default="true"             doc="Whether we should run our own ekf_localization node" />
+  <arg name="robot_localization"          default="false"             doc="Whether we should run our own ekf_localization node" />
   <arg name="robot_localization_name"     default="ekf_localization" doc="Name of either our node or already running robot_localization node" />
   <arg name="robot_localization_imu_name" default="imu0"             doc="Sensor name for the IMU data in robot_localization" />
 
@@ -64,7 +64,7 @@
   <group if="$(arg robot_localization)">
     <node name="$(arg robot_localization_name)" pkg="robot_localization" type="ekf_localization_node" output="screen" ns="/">
       <!-- Set the parameters through our custom params file -->
-      <rosparam file="$(find microstrain_inertial_localization)/config/common/ekf_localization.yml" command="load" subst_value="true" />
+      <rosparam file="$(find robo_nav)/config/ekf_localization.yml" command="load" subst_value="true" />
     </node>
   </group>
 
