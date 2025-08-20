@@ -1,11 +1,9 @@
-import sys
-sys.path.append('../')
 import numpy as np
 from math import *
 import copy
 from scipy.stats import norm
 from scipy.spatial.distance import *
-from boundaryCheck import *
+from .boundaryCheck import *
 
 
 class gridROS:

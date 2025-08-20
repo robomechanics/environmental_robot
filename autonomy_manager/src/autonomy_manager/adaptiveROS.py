@@ -1,7 +1,3 @@
-import sys
-
-sys.path.append("../")
-
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -10,11 +6,11 @@ from sklearn.gaussian_process.kernels import RBF
 from scipy.stats import *
 from math import *
 
-from post_processing import *
+from .post_processing import *
 import copy
 from scipy.stats import norm
 from scipy.spatial.distance import *
-from utils import *
+from .utils import *
 import random
 from sklearn.preprocessing import StandardScaler
 

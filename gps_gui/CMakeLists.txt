@@ -37,7 +37,7 @@ add_service_files(
   GetState.srv
   GetPoses.srv
   GetFloats.srv
-  SetString.srv
+  # SetString.srv
   SetFloat.srv
   SaveSample.srv
   #GetNIRSample.srv

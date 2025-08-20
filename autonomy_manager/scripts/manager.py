@@ -2,6 +2,7 @@
 import math
 from copy import deepcopy
 from colorama import Fore, Back, Style
+from numpy import where
 
 import rosnode
 import rospy
@@ -14,33 +15,26 @@ from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
-from algo_constants import *
-from autonomy_manager.msg import ManagerStatus
+from std_msgs.msg import String
 from autonomy_manager.srv import (
     SetSearchBoundary,
     NavigateGPS,
-    RunSensorPrep,
     Complete,
     Waypoints,
-    AutonomyParams,
+    SetString, SetStringResponse
 )
 
-from pxrf_utils import PXRF
-from pxrf.msg import CompletedScanData
-from adaptiveROS import adaptiveROS
+from pxrf.msg import PxrfReading
 from sklearn.gaussian_process.kernels import RBF
-from utils import visualizer_recreate_real
 from pyproj import Transformer
-from gridROS import gridROS
-from boundaryConversion import Conversion
-
-from gps_gui.srv import SetString, SetStringResponse
+from autonomy_manager import adaptiveROS, gridROS, Conversion
+from autonomy_manager.algo_constants import *
 
 
 class Manager(object):
     def __init__(self, 
                  skip_checks = True, 
-                 debug_flag = False, 
+                 debug_flag = True, 
                  fake_hardware_flags=[FAKE_MOVE_BASE],
                  fake_pxrf_values=None):
         
@@ -61,40 +55,30 @@ class Manager(object):
                 raise('Need Fake PXRF Values!')
         else:
             self._scan_completed_sub = rospy.Subscriber(self._scan_recorded_to_disk_topic, 
-                                                        CompletedScanData, 
+                                                        PxrfReading, 
                                                         self.pxrf_scan_completed_callback)
-            self.pxrf = PXRF()
+            self.pxrf_scan_service = rospy.ServiceProxy(self._start_scan_service_name, SetBool)
+            self.pxrf_element_to_focus = "Pb"
             rospy.logwarn("Started PXRF")
+        
+        if not FAKE_ARM:
+            self.sensor_arm_state_sub = rospy.Subscriber(self._sensor_arm_state_topic, String, self.sensor_arm_state_callback)
 
         self.statusPub = rospy.Publisher(
-            self._status_topic, ManagerStatus, queue_size=10, latch=True
+            self._status_topic, String, queue_size=10, latch=True
         )
-        self.gps_recorded_pub = rospy.Publisher(
-            self._gps_recorded_topic, NavSatFix, queue_size=1
-        )
-        self.gps_recorded_msg = NavSatFix()
         self.update_status(INIT)
         
         # Flags
         self.pxrf_complete = False
         self.pxrf_mean_value = None
-        self.is_full_nav_achieved = False
         self.nav_goal_gps = None
         self.lat = None
         self.lon = None
         self.run_type = None
         self.run_once_flag = False
-        self.is_arm_in_home_pose = None
+        self.is_arm_in_home_pose = True
         self._gps_sub = rospy.Subscriber(self._gq7_ekf_llh_topic, NavSatFix, self.gps_callback)
-        
-        self.sensorPrep = rospy.ServiceProxy(
-            self._sensor_prep_service_name, RunSensorPrep
-        )
-        
-        # Check if Full Nav achieved
-        self.odom_sub = rospy.Subscriber(
-            self._gps_odom_topic, Odometry, self.gps_odom_callback
-        )
 
         # intialize adaptive sampling class and conversion class
         self.adaptiveROS = None     # Initialized when boundary is set
@@ -118,13 +102,16 @@ class Manager(object):
 
         if not skip_checks:
             # Wait until GPS Full Nav is achieved
-            while not self.is_full_nav_achieved:
+            msg = None
+            while msg is None and not rospy.is_shutdown():
                 self.update_status(WAITING_FOR_GPS_INIT)
-                rospy.loginfo_throttle(3,"Waiting for GPS Initialization...")
-                rospy.sleep(1)
+                try:
+                    msg = rospy.wait_for_message(self._gps_odom_topic, Odometry, timeout=3.0)
+                except rospy.ROSException:
+                    rospy.loginfo("Waiting for GPS Initialization...")
+                    rospy.sleep(1)
             
             rospy.loginfo("GPS Full Navigation Achieved!") 
-        self.odom_sub.unregister()
         
         if len(self.fake_hardware_flags) > 1:
             rospy.logwarn('>>> USING FAKE HARDWARE <<<<')
@@ -138,35 +125,13 @@ class Manager(object):
         
         self.update_status(READY)
         
-        # Reset and Get rosparam
-        self.reset_algo_type = False
-        if self.reset_algo_type:
-            rospy.loginfo(" | Waiting to start (Choose a sampling algorithm)")
-            rospy.set_param(self._algorithm_type_param_name, ALGO_NONE)
-            self.algorithm_type = ALGO_NONE
-            rospy.sleep(0.5)
-            while self.algorithm_type == ALGO_NONE:
-                self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
-                self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
-                rospy.sleep(1)
-        else:
-            self.algorithm_type = ALGO_ADAPTIVE
-            
-        if self.algorithm_type == ALGO_ADAPTIVE:
-            rospy.loginfo(f" | Algorithm Set to ADAPTIVE with number of samples = {self.algorithm_total_samples}")
-        elif self.algorithm_type == ALGO_WAYPOINT:
-            rospy.loginfo(f" | Algorithm Set to WAYPOINT")
-        elif self.algorithm_type == ALGO_GRID:
-            rospy.loginfo(f" | Algorithm Set to GRID")
+        self.algorithm_type = ALGO_NONE
         
         rospy.loginfo(f"{Fore.GREEN}{Back.BLACK} ----------- READY ----------- {Style.RESET_ALL}")
 
-    def gps_odom_callback(self, data: Odometry):
-        self.is_full_nav_achieved = True
-
     def run_once(self):
         """
-        Main loop
+        Sub-main loop called based on run type
         """
         self.run_once_flag = False
         
@@ -183,50 +148,50 @@ class Manager(object):
         elif self.status == RECEIVED_NEXT_SCAN_LOC:
             self.navigate_to_scan_loc()
         elif self.status == ARRIVED_AT_SCAN_LOC:
-            if FAKE_ARM in self.fake_hardware_flags:
-                if FAKE_PXRF in self.fake_hardware_flags:
-                    self.fake_arm_and_pxrf()
-                else:
-                    self.update_status(ARM_LOWERED)
-            else:
+            if FAKE_ARM not in self.fake_hardware_flags:
                 self.arm_touchdown()
-        elif self.status == ARM_LOWERED or self.status == FINISHED_RAKING:
+            self.update_status(ARM_LOWERED)
+        elif self.status == ARM_LOWERED:
             if FAKE_PXRF in self.fake_hardware_flags:
                 self.fake_pxrf()
+                self.update_status(FINISHED_SCAN)
             else:
-                self.scan()
+                self.update_status(SCANNING)
+                self.pxrf_scan_service(True)
         elif self.status == FINISHED_SCAN:
-            if FAKE_ARM in self.fake_hardware_flags:
-                self.update_status(ARM_RETURNED)
-            else:
+            if FAKE_ARM not in self.fake_hardware_flags:
                 self.arm_return()
+            self.update_status(ARM_RETURNED)
         elif self.status == ERROR:
-            manual_status = rospy.get_param(self._manager_set_status_after_error_param_name, ERROR)
-            rospy.logwarn(f"Set Status to: {manual_status}")
-            self.update_status(manual_status)
-            
-            # Reset to ERROR
-            rospy.set_param(self._manager_set_status_after_error_param_name, ERROR)
-            
+            self.update_status(ERROR)            
         
         rospy.loginfo("----------- Manager Loop END -----------")
     
     def run(self):
+        """
+        Main loop
+        """
         rate = rospy.Rate(2)
         while not rospy.is_shutdown():
-            if self.status != SCANNING:
-                if self.run_type == "State Step" and self.run_once_flag == True:
-                    self.run_once()
-                elif self.run_type == "Sample Step" and self.status != ARM_RETURNED and self.status != ERROR:
-                    self.run_once()
-                    self.run_once_flag = True
-                elif self.run_type == "Continuous" and self.status != ERROR:
-                    self.run_once()
-                    self.run_once_flag = True
+            if self.status == SCANNING:
+                # Wait for scanned data to be received
+                pass
+            elif self.run_type == "State Step" and self.run_once_flag == True:
+                self.run_once()
+            elif self.run_type == "Sample Step" and self.status != ARM_RETURNED and self.status != ERROR:
+                self.run_once()
+                self.run_once_flag = True
+            elif self.run_type == "Continuous" and self.status != ERROR:
+                self.run_once()
+                self.run_once_flag = True
             
             rate.sleep()
     
     def run_loop_callback(self, data):
+        """
+        Triggered when manager step button is pressed in GUI
+        Changes run_type
+        """
         self.run_type = data.text
         
         if self.status != SCANNING:
@@ -236,32 +201,25 @@ class Manager(object):
             self.update_status(READY)
             
         rospy.loginfo(f"self.run_type: {self.run_type} | self.run_once_flag: {self.run_once_flag} | self.status: {self.status}")
-        
-        
         return SetStringResponse(True, "SUCCESS")
 
     def load_ros_params(self):
         # Load topic names into params
         self._status_topic = rospy.get_param("status_topic")
-        # self._sensor_prep_status_topic = rospy.get_param("sensor_prep_status_topic")
-        self._joy_topic = rospy.get_param("joy_topic")
         self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
         self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
-        self._gps_recorded_topic = rospy.get_param("gps_recorded_topic")
         self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
-        self._manager_set_status_after_error_param_name = rospy.get_param("manager_set_status_after_error_param_name")
         self._gps_odom_topic = rospy.get_param("gps_odom_topic")
         self._scan_recorded_to_disk_topic = rospy.get_param("scan_recorded_to_disk_topic")
-        self._is_arm_in_home_pose_param_name = rospy.get_param("is_arm_in_home_pose_param_name")
+        self._sensor_arm_state_topic = rospy.get_param("sensor_arm_state_topic")
         self._algorithm_type_param_name = rospy.get_param("algorithm_type_param_name")
         
         self.algorithm_type = rospy.get_param(self._algorithm_type_param_name)
         self.algorithm_total_samples = rospy.get_param("algorithm_total_samples")
         
         # Load service names into params
-        self._sensor_prep_service_name = rospy.get_param("sensor_prep_service_name")
         self._set_search_boundary_name = rospy.get_param("set_search_boundary_name")
         self._clear_service_name = rospy.get_param("clear_service_name")
         self._waypoints_service_name = rospy.get_param("waypoints_service_name")
@@ -269,9 +227,7 @@ class Manager(object):
         self._next_goal_to_GUI_service_name = rospy.get_param("next_goal_to_GUI_service_name")
         self._lower_arm_service_name = rospy.get_param("lower_arm_service_name")
         self._start_scan_service_name = rospy.get_param("start_scan_service_name")
-        self._cancel_goal_topic = rospy.get_param("cancel_goal_topic")
         self._run_loop_service_name = rospy.get_param("manager_run_loop_service_name")
-        self._autonomy_params_service_name = rospy.get_param("autonomy_params_service_name")
         
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
@@ -281,24 +237,20 @@ class Manager(object):
         self._constant_velocity_commander_service_name = rospy.get_param("constant_velocity_commander_service_name")
         self._sim_mode = rospy.get_param("sim_mode")
 
-    def scan(self):
-        """
-        Start PXRF scan
-        """
-        self.update_status(SCANNING)
-        self.pxrf.start_scan()
-
-    def pxrf_scan_completed_callback(self, data):
+    def pxrf_scan_completed_callback(self, data: PxrfReading):
         """
         Callback for scan completion
         """
-        if data.status == True:
-            self.pxrf_complete = True
-            self.pxrf_mean_value = data.mean
-            rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
-            
-            self.update_status(FINISHED_SCAN)
+        self.pxrf_complete = True
+        element_index = where(data.elements == self.pxrf_element_to_focus)[0]
+        self.pxrf_mean_value = data.concentrations[element_index]
+        rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
+        
+        self.update_status(FINISHED_SCAN)
         return True
+
+    def sensor_arm_state_callback(self, data: String):
+        self.is_arm_in_home_pose = bool(data.data == "IDLE")
 
     def send_autonomy_params(self, boundary_lat, boundary_lon, width, height):
         start_utm_x = rospy.get_param(self._start_utm_x_param)
@@ -306,20 +258,15 @@ class Manager(object):
         start_utm_lat = rospy.get_param(self._start_utm_lat_param)
         start_utm_lon = rospy.get_param(self._start_utm_lon_param)
         
-        try:
-            send_autonomy_params_client = rospy.ServiceProxy(self._autonomy_params_service_name, AutonomyParams)
-            res = send_autonomy_params_client(boundary_lat,
-                                              boundary_lon,
-                                              start_utm_x,
-                                              start_utm_y,
-                                              start_utm_lat,
-                                              start_utm_lon,
-                                              width,
-                                              height,
-                                              self.algorithm_total_samples)
-        except rospy.ServiceException as e:
-            rospy.logerr(e)
-            rospy.logerr("Send Autonomy Params service call failed!")
+        print(boundary_lat,
+                boundary_lon,
+                start_utm_x,
+                start_utm_y,
+                start_utm_lat,
+                start_utm_lon,
+                width,
+                height,
+                self.algorithm_total_samples)
             
     
     def set_search_boundary_callback(self, data):
@@ -435,21 +382,11 @@ class Manager(object):
         rospy.loginfo(f'{Back.YELLOW}{Fore.BLACK} | Inital Robot Location (GPS|Map|Grid): {self.init_pos_gps} | {self.init_pos_map} | {self.init_pos_grid} {Style.RESET_ALL}')
         
         if self.take_first_sample:
-            self.backup_robot()
+            # self.backup_robot()
             self.update_status(ARRIVED_AT_SCAN_LOC)
         
         return True
     
-    def publish_robot_pos_before_backup(self):
-        """
-        Publish the robot pos before backing up (purely for logging purpose)
-        """
-        self.gps_recorded_msg.latitude = self.lat
-        self.gps_recorded_msg.longitude = self.lon
-        self.gps_recorded_msg.altitude = 0
-        rospy.logwarn(f" | RECORDED Robot Pose before Backup: {self.gps_recorded_msg.latitude}, {self.gps_recorded_msg.longitude}")
-        self.gps_recorded_pub.publish()
-
     def set_waypoints(self, data):
         """
         Callback function for waypoints service
@@ -462,29 +399,13 @@ class Manager(object):
         self.update_status(RECEIVED_SEARCH_AREA)
         return True
 
-    def navigate_to_scan_loc(self):
-        """
-        Publish next scan location to move base
-        """
-        self.update_status(NAVIGATION_TO_SCAN_LOC)
-        self.publish_move_base_goal(self.nav_goal_gps[0], self.nav_goal_gps[1])
-
-    def run_sensor_prep(self):
-        """
-        Sensor prep -- not implemented
-        """
-        self.sensorPrep(True)
-        # TODO: Perform Sensor Prep
-        self.update_status(RAKING)
-
     def update_status(self, newStatus):
         """
         Publish manager status
         """
         self.status = newStatus
-        msg = ManagerStatus()
-        msg.status = self.status
-        msg.header.stamp = rospy.Time.now()
+        msg = String()
+        msg.data = self.status
         self.statusPub.publish(msg)
         if self.debug_flag:
             rospy.loginfo(f'{Back.BLUE}{Fore.WHITE} < Status: {self.status} > {Style.RESET_ALL}')
@@ -498,7 +419,6 @@ class Manager(object):
         """
         Calls the constant velocity publisher service to back up the robot for scanning
         """
-        self.publish_robot_pos_before_backup()
         try:
             constant_vel_cmder_client = rospy.ServiceProxy(self._constant_velocity_commander_service_name, Empty)
             res = constant_vel_cmder_client()
@@ -507,61 +427,58 @@ class Manager(object):
             rospy.logerr("Backup Service Failed!")
 
     def send_location_to_GUI(self, x, y):
-        # rospy.wait_for_service('next_goal')
         try:
             next_goal_to_GUI = rospy.ServiceProxy(self._next_goal_to_GUI_service_name, NavigateGPS)
             res = next_goal_to_GUI(x, y)
         except rospy.ServiceException as e:
             rospy.logwarn("Sending location to GUI failed")
 
-    def publish_move_base_goal(self, lat, lon):
-        if FAKE_ARM not in self.fake_hardware_flags:
-            while '/arm_control' not in rosnode.get_node_names():
-                rospy.loginfo("Waiting for Arm Control Node")
-                rospy.sleep(1)
-            self.is_arm_in_home_pose = rospy.get_param(
-                    self._is_arm_in_home_pose_param_name
-                    ) # Arm pose flag that persists across restarts
-                
-            if not self.is_arm_in_home_pose:
-                rospy.logerr("Arm is not in home pose, will not publish move_base goal!")
-                self.update_status(ERROR)
-                return
-        
-        if FAKE_MOVE_BASE not in self.fake_hardware_flags: 
-            #TODO: Orientation for goal
-            self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(lat, lon)
-            
-            goal = MoveBaseGoal()
-            goal.target_pose.header.frame_id = self._tf_utm_odom_frame
-            goal.target_pose.header.stamp = rospy.Time.now()
-            
-            self.x_UTM_start = rospy.get_param(self._start_utm_x_param)
-            self.y_UTM_start = rospy.get_param(self._start_utm_y_param)
-            
-            goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
-            goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
-            goal.target_pose.pose.position.z = 0.0
-            goal.target_pose.pose.orientation.x = 0
-            goal.target_pose.pose.orientation.y = 0
-            goal.target_pose.pose.orientation.z = 0
-            goal.target_pose.pose.orientation.w = 1 
+    def navigate_to_scan_loc(self):
+        """
+        Publish next scan location to move base
+        """
+        self.update_status(NAVIGATION_TO_SCAN_LOC)
+        if FAKE_ARM not in self.fake_hardware_flags and not self.is_arm_in_home_pose:
+            rospy.logerr("Arm is not in home pose, will not publish move_base goal!")
+            self.update_status(ERROR)
+            return
 
-            self.mb_client.send_goal(goal)
-            rospy.loginfo(" | Goal Sent to movebase...")
-            wait = self.mb_client.wait_for_result()
-            rospy.loginfo(" | Movebase Goal Reached, Backing up...")
-            
-            # Backup
-            self.backup_robot()
+        if FAKE_MOVE_BASE in self.fake_hardware_flags:
+            return
+
+        #TODO: Orientation for goal
+        self.goal_x_UTM, self.goal_y_UTM  = self.transformer.transform(self.nav_goal_gps[0], self.nav_goal_gps[1])
         
-            if not wait:
-                rospy.logerr("Action server not available!")
-                rospy.signal_shutdown("Action server not available!")
-                self.update_status(ERROR)
-            else:
-                self.update_status(ARRIVED_AT_SCAN_LOC)
-                return self.mb_client.get_result()
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = self._tf_utm_odom_frame
+        goal.target_pose.header.stamp = rospy.Time.now()
+        
+        self.x_UTM_start = rospy.get_param(self._start_utm_x_param)
+        self.y_UTM_start = rospy.get_param(self._start_utm_y_param)
+        
+        goal.target_pose.pose.position.x = self.goal_x_UTM - self.x_UTM_start
+        goal.target_pose.pose.position.y = self.goal_y_UTM - self.y_UTM_start
+        goal.target_pose.pose.position.z = 0.0
+        goal.target_pose.pose.orientation.x = 0
+        goal.target_pose.pose.orientation.y = 0
+        goal.target_pose.pose.orientation.z = 0
+        goal.target_pose.pose.orientation.w = 1 
+
+        self.mb_client.send_goal(goal)
+        rospy.loginfo(" | Goal Sent to movebase...")
+        wait = self.mb_client.wait_for_result()
+        rospy.loginfo(" | Movebase Goal Reached, Backing up...")
+        
+        # Backup
+        # self.backup_robot()
+    
+        if not wait:
+            rospy.logerr("Action server not available!")
+            rospy.signal_shutdown("Action server not available!")
+            self.update_status(ERROR)
+        else:
+            self.update_status(ARRIVED_AT_SCAN_LOC)
+            return self.mb_client.get_result()
         
 
     def arm_return(self):
@@ -571,8 +488,6 @@ class Manager(object):
             res = lower_arm(False)
         except rospy.ServiceException as e:
             rospy.logwarn("Arm Return Failed")
-        
-        self.update_status(ARM_RETURNED)
 
     def arm_touchdown(self):
         self.update_status(ARM_LOWERING)
@@ -581,21 +496,11 @@ class Manager(object):
             res = lower_arm(True)
         except rospy.ServiceException as e:
             rospy.logwarn("Arm Touchdown Failed")
-        
-        self.update_status(ARM_LOWERED)
-    
-    def fake_arm_and_pxrf(self):
-        self.pxrf_complete = True
-        self.pxrf_mean_value = self.fake_pxrf_values.pop(0)
-        rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
-        
-        self.update_status(ARM_RETURNED)
     
     def fake_pxrf(self):
         self.pxrf_complete = True
         self.pxrf_mean_value = self.fake_pxrf_values.pop(0)
         rospy.loginfo(f'PXRF Mean Value: {self.pxrf_mean_value}')
-        self.update_status(FINISHED_SCAN)
     
     def reset_callback(self, data):
         """
@@ -641,8 +546,11 @@ class Manager(object):
         """
         # Check initialization
         if self.adaptiveROS is None:
-            raise("Adaptive Search algorithm requires boundary to be set! Aborting.")
-    
+            rospy.logerr("Adaptive Search algorithm requires boundary to be set! Aborting.")
+            self.run_type = None
+            self.run_once_flag = False
+            return
+
         # Update status
         self.update_status(RUNNING_SEARCH_ALGO)
         # If there is already a scan done, update the values in the algorithm
@@ -672,6 +580,13 @@ class Manager(object):
         """
         Uses Grid algo to get next waypoint
         """
+        # Check initialization
+        if self.gridROS is None:
+            rospy.logerr("Grid algorithm requires boundary to be set! Aborting.")
+            self.run_type = None
+            self.run_once_flag = False
+            return
+        
         # Update status
         self.update_status(RUNNING_GRID_ALGO)
         # Reset PXRF
@@ -683,26 +598,6 @@ class Manager(object):
         self.nav_goal_gps = self.conversion.map2gps(self.nav_goal_map[0], self.nav_goal_map[1])
         self.send_location_to_GUI(self.nav_goal_gps[0], self.nav_goal_gps[1])
         self.update_status(RECEIVED_NEXT_SCAN_LOC)
-    #############################################################
-    
-    def show(self, save_to_disk=False, filename="plot.png"):
-        # self.env_map = normalization(self.env_map)
-        # self.surface_mu = normalization(self.surface_mu)
-        
-        # self.env_map = standardization(self.env_map)
-        # self.surface_mu = standardization(self.surface_mu)
-        visualizer_recreate_real(
-            sampled=self.adaptiveROS.sampled,
-            surface_mu=self.adaptiveROS.mu,
-            x_bound=self.adaptiveROS.x_bound,
-            y_bound=self.adaptiveROS.y_bound,
-            predicted_mapsize=(self.adaptiveROS.size_x, self.adaptiveROS.size_y),
-            save_to_disk=save_to_disk,
-            filename=filename
-        )
-        
-        rospy.loginfo(f"Sampled at {self.adaptiveROS.sampled[-1]} with value = {self.adaptiveROS.sampled_val[-1]}")
-        rospy.loginfo(f"Adaptive Norm Range: {self.adaptiveROS.norm_range:.4f}")
         
 
 if __name__ == "__main__":    

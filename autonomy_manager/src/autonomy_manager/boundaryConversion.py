@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import sys
-sys.path.append('../')
 import math
 import pyproj
 import numpy as np
@@ -8,7 +6,7 @@ from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
 from pyproj import Proj
-from boundaryCheck import *
+from .boundaryCheck import *
 
 #[40.44208352622619, -79.94610353523909, 1]
 #[40.44236251851889, -79.94599539848328, 1]
