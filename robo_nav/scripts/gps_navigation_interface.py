@@ -77,8 +77,6 @@ class GPSNavigationInterface:
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._gps_avg_time = rospy.get_param("gps_moving_avg_time")
         
-        self._move_base_action_server_name = rospy.get_param('move_base_action_server_name')
-        
         self._start_utm_x_param = rospy.get_param("start_utm_x_param")
         self._start_utm_y_param = rospy.get_param("start_utm_y_param")
         

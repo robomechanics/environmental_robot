@@ -9,9 +9,7 @@ Panels:
         - /Map1/Status1
         - /Map2/Position1
         - /TF1
-        - /TF1/Status1
-        - /TF1/Tree1
-        - /PointCloud21/Status1
+        - /TF1/Frames1
         - /Odometry1/Status1
         - /Pose2
       Splitter Ratio: 0.5
@@ -33,7 +31,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -106,22 +104,28 @@ Visualization Manager:
       Value: false
     - Class: rviz/TF
       Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
-        All Enabled: true
-        base_footprint:
-          Value: true
+        All Enabled: false
         base_link:
           Value: true
+        earth:
+          Value: false
+        gnss_1_antenna_link:
+          Value: true
+        gnss_2_antenna_link:
+          Value: true
+        gq7_link:
+          Value: true
+        map:
+          Value: false
         odom:
-          Value: true
-        os_imu:
-          Value: true
-        os_lidar:
-          Value: true
-        os_sensor:
-          Value: true
-        utm_odom2:
+          Value: false
+        odometer_link:
+          Value: false
+        utm_odom:
           Value: true
       Marker Alpha: 1
       Marker Scale: 1
@@ -130,13 +134,21 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
+        base_link:
+          gq7_link:
+            gnss_1_antenna_link:
+              {}
+            gnss_2_antenna_link:
+              {}
+            odometer_link:
+              {}
+        earth:
+          map:
+            {}
         odom:
-          base_footprint:
-            base_link:
-              os_sensor:
-                {}
-              utm_odom2:
-                {}
+          {}
+        utm_odom:
+          {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -187,34 +199,6 @@ Visualization Manager:
       Topic: /move_base/DWAPlannerROS/local_plan
       Unreliable: false
       Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Min Color: 0; 0; 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /ouster/points
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -247,7 +231,7 @@ Visualization Manager:
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
         Value: Arrow
-      Topic: /utm_odom2
+      Topic: /utm_odom
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -270,7 +254,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: utm_odom2
+    Fixed Frame: utm_odom
     Frame Rate: 30
   Name: root
   Tools:
@@ -294,7 +278,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.853630065917969
+      Distance: 19.46800994873047
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -310,9 +294,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0347959995269775
+      Pitch: 0.5947964191436768
       Target Frame: utm_odom2
-      Yaw: 4.679165840148926
+      Yaw: 4.749167442321777
     Saved: ~
 Window Geometry:
   Displays:

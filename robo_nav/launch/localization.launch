@@ -1,8 +1,14 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Start GQ7 Odom Launch -->
-	<include file = "$(find robo_nav)/launch/gq7_odom.launch"/>
- 
+    <rosparam command="load" file="$(find autonomy_manager)/config/constants.yaml" />
+
+    <!-- Static TF: base_link -> gq7_link -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_gq7_link"
+            args="0.015 0.0065 0 0 0 0 1 base_link gq7_link" />
+
+    <!-- GPS Localization -->
+    <include file = "$(find robo_nav)/launch/gq7_odom.launch"/>
+
     <!-- Start GPS Interface -->
     <node name="gps_navigation_interface" pkg="robo_nav" type="gps_navigation_interface.py" output="screen" />
 

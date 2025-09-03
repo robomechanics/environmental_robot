@@ -1,20 +1,11 @@
-# Status
-arm_ready_param_name: ready_arm
-pxrf_ready_param_name: ready_pxrf
-rover_ready_param_name: ready_rover
-
 # Autonomy Manager
 status_topic: '/autonomy_manager/status'
-sensor_prep_status_topic: '/sensor_prep_status'
-joy_topic: '/joy'
-sensor_prep_service_name: '/run_sensor_prep'
 set_search_boundary_name: '/autonomy_manager/set_search_boundary'
 clear_service_name: 'clear'
 waypoints_service_name: 'waypoints'
 grid_points_service_name: 'grid_points'
 lower_arm_service_name: 'lower_arm'                             # Used in GUI
 manager_run_loop_service_name: 'manager_run_loop'
-manager_run_type: 1 # 0 - continuous loop, 1 - run loop when called through service manager_run_loop_service_name
 manager_set_status_after_error_param_name: 'manager/set_status_after_error'
 start_utm_x_param: 'start_utm_x'
 start_utm_y_param: 'start_utm_y'
@@ -25,37 +16,20 @@ algorithm_type: adaptive                                        # Used in GUI
 algorithm_total_samples: 16                                     # Used in GUI
 sim_mode: false
 
-odometry_topic: 'odometry'
-cancel_goal_topic: 'cancel_goal'
-
 # GUI (gui.py)
 goal_pub_topic: '/gps_navigation/goal'
 gps_sub_topic: '/heading_true'
 parking_break_service_name: '/parking_brake'
-calibrate_start_service_name: '/start'
 pxrf_client_topic_name: '/take_measurement'
 gps_moving_avg_topic: '/gps_moving_avg'
 gps_moving_avg_time: 1
-gps_recorded_topic: '/gps_recorded_before_backup'
 next_goal_to_GUI_service_name: 'next_goal_to_GUI'
 
 # Autonomy Teleop
-deploy_sensor_auto_service_name: '/deploy_sensor_auto'
-deploy_tool_auto_service_name: '/deploy_tool_auto'
-deploy_tool_service_name: '/deploy_tool'
-deploy_home_auto_service_name: '/deploy_home_auto'
-deploy_home_service_name: '/deploy_home'
-dig_torque_topic: '/dig_torque'
-cmd_vel_auto_topic: '/cmd_vel_auto'
 cmd_vel_topic: '/cmd_vel'
-cmd_vel_managed_topic: '/cmd_vel'
 
 # Arm
-lipo_battery_percentage_topic: 'arm/lipo_battery_percentage'
-lipo_current_topic: 'arm/lipo_motor_current'
-lipo_battery_refresh_interval: 30  # In secs
-lower_arm_service_name: 'arm/lower'
-is_arm_in_home_pose_param_name: 'arm/is_arm_in_home_pose'
+sensor_arm_state_topic: 'arm/is_arm_in_home_pose'
 
 # GPS
 tf_base_link_frame: 'base_link'
@@ -70,36 +44,16 @@ crs_UTM: 'EPSG:3364'
 # Action Lib
 move_base_action_server_name: 'move_base'
 
-# Network
-vanta_ip: "192.168.7.2"
-
 # Robot
 estop_enable_topic: /soft_estop/enable
 estop_reset_topic: /soft_estop/reset
 rover_battery_percentage_topic: /battery_level
 
 # PXRF
-start_scan_service_name: 'scan_start'
-scan_recorded_to_disk_topic: 'scan_recorded_to_disk'
-pxrf_cmd_topic: 'pxrf_cmd'
-pxrf_response_topic: 'pxrf_response'
-pxrf_data_topic: 'pxrf_data'
-element_of_interest: 'Cl'
+start_scan_service_name: 'start_reading'
+scan_recorded_to_disk_topic: 'scanned_sample'
 data_dir: "~/data/pxrf_results"
 pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/chemistry.csv'
-rotate_scan_log_file_service_name: rotate_scan_log_file
-autonomy_params_service_name: 'autonomy_params'
-
-#Fake PXRF
-fake_start_scan_service_name: 'fake_scan_start'
-fake_scan_completed_topic: 'fake_scan_completed'
-fake_pxrf_cmd_topic: 'fake_pxrf_cmd'
-fake_pxrf_data_topic: 'fake_pxrf_data'
-fake_element_of_interest: 'Cl'
-fake_data_dir: "~/data/fake_pxrf_results"
-fake_pxrf_test_results_file: '~/catkin_ws/src/hebi/pxrf/scripts/fake_pxrf/fake_chemistry.csv' # needs to be used in GUI, currently unintegrated
-fake_pxrf_img_topic: '/fake_pxrf/img'
-fake_pxrf_img_create_service_name: '/fake_pxrf/img/create'
 
 # Adaptive Algorithm
 cells_per_meter: 4 
@@ -111,7 +65,3 @@ constant_velocity_commander_service_name: '/rover/move_at_constant_velocity'
                                 "linear": {"x": -0.2, "y": 0.0, "z": 0.0},
                                 "angular": {"x": 0.0, "y": 0.0, "z": 0.0},
                             }
-
-# Sim
-sim_mode: 0
-            
