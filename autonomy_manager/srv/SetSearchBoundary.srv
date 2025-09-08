@@ -6,3 +6,4 @@ uint8 boundary_type
 #   1 - map, x/y
 ---
 bool success
+string message

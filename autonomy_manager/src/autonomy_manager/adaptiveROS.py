@@ -97,6 +97,9 @@ class adaptiveROS:
 
     # function returns the next location to sample
     def predict(self, display_plots=False):
+        if len(self.sampled) == 0:
+            raise RuntimeError("Please take at least one scan to predict the next goal")
+
         # GP prediction
         self.mu, self.std_var = self.gp.predict(self.x1x2, return_std=True)
         

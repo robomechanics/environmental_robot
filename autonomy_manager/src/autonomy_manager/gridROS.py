@@ -38,9 +38,13 @@ class gridROS:
     #function returns the next location to sample 
     def next(self): 
         if len(self.grid_points) > 0:
-            return self.grid_points.pop(0)
+            return self.grid_points[0]
         else:
             return None
+    
+    def pop(self):
+        if len(self.grid_points) > 0:
+            self.grid_points.pop(0)
     
     #function that returns all the grid points
     def getGrid(self):
