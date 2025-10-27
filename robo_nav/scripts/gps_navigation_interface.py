@@ -28,22 +28,22 @@ class GPSNavigationInterface:
 
         self.quaternion = tf.transformations.random_quaternion()
         self.odom = Odometry()
-        self.odom.header.frame_id = self._tf_utm_odom_frame
-        self.odom.child_frame_id = self._tf_base_link_frame
+        self.odom.header.frame_id = "utm_odom"
+        self.odom.child_frame_id = "base_link"
 
         # Creating a transform and its broadcaster
         self.br = tf2_ros.TransformBroadcaster()
         self.t = geometry_msgs.msg.TransformStamped()
-        self.t.header.frame_id = self._tf_base_link_frame
-        self.t.child_frame_id = self._tf_utm_odom_frame
+        self.t.header.frame_id = "base_link"
+        self.t.child_frame_id = "utm_odom"
 
         # Publishers and Subscribers
         self.utm_odom_pub = rospy.Publisher(
-            self._gps_odom_topic, Odometry, queue_size=1
+            "utm_odom", Odometry, queue_size=1
         )
         
         self.gps_avg_pub = rospy.Publisher(
-            self._gps_moving_avg_topic, NavSatFix, queue_size=1
+            "/gps_moving_avg", NavSatFix, queue_size=1
         )
         
         # Publish GPS origin (UTM coordinates) - latched so that late subscribers get it
@@ -57,14 +57,14 @@ class GPSNavigationInterface:
         )
         
         self.gps_status_sub = rospy.Subscriber(
-            self._gq7_ekf_status_topic, HumanReadableStatus, self.gps_status_callback
+            "/gq7/ekf/status", HumanReadableStatus, self.gps_status_callback
         )
 
         self.ekf_odom_map_sub = message_filters.Subscriber(
-            self._gq7_ekf_odom_map_topic, Odometry
+            "/gq7/ekf/odometry_map", Odometry
         )
         self.ekf_llh_sub = message_filters.Subscriber(
-            self._gq7_ekf_llh_topic, NavSatFix
+            "/gq7/ekf/llh_position", NavSatFix
         )
 
         self.ts = message_filters.ApproximateTimeSynchronizer(
@@ -77,13 +77,6 @@ class GPSNavigationInterface:
 
     def load_ros_params(self):
         # Load topic names into params
-        self._tf_base_link_frame = rospy.get_param("tf_base_link_frame")
-        self._tf_utm_odom_frame = rospy.get_param("tf_utm_odom_frame")
-        self._gps_odom_topic = rospy.get_param("gps_odom_topic")
-        self._gq7_ekf_odom_map_topic = rospy.get_param("gq7_ekf_odom_map_topic")
-        self._gps_moving_avg_topic = rospy.get_param("gps_moving_avg_topic")
-        self._gq7_ekf_status_topic = rospy.get_param("gq7_ekf_status_topic")
-        self._gq7_ekf_llh_topic = rospy.get_param("gq7_ekf_llh_topic")
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._gps_avg_time = rospy.get_param("gps_moving_avg_time")
