@@ -10,7 +10,7 @@ from sensor_msgs.msg import NavSatFix
 from microstrain_inertial_msgs.msg import HumanReadableStatus
 import message_filters
 from pyproj import Transformer
-from autonomy_manager.srv import NavigateGPS
+
 
 class GPSNavigationInterface:
     def __init__(self):
