@@ -7,6 +7,7 @@ import tf2_ros
 import geometry_msgs.msg
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
+from geometry_msgs.msg import Point
 from microstrain_inertial_msgs.msg import HumanReadableStatus
 import message_filters
 from pyproj import Transformer
@@ -45,6 +46,16 @@ class GPSNavigationInterface:
             self._gps_moving_avg_topic, NavSatFix, queue_size=1
         )
         
+        # Publish GPS origin (UTM coordinates) - latched so that late subscribers get it
+        self.gps_origin_utm_pub = rospy.Publisher(
+            '/gps_origin_utm', Point, queue_size=1, latch=True
+        )
+        
+        # Publish GPS origin (lat/lon coordinates) - latched so that late subscribers get it
+        self.gps_origin_latlon_pub = rospy.Publisher(
+            '/gps_origin_latlon', NavSatFix, queue_size=1, latch=True
+        )
+        
         self.gps_status_sub = rospy.Subscriber(
             self._gq7_ekf_status_topic, HumanReadableStatus, self.gps_status_callback
         )
@@ -76,12 +87,6 @@ class GPSNavigationInterface:
         self._crs_GPS = rospy.get_param("crs_GPS")
         self._crs_UTM = rospy.get_param("crs_UTM")
         self._gps_avg_time = rospy.get_param("gps_moving_avg_time")
-        
-        self._start_utm_x_param = rospy.get_param("start_utm_x_param")
-        self._start_utm_y_param = rospy.get_param("start_utm_y_param")
-        
-        self._start_utm_lat_param = rospy.get_param("start_utm_lat_param")
-        self._start_utm_lon_param = rospy.get_param("start_utm_lon_param")
 
     def gps_status_callback(self, data):
         # todo: check data.status_flags.heading_warning?
@@ -124,11 +129,21 @@ class GPSNavigationInterface:
 
         self.first_LatLon = False
         
-        rospy.set_param(self._start_utm_x_param, self.x_UTM_start)
-        rospy.set_param(self._start_utm_y_param, self.y_UTM_start)
-
-        rospy.set_param(self._start_utm_lat_param, data.latitude)
-        rospy.set_param(self._start_utm_lon_param, data.longitude)
+        # Publish GPS origin in UTM coordinates (latched topic)
+        utm_origin = Point()
+        utm_origin.x = self.x_UTM_start
+        utm_origin.y = self.y_UTM_start
+        utm_origin.z = 0.0
+        self.gps_origin_utm_pub.publish(utm_origin)
+        
+        # Publish GPS origin in lat/lon coordinates (latched topic)
+        latlon_origin = NavSatFix()
+        latlon_origin.latitude = data.latitude
+        latlon_origin.longitude = data.longitude
+        latlon_origin.altitude = data.altitude
+        latlon_origin.header.stamp = rospy.Time.now()
+        latlon_origin.header.frame_id = "gps_origin"
+        self.gps_origin_latlon_pub.publish(latlon_origin)
 
         self.gps_status_sub.unregister()
 
